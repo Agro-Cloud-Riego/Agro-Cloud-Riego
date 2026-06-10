@@ -1,27 +1,36 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, request, jsonify
 import random
 
 app = Flask(__name__)
 
-# Función para simular lecturas de sensores
-def obtener_datos_simulados():
-    return {
-        "presion": round(random.uniform(2.0, 3.5), 1),  # Simula entre 2.0 y 3.5 Bar
-        "angulo": random.randint(0, 360),              # Simula grados del Pivot
-        "estado": "Regando" if random.random() > 0.2 else "Detenido"
-    }
+# Base de datos en memoria (aquí se guardarán los datos que envíe el Arduino)
+pivot_data = {
+    "presion": 0.0,
+    "angulo": 0,
+    "estado": "Desconectado"
+}
 
 @app.route('/')
 def index():
-    # Enviamos los datos simulados a la página principal
-    data = obtener_datos_simulados()
-    return render_template('dashboard.html', data=data)
+    return render_template('dashboard.html', data=pivot_data)
 
-# Esta ruta será la que usaremos más adelante para actualizar la web 
-# sin recargarla (vía AJAX/Fetch)
-@app.route('/api/datos')
-def api_datos():
-    return jsonify(obtener_datos_simulados())
+# RUTA PARA EL ARDUINO: El hardware llamará a esta dirección
+@app.route('/api/telemetria', methods=['POST'])
+def recibir_telemetria():
+    global pivot_data
+    datos_nuevos = request.json
+    
+    # Actualizamos los valores con lo que envía el microcontrolador
+    pivot_data['presion'] = datos_nuevos.get('presion')
+    pivot_data['angulo'] = datos_nuevos.get('angulo')
+    pivot_data['estado'] = "Regando"
+    
+    return jsonify({"status": "Datos recibidos correctamente"}), 200
+
+# RUTA PARA EL DASHBOARD: La web consulta aquí para actualizarse
+@app.route('/api/obtener_datos')
+def obtener_datos():
+    return jsonify(pivot_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
