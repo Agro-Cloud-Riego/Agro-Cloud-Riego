@@ -87,5 +87,5 @@ def control_remoto():
 
 @app.route('/')
 def vista_celular():
-    # Asegúrate de pasar 'data' aquí
+    # Aquí le estamos pasando el diccionario estado_pivot al HTML bajo el nombre 'data'
     return render_template('dashboard.html', data=estado_pivot)
