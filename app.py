@@ -85,11 +85,10 @@ def control_remoto():
     
     return jsonify({"status": "ok"})
 
+# Asegurate de tener esto definido arriba en tu archivo
+estado_pivot = {'presion': '0', 'angulo': '0', 'estado': 'Apagado'}
+
 @app.route('/')
 def vista_celular():
-    # Renderizar el archivo HTML externo
-    return render_template('dashboard.html')
-
-if __name__ == '__main__':
-    # En Render no usamos modo debug manual ni Ngrok
-    app.run(host='0.0.0.0', port=5000)
+    # Asegúrate de pasar 'data' aquí
+    return render_template('dashboard.html', data=estado_pivot)
