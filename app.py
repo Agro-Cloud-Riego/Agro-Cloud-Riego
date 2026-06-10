@@ -85,9 +85,6 @@ def control_remoto():
     
     return jsonify({"status": "ok"})
 
-# Asegurate de tener esto definido arriba en tu archivo
-estado_pivot = {'presion': '0', 'angulo': '0', 'estado': 'Apagado'}
-
 @app.route('/')
 def vista_celular():
     # Asegúrate de pasar 'data' aquí
