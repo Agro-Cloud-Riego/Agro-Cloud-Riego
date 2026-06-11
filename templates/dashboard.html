@@ -33,6 +33,13 @@
         .badge-parado { background: rgba(245, 158, 11, 0.1); color: var(--alerta); }
         .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
         .badge-info { background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); }
+        
+        /* NUEVOS ESTILOS: BARRA DE PROGRESO INDUSTRIAL */
+        .barra-contenedor { background-color: #1e293b; border-radius: 6px; height: 14px; width: 100%; margin-top: 8px; overflow: hidden; border: 1px solid #334155; }
+        .barra-progreso { height: 100%; transition: width 0.4s ease; }
+        .color-ok { background-color: var(--verde); }
+        .color-alerta { background-color: var(--alerta); }
+        .color-critico { background-color: #ef4444; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
@@ -72,6 +79,27 @@
                     <div class="card-dato"><div class="dato-lbl">Caudalímetro</div><div class="dato-val">{{ data.caudal_lh }} L/h</div></div>
                     <div class="card-dato"><div class="dato-lbl">Red de Enlace</div><div class="dato-val" style="font-size:13px; margin-top:8px;">{{ data.modo_enlace }}</div></div>
                     <div class="card-dato"><div class="dato-lbl">Potencia Señal</div><div class="dato-val" style="font-size:14px; margin-top:8px; color:var(--verde);">{{ data.rssi_dbm }} dBm</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">⚙️ Grupo Electrógeno / Unidad de Bombeo</div>
+                <div style="font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 10px;">{{ data.motor_modelo }}</div>
+                
+                <div class="telemetria-grid" style="margin-bottom: 15px;">
+                    <div class="card-dato"><div class="dato-lbl">Horas Acumuladas</div><div class="dato-val" style="color: #cbd5e1;">{{ data.motor_horas }} hrs</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Próximo Service</div><div class="dato-val" style="color: #cbd5e1;">{{ data.motor_proximo_service }} hrs</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Temp. Motor</div><div class="dato-val" style="font-size:16px; color:#f59e0b;">🌡️ {{ data.motor_temperatura }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Presión Aceite</div><div class="dato-val" style="font-size:16px; color:#38bdf8;">🛢️ {{ data.motor_presion_aceite }}</div></div>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between;">
+                    <span>Vida Útil del Aceite/Filtros ({{ mantenimiento.porcentaje }}%)</span>
+                    <strong>Faltan {{ mantenimiento.restantes }} horas</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso {% if mantenimiento.porcentaje > 90 %}color-critico{% elif mantenimiento.porcentaje > 75 %}color-alerta{% else %}color-ok{% endif %}" 
+                         style="width: {{ mantenimiento.porcentaje }}%;"></div>
                 </div>
             </div>
 
