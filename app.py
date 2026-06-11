@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
+import os
 
 app = Flask(__name__)
 
@@ -16,11 +17,10 @@ equipos = {
         "hectareas_totales": 156.0,
         "caudal_lh": 120000,
         "alerta_ia": "Normal - Presión estable en Cornell",
-        # Nuevos campos del Ladrillo de Telemetría Avanzada:
         "modo_enlace": "WiFi / Celular",
         "latitud": -25.0451,
         "longitud": -64.1284,
-        "rssi_dbm": -65  # Fuerza de la señal de radio
+        "rssi_dbm": -65
     },
     "FRONTAL-F22": {
         "id_equipo": "FRONTAL-F22",
@@ -34,11 +34,10 @@ equipos = {
         "hectareas_totales": 210.0,
         "caudal_lh": 0,
         "alerta_ia": "Estacionado - Listo para operar",
-        # Nuevos campos del Ladrillo de Telemetría Avanzada:
         "modo_enlace": "Enlace de Radio LoRa",
         "latitud": -25.0322,
         "longitud": -64.1115,
-        "rssi_dbm": -92  # Señal lejana pero firme vía antena
+        "rssi_dbm": -92
     }
 }
 
@@ -74,41 +73,53 @@ def control_avanzado(id_equipo, parametro, valor):
 
     return redirect(url_for('index', equipo=id_equipo))
 
-# =======================================================
-#  API CENTRALIZADA: RECIBE WIFI, LORA Y TRAMAS GPS
-# =======================================================
 @app.route('/api/telemetria', methods=['POST'])
 def recibir_datos_campo():
     datos = request.get_json()
-    
     if not datos or "id_equipo" not in datos:
         return jsonify({"status": "error", "message": "Falta identificador"}), 400
-        
     id_eq = datos["id_equipo"]
-    
     if id_eq in equipos:
-        # Actualizaciones básicas
         equipos[id_eq]["presion_bar"] = float(datos.get("presion_bar", equipos[id_eq]["presion_bar"]))
         equipos[id_eq]["caudal_lh"] = int(datos.get("caudal_lh", equipos[id_eq]["caudal_lh"]))
         equipos[id_eq]["angulo_actual"] = int(datos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
-        
-        # Nuevos datos satelitales y de radiofrecuencia que mandarán las placas
         equipos[id_eq]["modo_enlace"] = datos.get("modo_enlace", equipos[id_eq]["modo_enlace"])
         equipos[id_eq]["latitud"] = float(datos.get("latitud", equipos[id_eq]["latitud"]))
         equipos[id_eq]["longitud"] = float(datos.get("longitud", equipos[id_eq]["longitud"]))
         equipos[id_eq]["rssi_dbm"] = int(datos.get("rssi_dbm", equipos[id_eq]["rssi_dbm"]))
-        
-        # Inteligencia de Alertas de Campo
-        if equipos[id_eq]["rssi_dbm"] < -110:
-            equipos[id_eq]["alerta_ia"] = "⚠️ Señal de Radio Crítica. Antena LoRa posiblemente desalineada u obstruida."
-        elif equipos[id_eq]["bomba_activa"] and equipos[id_eq]["presion_bar"] < 1.2:
-            equipos[id_eq]["alerta_ia"] = "🚨 ¡Caída de presión! Posible rotura de pico o manguera de acople."
-        else:
-            equipos[id_eq]["alerta_ia"] = f"Datos recibidos vía {equipos[id_eq]['modo_enlace']} con éxito."
-            
-        return jsonify({"status": "success", "message": "Infraestructura actualizada"}), 200
+        return jsonify({"status": "success"}), 200
+    return jsonify({"status": "error"}), 404
+
+# ─── NUEVA RUTA PARA DESCARGAR EL MANUAL TÉCNICO DIRECTO ───
+@app.route('/descargar-manual')
+def descargar_manual():
+    # Creamos un archivo de texto con toda la ingeniería de pines detallada
+    ruta_archivo = "Manual_Pines_ESP32_AgroFlow.txt"
+    with open(ruta_archivo, "w", encoding="utf-8") as f:
+        f.write("=========================================================\n")
+        f.write("   AGROFLOW AI PRO - PLAN DE ARQUITECTURA DE CAMPO\n")
+        f.write("=========================================================\n\n")
+        f.write("1. ASIGNACIÓN DE PINES FÍSICOS EN EL CHIP ESP32:\n")
+        f.write("---------------------------------------------------------\n")
+        f.write(" * Transductor de Presión (Bomba/Tramo): Pin GPIO 34 (Analog In)\n")
+        f.write(" * Caudalímetro (Conteo de Pulsos):     Pin GPIO 25 (Digital In)\n")
+        f.write(" * Módulo GPS Neo-6M (Línea Frontal):   Pin GPIO 16 (RX2) y GPIO 17 (TX2)\n")
+        f.write(" * Módulo Radio LoRa SX1276 (Antena):   Pines SPI Estándar:\n")
+        f.write("                                        - SS/CS:   GPIO 5\n")
+        f.write("                                        - SCK:     GPIO 18\n")
+        f.write("                                        - MISO:    GPIO 19\n")
+        f.write("                                        - MOSI:    GPIO 23\n\n")
+        f.write("2. CÁLCULO DE CAUDAL ESTIMADO (Mecánica de Fluidos):\n")
+        f.write("---------------------------------------------------------\n")
+        f.write(" Ecuación fundamental: Q = K * raiz(Delta_P)\n")
+        f.write(" Donde Q es el caudal en L/h y P es la presión en Bar leída por el sensor.\n\n")
+        f.write("3. RECOMENDACIÓN DE SEGURIDAD ELÉCTRICA EN EL CAMPO:\n")
+        f.write("---------------------------------------------------------\n")
+        f.write(" Instalar filtros de supresión de picos transitorios (TVS) o diodos zener\n")
+        f.write(" en la entrada de 12V/24V del tablero para proteger el microcontrolador\n")
+        f.write(" contra descargas y rayos en las tormentas de verano.\n")
     
-    return jsonify({"status": "error", "message": "Dispositivo desconocido"}), 404
+    return send_file(ruta_archivo, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
