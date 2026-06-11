@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from datetime import datetime
 
 app = Flask(__name__)
 
@@ -12,12 +11,10 @@ equipos = {
         "estado_marcha": "OPERANDO",
         "presion_bar": 2.4,
         "caudal_lh": 120000,
-        # Telemetría Geométrica del Pivot
         "tipo_geometria": "circular",
-        "angulo_actual": 145,  # Grados de rotación
+        "angulo_actual": 145,
         "hectareas_regadas": 62.5,
         "velocidad_avance": "1.2 m/h",
-        # Conectividad
         "modo_enlace": "WiFi Rural (Puesto)",
         "rssi_dbm": -68,
         "ultima_conexion": "Justo ahora"
@@ -29,39 +26,34 @@ equipos = {
         "estado_marcha": "PARADO",
         "presion_bar": 0.0,
         "caudal_lh": 0,
-        # Telemetría Geométrica del Frontal
         "tipo_geometria": "lineal",
-        "cajon_actual": 4,  # Tramo o posición en el callejón guía
+        "cajon_actual": 4,
         "cajones_totales": 12,
         "metros_recorridos": 450,
-        # Conectividad
         "modo_enlace": "Radio LoRa (Antena Base)",
         "rssi_dbm": -92,
         "ultima_conexion": "Hace 2 min"
     }
 }
 
-# GESTIÓN DE STOCK DE REPUESTOS (Mantenimiento preventivo)
 inventario = [
     {"componente": "Aceite de Transmisión (SAE 50)", "cantidad": 45, "unidad": "Litros", "estado": "OK"},
-    {"componente": "Caja de Engranajes (Gearbox Valley/Lindsay)", "cantidad": 3, "unidad": "Unidades", "estado": "CRÍTICO"},
+    {"componente": "Caja de Engranajes (Gearbox)", "cantidad": 3, "unidad": "Unidades", "estado": "CRÍTICO"},
     {"componente": "Picos Aspersores (Boquillas 3/4)", "cantidad": 120, "unidad": "Unidades", "estado": "OK"},
     {"componente": "Neumático de Pivot 11.2x38", "cantidad": 2, "unidad": "Unidades", "estado": "BAJO"}
 ]
 
-# ESTACIÓN METEOROLÓGICA GENERAL DEL CAMPO
 meteorologia = {
-    "pluviometria_hoy": 14.2,  # mm caídos
-    "pluviometria_acumulada_mes": 42.0,  # mm
+    "pluviometria_hoy": 14.2,
+    "pluviometria_acumulada_mes": 42.0,
     "velocidad_viento": "18 km/h (Norte)",
-    "humedad_suelo": "32% (Capacidad de campo moderada)",
-    "temperatura": "26.4 °C"
+    "humedad_suelo": "32% (Moderada)",
+    "temperatura": "26.4 oC"
 }
 
-# ÓRDENES DE TRABAJO Y MANTENIMIENTO Activas
 ordenes_trabajo = [
     {"id": "OT-104", "equipo": "PIVOT-P156", "tarea": "Cambio de aceite de reductoras en torre 4 y 5", "responsable": "Mecánicos", "prioridad": "Alta"},
-    {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos y manguera de abasto", "responsable": "Electricista", "prioridad": "Media"}
+    {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos", "responsable": "Electricista", "prioridad": "Media"}
 ]
 
 @app.route('/')
@@ -77,7 +69,6 @@ def index():
         ot=ordenes_trabajo
     )
 
-# API para recibir los datos de los sensores de campo (ESP32)
 @app.route('/api/telemetria', methods=['POST'])
 def recibir_datos():
     datos = request.get_json()
