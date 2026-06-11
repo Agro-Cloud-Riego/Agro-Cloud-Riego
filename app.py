@@ -22,7 +22,7 @@ estado_pivot = {
     "cultivo": "Soja de Primera"
 }
 
-# LINEA DE TIEMPO HISTORICA
+# LINEA DE TIEMPO HISTORICA (Estilo Ponce)
 historial_eventos = [
     {"hora": "09:15 AM", "evento": "REGANDO", "detalle": "Presion nominal optima en colector."},
     {"hora": "07:30 AM", "evento": "MOVIMIENTO", "detalle": "Avance automatico de tramos OK."},
