@@ -1,3 +1,5 @@
+import datetime
+import random
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
@@ -74,7 +76,6 @@ def control_avanzado(id_equipo, parametro, valor):
 # ==========================================
 @app.route('/api/telemetria', methods=['POST'])
 def recibir_datos_campo():
-    # El chip ESP32 va a mandar un paquete de datos por internet
     datos_recibidos = request.get_json()
     
     if not datos_recibidos or "id_equipo" not in datos_recibidos:
@@ -82,14 +83,11 @@ def recibir_datos_campo():
         
     id_eq = datos_recibidos["id_equipo"]
     
-    # Si el equipo existe en nuestra lista, le actualizamos los valores con los del sensor real
     if id_eq in equipos:
         equipos[id_eq]["presion_bar"] = float(datos_recibidos.get("presion_bar", equipos[id_eq]["presion_bar"]))
         equipos[id_eq]["caudal_lh"] = int(datos_recibidos.get("caudal_lh", equipos[id_eq]["caudal_lh"]))
         equipos[id_eq]["angulo_actual"] = int(datos_recibidos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
         
-        # Inteligencia Artificial Básica de Seguridad:
-        # Si la bomba está activa pero la presión cae por debajo de 1.2 Bar, asumimos rotura o fuga
         if equipos[id_eq]["bomba_activa"] and equipos[id_eq]["presion_bar"] < 1.2:
             equipos[id_eq]["alerta_ia"] = "🚨 ALERTA IA: ¡Caída de presión crítica detectada! Posible rotura de caño o falla en bomba Cornell."
         else:
@@ -98,3 +96,6 @@ def recibir_datos_campo():
         return jsonify({"status": "success", "message": "Telemetria actualizada en la nube"}), 200
     
     return jsonify({"status": "error", "message": "Equipo no registrado"}), 404
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
