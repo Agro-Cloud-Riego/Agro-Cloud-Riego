@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-# BASE DE DATOS MULTI-EQUIPO (Aquí conviven Pivots y Frontales)
+# BASE DE DATOS PROFESIONAL (Control independiente de Hidráulica y Movimiento)
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
@@ -23,37 +23,55 @@ equipos = {
         "lote": "Lote Norte-B",
         "bomba_activa": False,
         "presion_bar": 0.0,
-        "angulo_actual": 0, # En frontales representa metros avanzados o posición
+        "angulo_actual": 120, 
         "direccion": "REVERSA",
-        "timer_porcentaje": 80,
+        "timer_porcentaje": 0, # Detenido para mantenimiento
         "hectareas_totales": 210.0,
         "caudal_lh": 0,
-        "alerta_ia": "Apagado - Esperando ventana de riego según NDVI"
+        "alerta_ia": "Estacionado - Listo para operar"
     }
 }
 
 @app.route('/')
 def index():
-    # Por defecto, si no elige ninguno, mostramos el Pivot
     id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
     equipo = equipos.get(id_seleccionado, equipos["PIVOT-P156"])
     return render_template('dashboard.html', data=equipo, todos_equipos=equipos)
 
-@app.route('/control/<id_equipo>/<accion>')
-def control_bomba(id_equipo, accion):
+@app.route('/control/<id_equipo>/<parametro>/<valor>')
+def control_avanzado(id_equipo, parametro, valor):
     if id_equipo in equipos:
-        if accion == "arrancar":
-            equipos[id_equipo]["bomba_activa"] = True
-            equipos[id_equipo]["presion_bar"] = 2.4 if id_equipo == "PIVOT-P156" else 3.1
-            equipos[id_equipo]["caudal_lh"] = 120000
-            equipos[id_equipo]["alerta_ia"] = "Bomba encendida por telecontrol."
-        elif accion == "parar":
-            equipos[id_equipo]["bomba_activa"] = False
-            equipos[id_equipo]["presion_bar"] = 0.0
-            equipos[id_equipo]["caudal_lh"] = 0
-            equipos[id_equipo]["alerta_ia"] = "Apagado manual a distancia."
+        eq = equipos[id_equipo]
+        
+        # 1. Control de Bomba (Hidráulica)
+        if parametro == "bomba":
+            if valor == "encender":
+                eq["bomba_activa"] = True
+                eq["presion_bar"] = 2.4 if id_equipo == "PIVOT-P156" else 3.1
+                eq["caudal_lh"] = 120000
+            elif valor == "apagar":
+                eq["bomba_activa"] = False
+                eq["presion_bar"] = 0.0
+                eq["caudal_lh"] = 0
+                
+        # 2. Control de Dirección (Tablero)
+        elif parametro == "direccion":
+            eq["direccion"] = valor.upper()
             
+        # 3. Control de Velocidad / Parada de Avance (Timer)
+        elif parametro == "timer":
+            nuevo_timer = int(valor)
+            if nuevo_timer < 0: nuevo_timer = 0
+            if nuevo_timer > 100: nuevo_timer = 100
+            eq["timer_porcentaje"] = nuevo_timer
+            
+            # IA Analítica: Si detiene el avance pero la bomba sigue prendida
+            if nuevo_timer == 0 and eq["bomba_activa"]:
+                eq["alerta_ia"] = "Mantenimiento: Equipo detenido aplicando lámina máxima en posición actual."
+            else:
+                eq["alerta_ia"] = "Operación normal regulada por telecontrol."
+
     return redirect(url_for('index', equipo=id_equipo))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)5000)
