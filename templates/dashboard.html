@@ -22,7 +22,6 @@
         .estado-off { color: #f87171; }
         .estado-wait { color: #f59e0b; }
 
-        /* Paneles de Mandos Industriales */
         .control-section { background: #1e293b; padding: 15px; border-radius: 12px; max-width: 490px; margin: 15px auto 0 auto; border: 1px solid #334155; text-align: left; }
         .section-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
         .flex-btns { display: flex; justify-content: space-around; gap: 10px; }
@@ -32,13 +31,37 @@
         .btn-red { background-color: #ef4444; color: white; }
         .btn-blue { background-color: #38bdf8; color: #0f172a; }
         .btn-dark { background-color: #475569; color: white; }
+        .btn-orange { background-color: #f59e0b; color: white; }
         .btn-active { border: 2px solid white; box-shadow: 0 0 8px #38bdf8; }
         
         .ia-panel { margin-top: 15px; background: rgba(56, 189, 248, 0.05); border: 1px dashed #38bdf8; padding: 12px; border-radius: 12px; max-width: 490px; margin-left: auto; margin-right: auto; font-size: 12px; text-align: left; }
         .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 10px; margin-right: 5px; }
+        
+        /* Caja Simuladora */
+        .simulator-box { background: #334155; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; border: 1px dashed #94a3b8; text-align: left; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
+        
+        // Función JS para simular lo que haría el chip ESP32 metiéndole datos a la API por detrás
+        function simularEnvioESP32(presion, caudal, angulo) {
+            const idEquipo = "{{ data.id_equipo }}";
+            fetch('/api/telemetria', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_equipo: idEquipo,
+                    presion_bar: presion,
+                    caudal_lh: caudal,
+                    angulo_actual: angulo
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("Chip ESP32 Simulado: Datos enviados a la API de Render.");
+                window.location.reload(); // Recargamos para ver el cambio reflejado
+            });
+        }
     </script>
 </head>
 <body>
@@ -112,6 +135,15 @@
 
     <div class="ia-panel">
         <p style="margin: 0 0 5px 0;"><span class="tag-ia">ANALÍTICA IA</span> <strong>Estado de Línea:</strong> {{ data.alerta_ia }}</p>
+    </div>
+
+    <div class="simulator-box">
+        <div class="label" style="color:#cbd5e1; font-weight:bold; margin-bottom:8px;">🔧 Banquina de Prueba: Simular Placa ESP32</div>
+        <p style="font-size:11px; margin:0 0 10px 0; color:#94a3b8;">Hacé de cuenta que sos el sensor del equipo mandando ráfagas de datos por señal celular:</p>
+        <div class="flex-btns">
+            <button class="btn btn-blue" onclick="simularEnvioESP32(2.6, 122000, 48)" style="font-size:11px;">Riego Óptimo (2.6 Bar)</button>
+            <button class="btn btn-orange" onclick="simularEnvioESP32(0.8, 140000, 52)" style="font-size:11px;">Simular Caño Roto (0.8 Bar)</button>
+        </div>
     </div>
 
 </body>
