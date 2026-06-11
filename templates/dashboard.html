@@ -18,56 +18,48 @@
         .value { font-size: 22px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
         .label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        .estado-on { color: #4ade80; }
-        .estado-off { color: #f87171; }
-        .estado-wait { color: #f59e0b; }
-
         .control-section { background: #1e293b; padding: 15px; border-radius: 12px; max-width: 490px; margin: 15px auto 0 auto; border: 1px solid #334155; text-align: left; }
         .section-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
         .flex-btns { display: flex; justify-content: space-around; gap: 10px; }
         
-        .btn { padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; text-decoration: none; text-align: center; flex-grow: 1; display: inline-block; }
+        .btn { padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; text-align: center; flex-grow: 1; display: inline-block; }
         .btn-green { background-color: #22c55e; color: white; }
         .btn-red { background-color: #ef4444; color: white; }
         .btn-blue { background-color: #38bdf8; color: #0f172a; }
         .btn-dark { background-color: #475569; color: white; }
-        .btn-orange { background-color: #f59e0b; color: white; }
-        .btn-active { border: 2px solid white; box-shadow: 0 0 8px #38bdf8; }
         
         .ia-panel { margin-top: 15px; background: rgba(56, 189, 248, 0.05); border: 1px dashed #38bdf8; padding: 12px; border-radius: 12px; max-width: 490px; margin-left: auto; margin-right: auto; font-size: 12px; text-align: left; }
         .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 10px; margin-right: 5px; }
         
-        /* Caja Simuladora */
         .simulator-box { background: #334155; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; border: 1px dashed #94a3b8; text-align: left; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
         
-        // Función JS para simular lo que haría el chip ESP32 metiéndole datos a la API por detrás
-        function simularEnvioESP32(presion, caudal, angulo) {
-            const idEquipo = "{{ data.id_equipo }}";
+        function simularNodoAvanzado(modo, lat, lon, rssi, pres) {
             fetch('/api/telemetria', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id_equipo: idEquipo,
-                    presion_bar: presion,
-                    caudal_lh: caudal,
-                    angulo_actual: angulo
+                    id_equipo: "{{ data.id_equipo }}",
+                    presion_bar: pres,
+                    caudal_lh: pres > 0 ? 122000 : 0,
+                    angulo_actual: 72,
+                    modo_enlace: modo,
+                    latitud: lat,
+                    longitud: lon,
+                    rssi_dbm: rssi
                 })
             })
             .then(res => res.json())
-            .then(data => {
-                alert("Chip ESP32 Simulado: Datos enviados a la API de Render.");
-                window.location.reload(); // Recargamos para ver el cambio reflejado
-            });
+            .then(data => { window.location.reload(); });
         }
     </script>
 </head>
 <body>
 
     <h1>AgroFlow AI Pro 🌐</h1>
-    <div class="subtitle">Consola de Mando de Campo</div>
+    <div class="subtitle">Consola de Mando Satelital e Inalámbrica</div>
     
     <div class="selector-box">
         <select onchange="cambiarEquipo(this)">
@@ -80,70 +72,41 @@
     <div class="grid">
         <div class="card">
             <div class="label">Presión Sensor</div>
-            <div class="value">{{ data.presion_bar }} <span style="font-size: 13px;">Bar</span></div>
+            <div class="value">{{ data.presion_bar }} Bar</div>
         </div>
         <div class="card">
-            <div class="label">Caudal Actual</div>
-            <div class="value" style="font-size:18px; margin-top:8px;">{{ data.caudal_lh }} <span style="font-size: 11px; color:#94a3b8;">L/h</span></div>
+            <div class="label">Red de Enlace</div>
+            <div class="value" style="font-size:14px; margin-top:10px; color:#38bdf8;">📡 {{ data.modo_enlace }}</div>
         </div>
         <div class="card">
-            <div class="label">Posición Actual</div>
-            <div class="value">{{ data.angulo_actual }}°</div>
+            <div class="label">Coordenadas GPS</div>
+            <div class="value" style="font-size:12px; margin-top:10px; color:#cbd5e1;">{{ data.latitud }},<br>{{ data.longitud }}</div>
         </div>
         <div class="card">
-            <div class="label">Sentido de Marcha</div>
-            <div class="value" style="color: #e2e8f0; font-size: 18px; margin-top:8px;">➡️ {{ data.direccion }}</div>
-        </div>
-        <div class="card card-full">
-            <div class="label">Estado Dinámico del Sistema</div>
-            <div class="value {% if data.bomba_activa and data.timer_porcentaje > 0 %}estado-on{% elif data.bomba_activa and data.timer_porcentaje == 0 %}estado-wait{% else %}estado-off{% endif %}">
-                {% if data.bomba_activa and data.timer_porcentaje > 0 %} 🔥 EN RIEGO Y AVANZANDO
-                {% elif data.bomba_activa and data.timer_porcentaje == 0 %} ⏳ RIEGO DETENIDO (MANTENIMIENTO)
-                {% else %} ❄️ SISTEMA COMPLETAMENTE DETENIDO {% endif %}
-            </div>
+            <div class="label">Fuerza Potencia Radio</div>
+            <div class="value" style="color: #4ade80;">{{ data.rssi_dbm }} dBm</div>
         </div>
     </div>
 
     <div class="control-section">
-        <div class="section-title">1. Control de Bomba (Cornell / Deutz)</div>
+        <div class="section-title">1. Operación de Bomba Hidráulica</div>
         <div class="flex-btns">
-            <a href="/control/{{ data.id_equipo }}/bomba/encender" class="btn btn-green {% if data.bomba_activa %}btn-active{% endif %}">ENCENDER</a>
-            <a href="/control/{{ data.id_equipo }}/bomba/apagar" class="btn btn-red {% if not data.bomba_activa %}btn-active{% endif %}">APAGAR</a>
-        </div>
-    </div>
-
-    <div class="control-section">
-        <div class="section-title">2. Dirección del Tren de Torres</div>
-        <div class="flex-btns">
-            <a href="/control/{{ data.id_equipo }}/direccion/adelante" class="btn btn-dark {% if data.direccion == 'ADELANTE' %}btn-blue btn-active{% endif %}">ADELANTE</a>
-            <a href="/control/{{ data.id_equipo }}/direccion/reversa" class="btn btn-dark {% if data.direccion == 'REVERSA' %}btn-blue btn-active{% endif %}">REVERSA</a>
-        </div>
-    </div>
-
-    <div class="control-section">
-        <div class="section-title">3. Avance Timer (% de marcha) — Actual: <strong>{{ data.timer_porcentaje }}%</strong></div>
-        <div class="flex-btns" style="margin-bottom: 10px;">
-            <a href="/control/{{ data.id_equipo }}/timer/0" class="btn btn-red {% if data.timer_porcentaje == 0 %}btn-active{% endif %}" style="font-size:12px;">PARAR AVANCE (0%)</a>
-            <a href="/control/{{ data.id_equipo }}/timer/50" class="btn btn-dark" style="font-size:12px;">50%</a>
-            <a href="/control/{{ data.id_equipo }}/timer/100" class="btn btn-dark" style="font-size:12px;">100%</a>
-        </div>
-        <div class="flex-btns">
-            <a href="/control/{{ data.id_equipo }}/timer/{{ data.timer_porcentaje - 5 }}" class="btn btn-dark">- 5%</a>
-            <a href="/control/{{ data.id_equipo }}/timer/{{ data.timer_porcentaje + 5 }}" class="btn btn-dark">+ 5%</a>
+            <a href="/control/{{ data.id_equipo }}/bomba/encender" class="btn btn-green">ENCENDER</a>
+            <a href="/control/{{ data.id_equipo }}/bomba/apagar" class="btn btn-red">APAGAR</a>
         </div>
     </div>
 
     <div class="ia-panel">
-        <p style="margin: 0 0 5px 0;"><span class="tag-ia">ANALÍTICA IA</span> <strong>Estado de Línea:</strong> {{ data.alerta_ia }}</p>
+        <p style="margin: 0;"><span class="tag-ia">RADAR IA</span> {{ data.alerta_ia }}</p>
     </div>
 
     <div class="simulator-box">
-        <div class="label" style="color:#cbd5e1; font-weight:bold; margin-bottom:8px;">🔧 Banquina de Prueba: Simular Placa ESP32</div>
-        <p style="font-size:11px; margin:0 0 10px 0; color:#94a3b8;">Hacé de cuenta que sos el sensor del equipo mandando ráfagas de datos por señal celular:</p>
-        <div class="flex-btns">
-            <button class="btn btn-blue" onclick="simularEnvioESP32(2.6, 122000, 48)" style="font-size:11px;">Riego Óptimo (2.6 Bar)</button>
-            <button class="btn btn-orange" onclick="simularEnvioESP32(0.8, 140000, 52)" style="font-size:11px;">Simular Caño Roto (0.8 Bar)</button>
+        <div class="label" style="color:#cbd5e1; font-weight:bold; margin-bottom:8px;">🔧 Banquina de Frecuencias: Simular Modos de Red</div>
+        <div class="flex-btns" style="margin-bottom:8px;">
+            <button class="btn btn-blue" onclick="simularNodoAvanzado('Radio LoRa Extremo', -25.034, -64.112, -95, 2.5)" style="font-size:11px;">Simular Antena LoRa lejana</button>
+            <button class="btn btn-green" onclick="simularNodoAvanzado('WiFi Celular Camioneta', -25.045, -64.128, -50, 2.3)" style="font-size:11px;">Simular WiFi Corto Alcance</button>
         </div>
+        <button class="btn btn-red" onclick="simularNodoAvanzado('Radio LoRa Desalineada', -25.034, -64.112, -118, 1.9)" style="font-size:11px; width:100%;">Simular Pérdida de Antena por Viento (-118 dBm)</button>
     </div>
 
 </body>
