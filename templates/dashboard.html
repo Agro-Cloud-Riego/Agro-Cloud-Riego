@@ -3,121 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroFlow AI Pro</title>
+    <title>AgroFlow Pro - Centro de Telemetría Rural</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 15px; text-align: center; }
-        h1 { color: #38bdf8; margin-bottom: 5px; font-size: 26px; }
-        .subtitle { color: #94a3b8; margin-bottom: 15px; font-size: 13px; }
+        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #1e293b; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #f59e0b; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f1f5f9; margin: 0; padding: 20px; }
         
-        .selector-box { background: #1e293b; padding: 12px; border-radius: 12px; max-width: 500px; margin: 0 auto 15px auto; border: 1px solid #334155; }
-        select { background: #0f172a; color: #38bdf8; padding: 8px; border-radius: 6px; border: 1px solid #38bdf8; font-size: 15px; width: 85%; cursor: pointer; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 24px; color: #fff; }
+        .logo-meta { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Diseño de Panel de Control de Pantalla Ancha */
+        .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
+
+        .columna { display: flex; flex-direction: column; gap: 20px; }
         
-        .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 520px; margin: 0 auto; }
-        .card { background: #1e293b; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 43%; min-width: 120px; border: 1px solid #334155; }
-        .value { font-size: 22px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
-        .label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; }
+        .panel-titulo { font-size: 13px; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px solid var(--borde); padding-bottom: 6px; display: flex; justify-content: space-between; }
         
-        .control-section { background: #1e293b; padding: 15px; border-radius: 12px; max-width: 490px; margin: 15px auto 0 auto; border: 1px solid #334155; text-align: left; }
-        .section-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
-        .flex-btns { display: flex; justify-content: space-around; gap: 10px; }
+        /* Selectores de Flota */
+        .selector-flota select { background: var(--bg-principal); color: var(--texto-ok); padding: 10px; border-radius: 8px; border: 1px solid var(--texto-ok); font-size: 16px; width: 100%; font-weight: bold; cursor: pointer; }
         
-        .btn { padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; text-align: center; flex-grow: 1; display: inline-block; }
-        .btn-green { background-color: #22c55e; color: white; }
-        .btn-red { background-color: #ef4444; color: white; }
-        .btn-blue { background-color: #38bdf8; color: #0f172a; }
+        /* Grilla de Telemetría Física */
+        .telemetria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .card-dato { background: rgba(255,255,255,0.02); pading: 12px; border-radius: 8px; border: 1px solid var(--borde); padding: 12px;}
+        .dato-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; }
+        .dato-val { font-size: 20px; font-weight: bold; color: var(--texto-ok); margin-top: 4px; }
+
+        /* Representación Visual Geográfica del Lote */
+        .mapa-simulado { background: #070a12; border: 2px dashed var(--borde); height: 160px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .pivot-circulo { width: 120px; height: 120px; border: 2px dashed #334155; border-radius: 50%; position: relative; }
+        .pivot-linea-avance { position: absolute; width: 50%; height: 2px; background: #ef4444; top: 50%; left: 50%; transform-origin: left center; }
+        .frontal-camino { width: 80%; height: 20px; background: #1e293b; border-radius: 4px; position: relative; }
+        .frontal-carro { position: absolute; width: 15px; height: 30px; background: #ef4444; top: -5px; border-radius: 3px; }
+
+        /* Tablas de Datos */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { color: #64748b; padding: 8px; border-bottom: 1px solid var(--borde); font-weight: 500; }
+        td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.02); }
         
-        .ia-panel { margin-top: 15px; background: rgba(56, 189, 248, 0.05); border: 1px dashed #38bdf8; padding: 12px; border-radius: 12px; max-width: 490px; margin-left: auto; margin-right: auto; font-size: 12px; text-align: left; }
-        .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 10px; margin-right: 5px; }
-        
-        .simulator-box { background: #334155; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; border: 1px dashed #94a3b8; text-align: left; }
-        
-        /* Panel del Manual Técnico integrado */
-        .manual-box { background: #020617; border: 1px solid #1e3a8a; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; text-align: left; font-family: monospace; font-size: 11px; color: #38bdf8; }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .badge-marcha { background: rgba(16, 185, 129, 0.1); color: var(--verde); }
+        .badge-parado { background: rgba(245, 158, 11, 0.1); color: var(--alerta); }
+        .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
-        
-        function simularNodoAvanzado(modo, lat, lon, rssi, pres) {
-            fetch('/api/telemetria', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_equipo: "{{ data.id_equipo }}",
-                    presion_bar: pres,
-                    caudal_lh: pres > 0 ? 122000 : 0,
-                    angulo_actual: 72,
-                    modo_enlace: modo,
-                    latitud: lat,
-                    longitud: lon,
-                    rssi_dbm: rssi
-                })
-            })
-            .then(res => res.json())
-            .then(data => { window.location.reload(); });
-        }
     </script>
 </head>
 <body>
 
-    <h1>AgroFlow AI Pro 🌐</h1>
-    <div class="subtitle">Consola de Mando Satelital e Inalámbrica</div>
-    
-    <div class="selector-box">
-        <select onchange="cambiarEquipo(this)">
-            {% for id, eq in todos_equipos.items() %}
-                <option value="{{ id }}" {% if id == data.id_equipo %}selected{% endif %}>{{ eq.tipo }} - {{ id }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    
-    <div class="grid">
-        <div class="card">
-            <div class="label">Presión Sensor</div>
-            <div class="value">{{ data.presion_bar }} Bar</div>
+    <header>
+        <div>
+            <h1>AgroFlow AI 🌐 <span style="font-size: 16px; color: var(--texto-ok);">Centro de Monitoreo Técnico</span></h1>
+            <div class="logo-meta">Consola General Integrada de Telemetría e Inventario de Campo</div>
         </div>
-        <div class="card">
-            <div class="label">Red de Enlace</div>
-            <div class="value" style="font-size:14px; margin-top:10px; color:#38bdf8;">📡 {{ data.modo_enlace }}</div>
+        <div style="text-align: right;">
+            <div style="font-size: 14px; font-weight: bold;">Estancia Central</div>
+            <div style="font-size: 11px; color: #64748b;">Salta, Argentina</div>
         </div>
-        <div class="card">
-            <div class="label">Coordenadas GPS</div>
-            <div class="value" style="font-size:12px; margin-top:10px; color:#cbd5e1;">{{ data.latitud }},<br>{{ data.longitud }}</div>
-        </div>
-        <div class="card">
-            <div class="label">Fuerza Potencia Radio</div>
-            <div class="value" style="color: #4ade80;">{{ data.rssi_dbm }} dBm</div>
-        </div>
-    </div>
+    </header>
 
-    <div class="control-section">
-        <div class="section-title">1. Operación de Bomba Hidráulica</div>
-        <div class="flex-btns">
-            <a href="/control/{{ data.id_equipo }}/bomba/encender" class="btn btn-green">ENCENDER</a>
-            <a href="/control/{{ data.id_equipo }}/bomba/apagar" class="btn btn-red">APAGAR</a>
+    <div class="dashboard-layout">
+        
+        <div class="columna">
+            
+            <div class="panel selector-flota">
+                <div class="panel-titulo">Selección de Unidad Activa</div>
+                <select onchange="cambiarEquipo(this)">
+                    {% for id, eq in todos_equipos.items() %}
+                        <option value="{{ id }}" {% if id == data.id_equipo %}selected{% endif %}>{{ eq.tipo }} - Real ID: {{ id }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">
+                    <span>Telemetría de Sensor de Campo</span>
+                    <span class="badge {% if data.estado_marcha == 'OPERANDO' %}badge-marcha{% else %}badge-parado{% endif %}">{{ data.estado_marcha }}</span>
+                </div>
+                <div class="telemetria-grid">
+                    <div class="card-dato"><div class="dato-lbl">Presión en Manifold</div><div class="dato-val">{{ data.presion_bar }} Bar</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Caudal Estimado</div><div class="dato-val">{{ data.caudal_lh }} L/h</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Enlace de Radio</div><div class="dato-val" style="font-size:14px; margin-top:8px;">{{ data.modo_enlace }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Señal Antena</div><div class="dato-val" style="font-size:14px; margin-top:8px; color:var(--verde);">{{ data.rssi_dbm }} dBm</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">Ubicación y Geoposicionamiento Espacial en Lote</div>
+                <div style="margin-bottom: 12px; font-size: 13px; color: #cbd5e1;">
+                    📍 <strong>Ubicación Actual:</strong> {{ data.lote }} <br>
+                    {% if data.tipo_geometria == 'circular' %}
+                        🔄 <strong>Ángulo de Avance:</strong> {{ data.angulo_actual }}° | 🚜 <strong>Hectáreas Cubiertas:</strong> {{ data.hectareas_regadas }} Ha
+                    {% else %}
+                        🔲 <strong>Posición en Callejón:</strong> Cajón {{ data.cajon_actual }} de {{ data.cajones_totales }} | 📏 <strong>Distancia:</strong> {{ data.metros_recorridos }} metros
+                    {% endif %}
+                </div>
+                
+                <div class="mapa-simulado">
+                    {% if data.tipo_geometria == 'circular' %}
+                        <div class="pivot-circulo">
+                            <div class="pivot-linea-avance" style="transform: rotate({{ data.angulo_actual }}deg);"></div>
+                        </div>
+                        <span style="position: absolute; bottom: 8px; right: 12px; font-size: 10px; color: #64748b;">Representación Radial (0-360°)</span>
+                    {% else %}
+                        <div class="frontal-camino">
+                            <div class="frontal-carro" style="left: calc(({{ data.cajon_actual }} / {{ data.cajones_totales }}) * 100% - 7px);"></div>
+                        </div>
+                        <span style="position: absolute; bottom: 8px; right: 12px; font-size: 10px; color: #64748b;">Eje del Callejón de Alimentación</span>
+                    {% endif %}
+                </div>
+            </div>
+
         </div>
-    </div>
 
-    <div class="ia-panel">
-        <p style="margin: 0;"><span class="tag-ia">RADAR IA</span> {{ data.alerta_ia }}</p>
-    </div>
+        <div class="columna">
+            
+            <div class="panel">
+                <div class="panel-titulo">📡 Estación Meteorológica del Campo</div>
+                <div class="telemetria-grid">
+                    <div class="card-dato"><div class="dato-lbl">Pluviómetro (Hoy)</div><div class="dato-val" style="color: #60a5fa;">{{ clima.pluviometria_hoy }} mm</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Acumulado Mes</div><div class="dato-val" style="color: #3b82f6;">{{ clima.pluviometria_acumulada_mes }} mm</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Anemómetro (Viento)</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">💨 {{ clima.velocidad_viento }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Higrómetro Suelo</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">🌱 {{ clima.humedad_suelo }}</div></div>
+                </div>
+            </div>
 
-    <div class="simulator-box">
-        <div class="label" style="color:#cbd5e1; font-weight:bold; margin-bottom:8px;">🔧 Banquina de Frecuencias: Simular Modos de Red</div>
-        <div class="flex-btns" style="margin-bottom:8px;">
-            <button class="btn btn-blue" onclick="simularNodoAvanzado('Radio LoRa Extremo', -25.034, -64.112, -95, 2.5)" style="font-size:11px;">Simular Antena LoRa lejana</button>
-            <button class="btn btn-green" onclick="simularNodoAvanzado('WiFi Celular Camioneta', -25.045, -64.128, -50, 2.3)" style="font-size:11px;">Simular WiFi Corto Alcance</button>
+            <div class="panel">
+                <div class="panel-titulo">🛠️ Órdenes de Trabajo y Mantenimiento de Personal</div>
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Tarea de Taller</th><th>Responsable</th><th>Prioridad</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in ot %}
+                        <tr>
+                            <td><code>{{ tarea.id }}</code></td>
+                            <td>{{ tarea.tarea }}</td>
+                            <td>{{ tarea.responsable }}</td>
+                            <td><span class="badge {% if tarea.prioridad == 'Alta' %}badge-critico{% else %}badge-parado{% endif %}">{{ tarea.prioridad }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">📦 Control de Stock Crítico (Repuestos de Riego)</div>
+                <table>
+                    <thead>
+                        <tr><th>Insumo / Componente</th><th>Cantidad</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock %}
+                        <tr>
+                            <td>{{ item.componente }}</td>
+                            <td><strong>{{ item.cantidad }}</strong> {{ item.unidad }}</td>
+                            <td><span class="badge {% if item.estado == 'OK' %}badge-marcha{% elif item.estado == 'BAJO' %}badge-parado{% else %}badge-critico{% endif %}">{{ item.estado }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
         </div>
-    </div>
 
-    <div class="manual-box">
-        <strong style="color:#ffffff; display:block; margin-bottom:10px; border-bottom:1px solid #1e3a8a; padding-bottom:5px;">📋 MANUAL DE PINES ESP32 (AGROFLOW)</strong>
-        • <strong>Presión (Transductor):</strong> GPIO 34 (Análogo)<br>
-        • <strong>Caudalímetro (Pulsos):</strong> GPIO 25 (Digital)<br>
-        • <strong>GPS Neo-6M:</strong> RX2 -> GPIO 16 | TX2 -> GPIO 17<br>
-        • <strong>Módulo LoRa SX1276:</strong> SPI Bus<br>
-        &nbsp;&nbsp;- SS/CS: GPIO 5 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- SCK: GPIO 18<br>
-        &nbsp;&nbsp;- MISO: GPIO 19 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- MOSI: GPIO 23<br><br>
-        <span style="color:#94a3b8;">* Nota: Usar protector TVS contra descargas eléctricas en el lote.</span>
     </div>
 
 </body>
