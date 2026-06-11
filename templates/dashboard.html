@@ -34,12 +34,13 @@
         .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
         .badge-info { background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); }
         
-        /* NUEVOS ESTILOS: BARRA DE PROGRESO INDUSTRIAL */
         .barra-contenedor { background-color: #1e293b; border-radius: 6px; height: 14px; width: 100%; margin-top: 8px; overflow: hidden; border: 1px solid #334155; }
         .barra-progreso { height: 100%; transition: width 0.4s ease; }
         .color-ok { background-color: var(--verde); }
         .color-alerta { background-color: var(--alerta); }
         .color-critico { background-color: #ef4444; }
+        .color-riego { background-color: #0284c7; }
+        .color-lluvia { background-color: #2563eb; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
@@ -136,6 +137,30 @@
                     <div class="card-dato"><div class="dato-lbl">Acumulado Mensual</div><div class="dato-val" style="color: #3b82f6;">{{ clima.pluviometria_acumulada_mes }} mm</div></div>
                     <div class="card-dato"><div class="dato-lbl">Anemómetro (Viento)</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">💨 {{ clima.velocidad_viento }}</div></div>
                     <div class="card-dato"><div class="dato-lbl">Higrómetro de Suelo</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">🌱 {{ clima.humedad_suelo }}</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">💧 Balance de Agua Semanal en Lote (Lámina Total)</div>
+                <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px; color: #fff;">
+                    Agua Total Recibida: <span style="color:var(--texto-ok);">{{ hidrologia.agua_total }} mm</span> 
+                    <span class="badge badge-marcha" style="float: right;">Eficiencia Riego: {{ data.eficiencia_sistema }}%</span>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; margin-top: 5px;">
+                    <span>Aporte de Riego Tecnificado ({{ data.riego_semanal_mm }} mm)</span>
+                    <strong>{{ hidrologia.porcentaje_riego }}%</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso color-riego" style="width: {{ hidrologia.porcentaje_riego }}%;"></div>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; margin-top: 10px;">
+                    <span>Aporte de Lluvia Natural ({{ clima.lluvia_semanal_mm }} mm)</span>
+                    <strong>{{ hidrologia.porcentaje_lluvia }}%</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso color-lluvia" style="width: {{ hidrologia.porcentaje_lluvia }}%;"></div>
                 </div>
             </div>
 
