@@ -5,19 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroFlow Pro - Telemetría Rural</title>
     <style>
-        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #1e293b; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #f59e0b; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f1f5f9; margin: 0; padding: 20px; }
+        :root { 
+            --bg-principal: #0b0f19; 
+            --bg-tarjeta: #131c2e; 
+            --borde: #1e293b; 
+            --texto-ok: #38bdf8; 
+            --verde: #10b981; 
+            --alerta: #f59e0b; 
+            --titulos: #94a3b8;
+        }
+        /* CLASE DINÁMICA MODO NOCTURNO INDUSTRIAL */
+        .modo-noche {
+            --bg-principal: #05070c;
+            --bg-tarjeta: #0b0f17;
+            --borde: #161e2e;
+            --texto-ok: #0ea5e9;
+            --titulos: #64748b;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f1f5f9; margin: 0; padding: 20px; transition: background 0.3s, color 0.3s; }
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         .logo-meta { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
         .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media(max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
         .columna { display: flex; flex-direction: column; gap: 20px; }
-        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; text-align: left; }
-        .panel-titulo { font-size: 13px; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px solid var(--borde); padding-bottom: 6px; display: flex; justify-content: space-between; }
+        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; text-align: left; transition: background 0.3s; }
+        .panel-titulo { font-size: 13px; font-weight: bold; color: var(--titulos); text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px solid var(--borde); padding-bottom: 6px; display: flex; justify-content: space-between; }
         .selector-flota select { background: var(--bg-principal); color: var(--texto-ok); padding: 10px; border-radius: 8px; border: 1px solid var(--texto-ok); font-size: 16px; width: 100%; font-weight: bold; cursor: pointer; }
         .telemetria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .card-dato { background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--borde); padding: 12px; }
+        .card-dato { background: rgba(255,255,255,0.01); border-radius: 8px; border: 1px solid var(--borde); padding: 12px; }
         .dato-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; }
         .dato-val { font-size: 20px; font-weight: bold; color: var(--texto-ok); margin-top: 4px; }
         .mapa-simulado { background: #070a12; border: 2px dashed var(--borde); height: 160px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
@@ -41,9 +57,24 @@
         .color-critico { background-color: #ef4444; }
         .color-riego { background-color: #0284c7; }
         .color-lluvia { background-color: #2563eb; }
+
+        /* BOTÓN DE CONTROL SUPERIOR */
+        .btn-noche { background: #1e293b; color: #fff; border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-noche:hover { background: #334155; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
+        
+        // FUNCIÓN JAVASCRIPT INTERNA PARA PASAR A MODO NOCTURNO
+        function conmutarModoNoche() {
+            document.body.classList.toggle('modo-noche');
+            const boton = document.getElementById('botonMeteoNoche');
+            if(document.body.classList.contains('modo-noche')) {
+                boton.innerHTML = "☀️ Modo Diurno";
+            } else {
+                boton.innerHTML = "🌙 Modo Nocturno";
+            }
+        }
     </script>
 </head>
 <body>
@@ -53,8 +84,8 @@
             <h1>AgroFlow AI 🌐 <span style="font-size: 16px; color: var(--texto-ok);">Centro de Monitoreo Integral</span></h1>
             <div class="logo-meta">Panel SCADA Avanzado de Telemetría, Logística e Hidrología</div>
         </div>
-        <div style="text-align: right;">
-            <div style="font-size: 14px; font-weight: bold;">Estancia Central</div>
+        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            <button id="botonMeteoNoche" class="btn-noche" onclick="conmutarModoNoche()">🌙 Modo Nocturno</button>
             <div style="font-size: 11px; color: #64748b;">Salta, Argentina</div>
         </div>
     </header>
