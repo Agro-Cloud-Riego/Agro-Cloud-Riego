@@ -4,8 +4,8 @@ app = Flask(__name__)
 
 # BASE DE DATOS INDUSTRIAL CON CONSOLIDADO DE TELEMETRÍA
 equipos = {
-    "PIVOT-A2": {
-        "id_equipo": "PIVOT-A2",
+    "PIVOT-P156": {
+        "id_equipo": "PIVOT-P156",
         "tipo": "Pivot Central",
         "lote": "Lote Alfalfa (156 Ha)",
         "estado_marcha": "OPERANDO",
@@ -18,7 +18,7 @@ equipos = {
         "modo_enlace": "WiFi Rural (Puesto)",
         "rssi_dbm": -68,
         "ultima_conexion": "Justo ahora",
-        "motor_modelo": "Deutz 1013 / Bomba Cornell 6h",
+        "motor_modelo": "Deutz 6 Cyl / Bomba Cornell 4x3",
         "motor_horas": 218,
         "motor_proximo_service": 250,
         "motor_temperatura": "82 oC",
@@ -26,8 +26,8 @@ equipos = {
         "riego_semanal_mm": 25.4,
         "eficiencia_sistema": 88
     },
-    "FRONTAL-PE18": {
-        "id_equipo": "FRONTAL-PE18",
+    "FRONTAL-F22": {
+        "id_equipo": "FRONTAL-F22",
         "tipo": "Avance Frontal Lineal",
         "lote": "Cuadro Norte (210 Ha)",
         "estado_marcha": "PARADO",
@@ -40,7 +40,7 @@ equipos = {
         "modo_enlace": "Radio LoRa (Antena Base)",
         "rssi_dbm": -92,
         "ultima_conexion": "Hace 2 min",
-        "motor_modelo": "Caterpillar C7 / Bomba Cornell 10 RB",
+        "motor_modelo": "Iveco Cursor 9 / Bomba Cornell 6x4",
         "motor_horas": 485,
         "motor_proximo_service": 500,
         "motor_temperatura": "24 oC",
@@ -67,22 +67,22 @@ meteorologia = {
 }
 
 ordenes_trabajo = [
-    {"id": "OT-104", "equipo": "PIVOT-A2", "tarea": "Cambio de aceite de reductoras en torre 4 y 5", "responsable": "Mecánicos", "prioridad": "Alta"},
+    {"id": "OT-104", "equipo": "PIVOT-P156", "tarea": "Cambio de aceite de reductoras en torre 4 y 5", "responsable": "Mecánicos", "prioridad": "Alta"},
     {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos", "responsable": "Electricista", "prioridad": "Media"}
 ]
 
 historial_eventos = [
     {"hora": "15:34", "equipo": "SISTEMA", "evento": "Reinicio de Gateway LoRa Estación Base", "tipo": "info"},
-    {"hora": "14:12", "equipo": "PIVOT-A2", "evento": "Bomba de Presión (Cornell/Deutz) Encendida con éxito", "tipo": "marcha"},
+    {"hora": "14:12", "equipo": "PIVOT-P156", "evento": "Bomba de Presión (Cornell/Deutz) Encendida con éxito", "tipo": "marcha"},
     {"hora": "11:50", "equipo": "METEO", "evento": "Alerta: Pluviómetro superó los 14mm diarios", "tipo": "alerta"},
-    {"hora": "09:15", "equipo": "FRONTAL-PE18", "evento": "Parada técnica: Revisión preventiva de alineación en tramos", "tipo": "parado"},
+    {"hora": "09:15", "equipo": "FRONTAL-F22", "evento": "Parada técnica: Revisión preventiva de alineación en tramos", "tipo": "parado"},
     {"hora": "06:00", "equipo": "SISTEMA", "evento": "Reporte automático matutino generado y enviado a pañol", "tipo": "info"}
 ]
 
 @app.route('/')
 def index():
-    id_seleccionado = request.args.get('equipo', 'PIVOT-A2')
-    equipo = equipos.get(id_seleccionado, equipos["PIVOT-A2"])
+    id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
+    equipo = equipos.get(id_seleccionado, equipos["PIVOT-P156"])
     
     horas_actuales = equipo["motor_horas"]
     horas_limite = equipo["motor_proximo_service"]
