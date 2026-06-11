@@ -56,6 +56,15 @@ ordenes_trabajo = [
     {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos", "responsable": "Electricista", "prioridad": "Media"}
 ]
 
+# NUEVO: LIBRO DE GUARDIA DIGITAL (HISTORIAL DE EVENTOS INDUSTRIALES)
+historial_eventos = [
+    {"hora": "15:34", "equipo": "SISTEMA", "evento": "Reinicio de Gateway LoRa Estación Base", "tipo": "info"},
+    {"hora": "14:12", "equipo": "PIVOT-P156", "evento": "Bomba de Presión (Cornell/Deutz) Encendida con éxito", "tipo": "marcha"},
+    {"hora": "11:50", "equipo": "METEO", "evento": "Alerta: Pluviómetro superó los 14mm diarios", "tipo": "alerta"},
+    {"hora": "09:15", "equipo": "FRONTAL-F22", "evento": "Parada técnica: Revisión preventiva de alineación en tramos", "tipo": "parado"},
+    {"hora": "06:00", "equipo": "SISTEMA", "evento": "Reporte automático matutino generado y enviado a pañol", "tipo": "info"}
+]
+
 @app.route('/')
 def index():
     id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
@@ -66,7 +75,8 @@ def index():
         todos_equipos=equipos, 
         stock=inventario, 
         clima=meteorologia, 
-        ot=ordenes_trabajo
+        ot=ordenes_trabajo,
+        eventos=historial_eventos  # Pasamos el historial a la pantalla
     )
 
 @app.route('/api/telemetria', methods=['POST'])
