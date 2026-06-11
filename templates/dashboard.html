@@ -32,6 +32,9 @@
         .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 10px; margin-right: 5px; }
         
         .simulator-box { background: #334155; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; border: 1px dashed #94a3b8; text-align: left; }
+        
+        /* Estilo para el botón de descarga del plano */
+        .btn-manual { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; display: block; max-width: 490px; margin: 0 auto 15px auto; padding: 12px; border-radius: 12px; font-weight: bold; text-decoration: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
@@ -60,6 +63,8 @@
 
     <h1>AgroFlow AI Pro 🌐</h1>
     <div class="subtitle">Consola de Mando Satelital e Inalámbrica</div>
+    
+    <a href="/descargar-manual" class="btn-manual">📥 DESCARGAR MANUAL DE PINES Y ARQUITECTURA (.TXT)</a>
     
     <div class="selector-box">
         <select onchange="cambiarEquipo(this)">
@@ -106,7 +111,6 @@
             <button class="btn btn-blue" onclick="simularNodoAvanzado('Radio LoRa Extremo', -25.034, -64.112, -95, 2.5)" style="font-size:11px;">Simular Antena LoRa lejana</button>
             <button class="btn btn-green" onclick="simularNodoAvanzado('WiFi Celular Camioneta', -25.045, -64.128, -50, 2.3)" style="font-size:11px;">Simular WiFi Corto Alcance</button>
         </div>
-        <button class="btn btn-red" onclick="simularNodoAvanzado('Radio LoRa Desalineada', -25.034, -64.112, -118, 1.9)" style="font-size:11px; width:100%;">Simular Pérdida de Antena por Viento (-118 dBm)</button>
     </div>
 
 </body>
