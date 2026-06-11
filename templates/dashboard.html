@@ -3,99 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroFlow AI - Panel de Control</title>
+    <title>AgroFlow AI Pro</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background-color: #0f172a; 
-            color: #f8fafc; 
-            margin: 0; 
-            padding: 20px; 
-            text-align: center; 
-        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; text-align: center; }
         h1 { color: #38bdf8; margin-bottom: 5px; font-size: 28px; }
-        .subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 14px; }
+        .subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
         
-        /* Contenedor de Tarjetas */
-        .grid { 
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-            gap: 15px; 
-            max-width: 600px; 
-            margin: 0 auto; 
-        }
-        .card { 
-            background: #1e293b; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
-            width: 40%; 
-            min-width: 140px;
-            border: 1px solid #334155;
-        }
-        .card-full { width: 90%; }
-        .value { font-size: 26px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
-        .label { color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* Selector de equipos */
+        .selector-box { background: #1e293b; padding: 15px; border-radius: 12px; max-width: 560px; margin: 0 auto 20px auto; border: 1px solid #334155; }
+        select { background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 6px; border: 1px solid #38bdf8; font-size: 16px; width: 80%; max-width: 300px; cursor: pointer; }
         
-        /* Estado dinámico */
+        /* Grilla de sensores */
+        .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; max-width: 600px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 42%; min-width: 130px; border: 1px solid #334155; }
+        .card-full { width: 92%; }
+        .value { font-size: 24px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
+        .label { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
         .estado-on { color: #4ade80; }
         .estado-off { color: #f87171; }
 
-        /* Botones de Control de Bomba */
-        .control-panel { 
-            margin-top: 30px; 
-            background: #1e293b; 
-            padding: 20px; 
-            border-radius: 12px; 
-            max-width: 560px; 
-            margin-left: auto; 
-            margin-right: auto;
-            border: 1px solid #334155;
-        }
-        .btn { 
-            padding: 12px 30px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            margin: 10px; 
-            transition: 0.3s;
-        }
+        /* Panel de Telecontrol */
+        .control-panel { margin-top: 25px; background: #1e293b; padding: 20px; border-radius: 12px; max-width: 560px; margin-left: auto; margin-right: auto; border: 1px solid #334155; }
+        .btn { padding: 12px 35px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin: 10px; transition: 0.3s; text-decoration: none; display: inline-block; }
         .btn-start { background-color: #22c55e; color: white; }
         .btn-start:hover { background-color: #16a34a; }
         .btn-stop { background-color: #ef4444; color: white; }
         .btn-stop:hover { background-color: #dc2626; }
         
-        /* Sección Satelital / IA (Estructura base) */
-        .ia-panel {
-            margin-top: 20px;
-            background: rgba(56, 189, 248, 0.05);
-            border: 1px dashed #38bdf8;
-            padding: 15px;
-            border-radius: 12px;
-            max-width: 560px;
-            margin-left: auto;
-            margin-right: auto;
-            font-size: 13px;
-            color: #bae6fd;
-        }
+        /* IA y NDVI */
+        .ia-panel { margin-top: 20px; background: rgba(56, 189, 248, 0.05); border: 1px dashed #38bdf8; padding: 15px; border-radius: 12px; max-width: 560px; margin-left: auto; margin-right: auto; font-size: 13px; text-align: left; }
+        .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; margin-right: 5px; }
     </style>
+    <script>
+        function cambiarEquipo(select) {
+            window.location.href = "/?equipo=" + select.value;
+        }
+    </script>
 </head>
 <body>
 
-    <h1>AgroFlow AI 🌐</h1>
-    <div class="subtitle">Equipo Activo: <strong>{{ data.id_equipo }}</strong> - {{ data.lote }}</div>
+    <h1>AgroFlow AI Pro 🌐</h1>
+    <div class="subtitle">Monitoreo de Precisión & Telecontrol Industrial</div>
+    
+    <div class="selector-box">
+        <label class="label" style="display:block; margin-bottom:8px;">Seleccionar Equipo Activo</label>
+        <select onchange="cambiarEquipo(this)">
+            {% for id, eq in todos_equipos.items() %}
+                <option value="{{ id }}" {% if id == data.id_equipo %}selected{% endif %}>{{ eq.tipo }} - {{ id }}</option>
+            {% endfor %}
+        </select>
+    </div>
     
     <div class="grid">
         <div class="card">
-            <div class="label">Presión</div>
+            <div class="label">Presión Sensor</div>
             <div class="value">{{ data.presion_bar }} <span style="font-size: 14px;">Bar</span></div>
         </div>
         
         <div class="card">
-            <div class="label">Posición</div>
+            <div class="label">Caudalímetro</div>
+            <div class="value">{{ data.caudal_lh }} <span style="font-size: 14px;">L/h</span></div>
+        </div>
+        
+        <div class="card">
+            <div class="label">Posición / Tramo</div>
             <div class="value">{{ data.angulo_actual }}°</div>
         </div>
         
@@ -109,22 +81,28 @@
             <div class="value">{{ data.timer_porcentaje }}%</div>
         </div>
 
+        <div class="card">
+            <div class="label">Cobertura Lote</div>
+            <div class="value" style="font-size: 18px; margin-top:10px;">{{ data.hectareas_totales }} <span style="font-size: 12px; color:#94a3b8;">Has</span></div>
+        </div>
+
         <div class="card card-full">
-            <div class="label">Estado del Sistema</div>
+            <div class="label">Estado de Marcha</div>
             <div class="value {% if data.bomba_activa %}estado-on{% else %}estado-off{% endif %}">
-                {% if data.bomba_activa %} En Riego Activo {% else %} Sistema Detenido {% endif %}
+                {% if data.bomba_activa %} 🔥 EN RIEGO ACTIVO {% else %} ❄️ SISTEMA DETENIDO {% endif %}
             </div>
         </div>
     </div>
 
     <div class="control-panel">
-        <div class="label" style="margin-bottom: 10px;">Comandos de Telecontrol (Bomba/Pivot)</div>
-        <button class="btn btn-start" onclick="alert('Enviando orden de ARRANQUE a la bomba...')">ARRANCAR</button>
-        <button class="btn btn-stop" onclick="alert('Enviando orden de PARADA de emergencia...')">PARAR</button>
+        <div class="label" style="margin-bottom: 10px;">Telecontrol de Bomba de Riego</div>
+        <a href="/control/{{ data.id_equipo }}/arrancar" class="btn btn-start">ARRANCAR</a>
+        <a href="/control/{{ data.id_equipo }}/parar" class="btn btn-stop">PARAR</a>
     </div>
 
     <div class="ia-panel">
-        <strong>🧠 Módulo IA & NDVI Telemetry:</strong> Esperando enlace satelital para monitoreo de biomasa y analítica predictiva de presión en tuberías.
+        <p><span class="tag-ia">ANALÍTICA IA</span> <strong>Diagnóstico:</strong> {{ data.alerta_ia }}</p>
+        <p style="margin-bottom: 0; color:#94a3b8;"><span class="tag-ia" style="background:#a855f7; color:white;">NDVI SAT</span> <strong>Simulación de mapas:</strong> Lote vinculado. Listo para dosificación variable al recibir actualización satelital.</p>
     </div>
 
 </body>
