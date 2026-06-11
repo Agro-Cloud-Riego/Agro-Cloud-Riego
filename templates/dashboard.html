@@ -2,33 +2,130 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>AgroCloud - Panel de Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroFlow AI - Panel de Control</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; text-align: center; }
-        .card { display: inline-block; padding: 20px; margin: 10px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 200px; }
-        .value { font-size: 24px; font-weight: bold; color: #2c3e50; }
-        .label { color: #7f8c8d; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background-color: #0f172a; 
+            color: #f8fafc; 
+            margin: 0; 
+            padding: 20px; 
+            text-align: center; 
+        }
+        h1 { color: #38bdf8; margin-bottom: 5px; font-size: 28px; }
+        .subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 14px; }
+        
+        /* Contenedor de Tarjetas */
+        .grid { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 15px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .card { 
+            background: #1e293b; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            width: 40%; 
+            min-width: 140px;
+            border: 1px solid #334155;
+        }
+        .card-full { width: 90%; }
+        .value { font-size: 26px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
+        .label { color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Estado dinámico */
+        .estado-on { color: #4ade80; }
+        .estado-off { color: #f87171; }
+
+        /* Botones de Control de Bomba */
+        .control-panel { 
+            margin-top: 30px; 
+            background: #1e293b; 
+            padding: 20px; 
+            border-radius: 12px; 
+            max-width: 560px; 
+            margin-left: auto; 
+            margin-right: auto;
+            border: 1px solid #334155;
+        }
+        .btn { 
+            padding: 12px 30px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            margin: 10px; 
+            transition: 0.3s;
+        }
+        .btn-start { background-color: #22c55e; color: white; }
+        .btn-start:hover { background-color: #16a34a; }
+        .btn-stop { background-color: #ef4444; color: white; }
+        .btn-stop:hover { background-color: #dc2626; }
+        
+        /* Sección Satelital / IA (Estructura base) */
+        .ia-panel {
+            margin-top: 20px;
+            background: rgba(56, 189, 248, 0.05);
+            border: 1px dashed #38bdf8;
+            padding: 15px;
+            border-radius: 12px;
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 13px;
+            color: #bae6fd;
+        }
     </style>
 </head>
 <body>
-    <h1>AgroCloud - Control de Pivot</h1>
+
+    <h1>AgroFlow AI 🌐</h1>
+    <div class="subtitle">Equipo Activo: <strong>{{ data.id_equipo }}</strong> - {{ data.lote }}</div>
     
-    <div class="card">
-        <div class="label">Presión</div>
-        <div class="value">{{ data.presion }} Bar</div>
-    </div>
-    
-    <div class="card">
-        <div class="label">Ángulo</div>
-        <div class="value">{{ data.angulo }}°</div>
-    </div>
-    
-    <div class="card">
-        <div class="label">Estado</div>
-        <div class="value">{{ data.estado }}</div>
+    <div class="grid">
+        <div class="card">
+            <div class="label">Presión</div>
+            <div class="value">{{ data.presion_bar }} <span style="font-size: 14px;">Bar</span></div>
+        </div>
+        
+        <div class="card">
+            <div class="label">Posición</div>
+            <div class="value">{{ data.angulo_actual }}°</div>
+        </div>
+        
+        <div class="card">
+            <div class="label">Dirección</div>
+            <div class="value" style="color: #e2e8f0;">{{ data.direccion }}</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Avance Timer</div>
+            <div class="value">{{ data.timer_porcentaje }}%</div>
+        </div>
+
+        <div class="card card-full">
+            <div class="label">Estado del Sistema</div>
+            <div class="value {% if data.bomba_activa %}estado-on{% else %}estado-off{% endif %}">
+                {% if data.bomba_activa %} En Riego Activo {% else %} Sistema Detenido {% endif %}
+            </div>
+        </div>
     </div>
 
-    <br>
-    <button onclick="location.reload()">Actualizar Datos</button>
+    <div class="control-panel">
+        <div class="label" style="margin-bottom: 10px;">Comandos de Telecontrol (Bomba/Pivot)</div>
+        <button class="btn btn-start" onclick="alert('Enviando orden de ARRANQUE a la bomba...')">ARRANCAR</button>
+        <button class="btn btn-stop" onclick="alert('Enviando orden de PARADA de emergencia...')">PARAR</button>
+    </div>
+
+    <div class="ia-panel">
+        <strong>🧠 Módulo IA & NDVI Telemetry:</strong> Esperando enlace satelital para monitoreo de biomasa y analítica predictiva de presión en tuberías.
+    </div>
+
 </body>
 </html>
