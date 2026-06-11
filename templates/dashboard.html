@@ -14,7 +14,6 @@
         
         .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 520px; margin: 0 auto; }
         .card { background: #1e293b; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 43%; min-width: 120px; border: 1px solid #334155; }
-        .card-full { width: 94%; }
         .value { font-size: 22px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
         .label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         
@@ -26,15 +25,14 @@
         .btn-green { background-color: #22c55e; color: white; }
         .btn-red { background-color: #ef4444; color: white; }
         .btn-blue { background-color: #38bdf8; color: #0f172a; }
-        .btn-dark { background-color: #475569; color: white; }
         
         .ia-panel { margin-top: 15px; background: rgba(56, 189, 248, 0.05); border: 1px dashed #38bdf8; padding: 12px; border-radius: 12px; max-width: 490px; margin-left: auto; margin-right: auto; font-size: 12px; text-align: left; }
         .tag-ia { background: #38bdf8; color: #0f172a; padding: 2px 5px; border-radius: 4px; font-weight: bold; font-size: 10px; margin-right: 5px; }
         
         .simulator-box { background: #334155; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; border: 1px dashed #94a3b8; text-align: left; }
         
-        /* Estilo para el botón de descarga del plano */
-        .btn-manual { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; display: block; max-width: 490px; margin: 0 auto 15px auto; padding: 12px; border-radius: 12px; font-weight: bold; text-decoration: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+        /* Panel del Manual Técnico integrado */
+        .manual-box { background: #020617; border: 1px solid #1e3a8a; padding: 15px; border-radius: 12px; max-width: 490px; margin: 20px auto 0 auto; text-align: left; font-family: monospace; font-size: 11px; color: #38bdf8; }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
@@ -63,8 +61,6 @@
 
     <h1>AgroFlow AI Pro 🌐</h1>
     <div class="subtitle">Consola de Mando Satelital e Inalámbrica</div>
-    
-    <a href="/descargar-manual" class="btn-manual">📥 DESCARGAR MANUAL DE PINES Y ARQUITECTURA (.TXT)</a>
     
     <div class="selector-box">
         <select onchange="cambiarEquipo(this)">
@@ -111,6 +107,17 @@
             <button class="btn btn-blue" onclick="simularNodoAvanzado('Radio LoRa Extremo', -25.034, -64.112, -95, 2.5)" style="font-size:11px;">Simular Antena LoRa lejana</button>
             <button class="btn btn-green" onclick="simularNodoAvanzado('WiFi Celular Camioneta', -25.045, -64.128, -50, 2.3)" style="font-size:11px;">Simular WiFi Corto Alcance</button>
         </div>
+    </div>
+
+    <div class="manual-box">
+        <strong style="color:#ffffff; display:block; margin-bottom:10px; border-bottom:1px solid #1e3a8a; padding-bottom:5px;">📋 MANUAL DE PINES ESP32 (AGROFLOW)</strong>
+        • <strong>Presión (Transductor):</strong> GPIO 34 (Análogo)<br>
+        • <strong>Caudalímetro (Pulsos):</strong> GPIO 25 (Digital)<br>
+        • <strong>GPS Neo-6M:</strong> RX2 -> GPIO 16 | TX2 -> GPIO 17<br>
+        • <strong>Módulo LoRa SX1276:</strong> SPI Bus<br>
+        &nbsp;&nbsp;- SS/CS: GPIO 5 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- SCK: GPIO 18<br>
+        &nbsp;&nbsp;- MISO: GPIO 19 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- MOSI: GPIO 23<br><br>
+        <span style="color:#94a3b8;">* Nota: Usar protector TVS contra descargas eléctricas en el lote.</span>
     </div>
 
 </body>
