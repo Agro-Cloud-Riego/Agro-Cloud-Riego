@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroFlow - Ingreso al Sistema</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=1200') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .logo-icon {
+            background-color: #1c4e5b;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            margin-bottom: 15px;
+        }
+        h2 { margin: 0; color: #1c4e5b; font-size: 26px; font-weight: bold; }
+        p { color: #64748b; font-size: 14px; margin-top: 5px; margin-bottom: 30px; }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            font-size: 11px;
+            color: #475569;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: #f8fafc;
+            box-sizing: border-box;
+            color: #334155;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2a7d8f;
+            background-color: #fff;
+        }
+        .btn-ingresar {
+            width: 100%;
+            background-color: #2a7d8f;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .btn-ingresar:hover { background-color: #1c4e5b; }
+        .error-msg {
+            color: #ef4444;
+            font-size: 13px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .footer-text { margin-top: 25px; font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo-icon">🚜</div>
+        <h2>AgroFlow</h2>
+        <p>Sistema de Gestión Agrícola</p>
+
+        {% if error %}
+            <div class="error-msg">⚠️ {{ error }}</div>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <div class="input-group">
+                <label>Usuario / Email</label>
+                <input type="text" name="username" placeholder="usuario@empresa.com" required autocomplete="off">
+            </div>
+            
+            <div class="input-group">
+                <label>Clave de Acceso</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn-ingresar">Ingresar al Sistema →</button>
+        </form>
+
+        <div class="footer-text">AgroFlow v1.0</div>
+    </div>
+
+</body>
+</html>

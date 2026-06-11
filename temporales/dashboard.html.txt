@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroFlow Pro - Telemetría Rural</title>
+    <style>
+        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #1e293b; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #f59e0b; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f1f5f9; margin: 0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 24px; color: #fff; }
+        .logo-meta { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
+        .columna { display: flex; flex-direction: column; gap: 20px; }
+        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; text-align: left; }
+        .panel-titulo { font-size: 13px; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px solid var(--borde); padding-bottom: 6px; display: flex; justify-content: space-between; }
+        .selector-flota select { background: var(--bg-principal); color: var(--texto-ok); padding: 10px; border-radius: 8px; border: 1px solid var(--texto-ok); font-size: 16px; width: 100%; font-weight: bold; cursor: pointer; }
+        .telemetria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .card-dato { background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--borde); padding: 12px; }
+        .dato-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; }
+        .dato-val { font-size: 20px; font-weight: bold; color: var(--texto-ok); margin-top: 4px; }
+        .mapa-simulado { background: #070a12; border: 2px dashed var(--borde); height: 160px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .pivot-circulo { width: 120px; height: 120px; border: 2px dashed #334155; border-radius: 50%; position: relative; }
+        .pivot-linea-avance { position: absolute; width: 50%; height: 2px; background: #ef4444; top: 50%; left: 50%; transform-origin: left center; }
+        .frontal-camino { width: 80%; height: 20px; background: #1e293b; border-radius: 4px; position: relative; }
+        .frontal-carro { position: absolute; width: 15px; height: 30px; background: #ef4444; top: -5px; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { color: #64748b; padding: 8px; border-bottom: 1px solid var(--borde); font-weight: 500; }
+        td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .badge-marcha { background: rgba(16, 185, 129, 0.1); color: var(--verde); }
+        .badge-parado { background: rgba(245, 158, 11, 0.1); color: var(--alerta); }
+        .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .badge-info { background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); }
+        
+        .barra-contenedor { background-color: #1e293b; border-radius: 6px; height: 14px; width: 100%; margin-top: 8px; overflow: hidden; border: 1px solid #334155; }
+        .barra-progreso { height: 100%; transition: width 0.4s ease; }
+        .color-ok { background-color: var(--verde); }
+        .color-alerta { background-color: var(--alerta); }
+        .color-critico { background-color: #ef4444; }
+        .color-riego { background-color: #0284c7; }
+        .color-lluvia { background-color: #2563eb; }
+    </style>
+    <script>
+        function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
+    </script>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>AgroFlow AI 🌐 <span style="font-size: 16px; color: var(--texto-ok);">Centro de Monitoreo Integral</span></h1>
+            <div class="logo-meta">Panel SCADA Avanzado de Telemetría, Logística e Hidrología</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 14px; font-weight: bold;">Estancia Central</div>
+            <div style="font-size: 11px; color: #64748b;">Salta, Argentina</div>
+        </div>
+    </header>
+
+    <div class="dashboard-layout">
+        <div class="columna">
+            <div class="panel selector-flota">
+                <div class="panel-titulo">Selección de Unidad Activa</div>
+                <select onchange="cambiarEquipo(this)">
+                    {% for id, eq in todos_equipos.items() %}
+                        <option value="{{ id }}" {% if id == data.id_equipo %}selected{% endif %}>{{ eq.tipo }} - ID: {{ id }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">
+                    <span>Telemetría Hidráulica de Campo</span>
+                    <span class="badge {% if data.estado_marcha == 'OPERANDO' %}badge-marcha{% else %}badge-parado{% endif %}">{{ data.estado_marcha }}</span>
+                </div>
+                <div class="telemetria-grid">
+                    <div class="card-dato"><div class="dato-lbl">Presión Transductor</div><div class="dato-val">{{ data.presion_bar }} Bar</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Caudalímetro</div><div class="dato-val">{{ data.caudal_lh }} L/h</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Red de Enlace</div><div class="dato-val" style="font-size:13px; margin-top:8px;">{{ data.modo_enlace }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Potencia Señal</div><div class="dato-val" style="font-size:14px; margin-top:8px; color:var(--verde);">{{ data.rssi_dbm }} dBm</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">⚙️ Grupo Electrógeno / Unidad de Bombeo</div>
+                <div style="font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 10px;">{{ data.motor_modelo }}</div>
+                
+                <div class="telemetria-grid" style="margin-bottom: 15px;">
+                    <div class="card-dato"><div class="dato-lbl">Horas Acumuladas</div><div class="dato-val" style="color: #cbd5e1;">{{ data.motor_horas }} hrs</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Próximo Service</div><div class="dato-val" style="color: #cbd5e1;">{{ data.motor_proximo_service }} hrs</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Temp. Motor</div><div class="dato-val" style="font-size:16px; color:#f59e0b;">🌡️ {{ data.motor_temperatura }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Presión Aceite</div><div class="dato-val" style="font-size:16px; color:#38bdf8;">🛢️ {{ data.motor_presion_aceite }}</div></div>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between;">
+                    <span>Vida Útil del Aceite/Filtros ({{ mantenimiento.porcentaje }}%)</span>
+                    <strong>Faltan {{ mantenimiento.restantes }} horas</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso {% if mantenimiento.porcentaje > 90 %}color-critico{% elif mantenimiento.porcentaje > 75 %}color-alerta{% else %}color-ok{% endif %}" 
+                         style="width: {{ mantenimiento.porcentaje }}%;"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">Ubicación y Geoposicionamiento Dinámico</div>
+                <div style="margin-bottom: 12px; font-size: 13px; color: #cbd5e1;">
+                    📍 <strong>Lote Asignado:</strong> {{ data.lote }} <br>
+                    {% if data.tipo_geometria == 'circular' %}
+                        🔄 <strong>Ángulo de Avance:</strong> {{ data.angulo_actual }}° | 🚜 <strong>Área Regada:</strong> {{ data.hectareas_regadas }} Ha
+                    {% else %}
+                        🔲 <strong>Posición Física:</strong> Cajón {{ data.cajon_actual }} de {{ data.cajones_totales }} | 📏 <strong>Distancia Recorridal:</strong> {{ data.metros_recorridos }}m
+                    {% endif %}
+                </div>
+                
+                <div class="mapa-simulado">
+                    {% if data.tipo_geometria == 'circular' %}
+                        <div class="pivot-circulo">
+                            <div class="pivot-linea-avance" style="transform: rotate({{ data.angulo_actual }}deg);"></div>
+                        </div>
+                    {% else %}
+                        <div class="frontal-camino">
+                            <div class="frontal-carro" style="left: calc(({{ data.cajon_actual }} / {{ data.cajones_totales }}) * 100% - 7px);"></div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="columna">
+            <div class="panel">
+                <div class="panel-titulo">📡 Estación Meteorológica Local</div>
+                <div class="telemetria-grid">
+                    <div class="card-dato"><div class="dato-lbl">Pluviómetro Hoy</div><div class="dato-val" style="color: #60a5fa;">{{ clima.pluviometria_hoy }} mm</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Acumulado Mensual</div><div class="dato-val" style="color: #3b82f6;">{{ clima.pluviometria_acumulada_mes }} mm</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Anemómetro (Viento)</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">💨 {{ clima.velocidad_viento }}</div></div>
+                    <div class="card-dato"><div class="dato-lbl">Higrómetro de Suelo</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">🌱 {{ clima.humedad_suelo }}</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">💧 Balance de Agua Semanal en Lote (Lámina Total)</div>
+                <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px; color: #fff;">
+                    Agua Total Recibida: <span style="color:var(--texto-ok);">{{ hidrologia.agua_total }} mm</span> 
+                    <span class="badge badge-marcha" style="float: right;">Eficiencia Riego: {{ data.eficiencia_sistema }}%</span>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; margin-top: 5px;">
+                    <span>Aporte de Riego Tecnificado ({{ data.riego_semanal_mm }} mm)</span>
+                    <strong>{{ hidrologia.porcentaje_riego }}%</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso color-riego" style="width: {{ hidrologia.porcentaje_riego }}%;"></div>
+                </div>
+
+                <div style="font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; margin-top: 10px;">
+                    <span>Aporte de Lluvia Natural ({{ clima.lluvia_semanal_mm }} mm)</span>
+                    <strong>{{ hidrologia.porcentaje_lluvia }}%</strong>
+                </div>
+                <div class="barra-contenedor">
+                    <div class="barra-progreso color-lluvia" style="width: {{ hidrologia.porcentaje_lluvia }}%;"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">📝 Libro de Guardia Digital (Historial SCADA)</div>
+                <div style="max-height: 180px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Hora</th><th>Origen</th><th>Detalle Técnico del Evento</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for evento in eventos %}
+                            <tr>
+                                <td><span style="color:#64748b;">{{ evento.hora }}</span></td>
+                                <td><code>{{ evento.equipo }}</code></td>
+                                <td>
+                                    <span class="badge {% if evento.tipo == 'marcha' %}badge-marcha{% elif evento.tipo == 'alerta' %}badge-critico{% elif evento.tipo == 'parado' %}badge-parado{% else %}badge-info{% endif %}">
+                                        {{ evento.evento }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">🛠️ Órdenes de Trabajo Activas (Personal)</div>
+                <table>
+                    <thead>
+                        <tr><th>OT</th><th>Asunto Técnico</th><th>Equipo</th><th>Prioridad</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in ot %}
+                        <tr>
+                            <td><code>{{ tarea.id }}</code></td>
+                            <td>{{ tarea.tarea }}</td>
+                            <td>{{ tarea.responsable }}</td>
+                            <td><span class="badge {% if tarea.prioridad == 'Alta' %}badge-critico{% else %}badge-parado{% endif %}">{{ tarea.prioridad }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">📦 Pañol de Repuestos Críticos de Riego</div>
+                <table>
+                    <thead>
+                        <tr><th>Insumo</th><th>Stock Disp.</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock %}
+                        <tr>
+                            <td>{{ item.componente }}</td>
+                            <td><strong>{{ item.cantidad }}</strong> {{ item.unidad }}</td>
+                            <td><span class="badge {% if item.estado == 'OK' %}badge-marcha{% elif item.estado == 'BAJO' %}badge-parado{% else %}badge-critico{% endif %}">{{ item.estado }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
