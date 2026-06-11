@@ -1,16 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
-# Esta clave secreta encripta las sesiones para que no puedan saltearse el login
-app.secret_key = 'sector_riego_salta_2026'
 
-# Lista de usuarios autorizados que van a poder ver la plataforma
-USUARIOS_VALIDOS = {
-    "marcelo@agroflow.com": "riego2026",
-    "admin": "1234"
-}
-
-# BASE DE DATOS INDUSTRIAL (Mantiene exactamente tus mismos datos de telemetría)
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
@@ -25,7 +16,14 @@ equipos = {
         "velocidad_avance": "1.2 m/h",
         "modo_enlace": "WiFi Rural (Puesto)",
         "rssi_dbm": -68,
-        "ultima_conexion": "Justo ahora"
+        "ultima_conexion": "Justo ahora",
+        "motor_modelo": "Deutz 6 Cyl / Bomba Cornell 4x3",
+        "motor_horas": 218,
+        "motor_proximo_service": 250,
+        "motor_temperatura": "82 oC",
+        "motor_presion_aceite": "4.2 Bar",
+        "riego_semanal_mm": 25.4,
+        "eficiencia_sistema": 88
     },
     "FRONTAL-F22": {
         "id_equipo": "FRONTAL-F22",
@@ -40,7 +38,14 @@ equipos = {
         "metros_recorridos": 450,
         "modo_enlace": "Radio LoRa (Antena Base)",
         "rssi_dbm": -92,
-        "ultima_conexion": "Hace 2 min"
+        "ultima_conexion": "Hace 2 min",
+        "motor_modelo": "Iveco Cursor 9 / Bomba Cornell 6x4",
+        "motor_horas": 485,
+        "motor_proximo_service": 500,
+        "motor_temperatura": "24 oC",
+        "motor_presion_aceite": "0.0 Bar",
+        "riego_semanal_mm": 18.0,
+        "eficiencia_sistema": 92
     }
 }
 
@@ -56,7 +61,8 @@ meteorologia = {
     "pluviometria_acumulada_mes": 42.0,
     "velocidad_viento": "18 km/h (Norte)",
     "humedad_suelo": "32% (Moderada)",
-    "temperatura": "26.4 oC"
+    "temperatura": "26.4 oC",
+    "lluvia_semanal_mm": 15.0
 }
 
 ordenes_trabajo = [
@@ -64,58 +70,37 @@ ordenes_trabajo = [
     {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos", "responsable": "Electricista", "prioridad": "Media"}
 ]
 
-# NUEVA RUTA: Maneja exclusivamente la pantalla de inicio de sesión
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        usuario = request.form.get('username')
-        clave = request.form.get('password')
-        
-        # Comprobar si las credenciales coinciden
-        if usuario in USUARIOS_VALIDOS and USUARIOS_VALIDOS[usuario] == clave:
-            session['usuario_autenticado'] = usuario  # Guarda la sesión activa
-            return redirect(url_for('index'))  # Lo deja pasar al dashboard
-            
-        return render_template('login.html', error="Usuario o contraseña incorrectos")
-        
-    return render_template('login.html')
+historial_eventos = [
+    {"hora": "15:34", "equipo": "SISTEMA", "evento": "Reinicio de Gateway LoRa Estación Base", "tipo": "info"},
+    {"hora": "14:12", "equipo": "PIVOT-P156", "evento": "Bomba de Presión (Cornell/Deutz) Encendida con éxito", "tipo": "marcha"},
+    {"hora": "11:50", "equipo": "METEO", "evento": "Alerta: Pluviómetro superó los 14mm diarios", "tipo": "alerta"},
+    {"hora": "09:15", "equipo": "FRONTAL-F22", "evento": "Parada técnica: Revisión preventiva de alineación en tramos", "tipo": "parado"}
+]
 
-# RUTA PRINCIPAL (Protegida)
 @app.route('/')
 def index():
-    # SI NO INICIÓ SESIÓN: Lo rebota automáticamente al login sin cargar el dashboard
-    if 'usuario_autenticado' not in session:
-        return redirect(url_for('login'))
-        
-    # SI INICIÓ SESIÓN: Ejecuta tu código de siempre de manera transparente
     id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
     equipo = equipos.get(id_seleccionado, equipos["PIVOT-P156"])
+    
+    porcentaje_uso = min(int((equipo["motor_horas"] / equipo["motor_proximo_service"]) * 100), 100)
+    horas_restantes = max(equipo["motor_proximo_service"] - equipo["motor_horas"], 0)
+    agua_total_lote = meteorologia["lluvia_semanal_mm"] + equipo["riego_semanal_mm"]
+
     return render_template(
         'dashboard.html', 
         data=equipo, 
         todos_equipos=equipos, 
         stock=inventario, 
         clima=meteorologia, 
-        ot=ordenes_trabajo
+        ot=ordenes_trabajo,
+        eventos=historial_eventos,
+        mantenimiento={"porcentaje": porcentaje_uso, "restantes": horas_restantes},
+        hidrologia={
+            "agua_total": agua_total_lote,
+            "porcentaje_riego": int((equipo["riego_semanal_mm"] / agua_total_lote) * 100) if agua_total_lote > 0 else 0,
+            "porcentaje_lluvia": int((meteorologia["lluvia_semanal_mm"] / agua_total_lote) * 100) if agua_total_lote > 0 else 0
+        }
     )
-
-@app.route('/api/telemetria', methods=['POST'])
-def recibir_datos():
-    datos = request.get_json()
-    if not datos or "id_equipo" not in datos:
-        return jsonify({"status": "error"}), 400
-    
-    id_eq = datos["id_equipo"]
-    if id_eq in equipos:
-        equipos[id_eq]["presion_bar"] = float(datos.get("presion_bar", equipos[id_eq]["presion_bar"]))
-        equipos[id_eq]["caudal_lh"] = int(datos.get("caudal_lh", equipos[id_eq]["caudal_lh"]))
-        if equipos[id_eq]["tipo_geometria"] == "circular":
-            equipos[id_eq]["angulo_actual"] = int(datos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
-        else:
-            equipos[id_eq]["cajon_actual"] = int(datos.get("cajon_actual", equipos[id_eq]["cajon_actual"]))
-        equipos[id_eq]["rssi_dbm"] = int(datos.get("rssi_dbm", equipos[id_eq]["rssi_dbm"]))
-        return jsonify({"status": "success"}), 200
-    return jsonify({"status": "error"}), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
