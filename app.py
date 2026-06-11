@@ -1,9 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
-import os
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
 
-# BASE DE DATOS INDUSTRIAL AMPLIADA (Admite WiFi, LoRa y GPS)
+# BASE DE DATOS EN MEMORIA (Admite WiFi, LoRa y GPS)
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
@@ -77,7 +76,7 @@ def control_avanzado(id_equipo, parametro, valor):
 def recibir_datos_campo():
     datos = request.get_json()
     if not datos or "id_equipo" not in datos:
-        return jsonify({"status": "error", "message": "Falta identificador"}), 400
+        return jsonify({"status": "error"}), 400
     id_eq = datos["id_equipo"]
     if id_eq in equipos:
         equipos[id_eq]["presion_bar"] = float(datos.get("presion_bar", equipos[id_eq]["presion_bar"]))
@@ -89,37 +88,6 @@ def recibir_datos_campo():
         equipos[id_eq]["rssi_dbm"] = int(datos.get("rssi_dbm", equipos[id_eq]["rssi_dbm"]))
         return jsonify({"status": "success"}), 200
     return jsonify({"status": "error"}), 404
-
-# ─── NUEVA RUTA PARA DESCARGAR EL MANUAL TÉCNICO DIRECTO ───
-@app.route('/descargar-manual')
-def descargar_manual():
-    # Creamos un archivo de texto con toda la ingeniería de pines detallada
-    ruta_archivo = "Manual_Pines_ESP32_AgroFlow.txt"
-    with open(ruta_archivo, "w", encoding="utf-8") as f:
-        f.write("=========================================================\n")
-        f.write("   AGROFLOW AI PRO - PLAN DE ARQUITECTURA DE CAMPO\n")
-        f.write("=========================================================\n\n")
-        f.write("1. ASIGNACIÓN DE PINES FÍSICOS EN EL CHIP ESP32:\n")
-        f.write("---------------------------------------------------------\n")
-        f.write(" * Transductor de Presión (Bomba/Tramo): Pin GPIO 34 (Analog In)\n")
-        f.write(" * Caudalímetro (Conteo de Pulsos):     Pin GPIO 25 (Digital In)\n")
-        f.write(" * Módulo GPS Neo-6M (Línea Frontal):   Pin GPIO 16 (RX2) y GPIO 17 (TX2)\n")
-        f.write(" * Módulo Radio LoRa SX1276 (Antena):   Pines SPI Estándar:\n")
-        f.write("                                        - SS/CS:   GPIO 5\n")
-        f.write("                                        - SCK:     GPIO 18\n")
-        f.write("                                        - MISO:    GPIO 19\n")
-        f.write("                                        - MOSI:    GPIO 23\n\n")
-        f.write("2. CÁLCULO DE CAUDAL ESTIMADO (Mecánica de Fluidos):\n")
-        f.write("---------------------------------------------------------\n")
-        f.write(" Ecuación fundamental: Q = K * raiz(Delta_P)\n")
-        f.write(" Donde Q es el caudal en L/h y P es la presión en Bar leída por el sensor.\n\n")
-        f.write("3. RECOMENDACIÓN DE SEGURIDAD ELÉCTRICA EN EL CAMPO:\n")
-        f.write("---------------------------------------------------------\n")
-        f.write(" Instalar filtros de supresión de picos transitorios (TVS) o diodos zener\n")
-        f.write(" en la entrada de 12V/24V del tablero para proteger el microcontrolador\n")
-        f.write(" contra descargas y rayos en las tormentas de verano.\n")
-    
-    return send_file(ruta_archivo, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
