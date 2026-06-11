@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
 
-# BASE DE DATOS INDUSTRIAL REDISEÑADA PARA TELEMETRÍA Y GESTIÓN
+# BASE DE DATOS INDUSTRIAL CON SISTEMA DE HORAS DE MARCHA Y SERVICE
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
@@ -17,7 +17,13 @@ equipos = {
         "velocidad_avance": "1.2 m/h",
         "modo_enlace": "WiFi Rural (Puesto)",
         "rssi_dbm": -68,
-        "ultima_conexion": "Justo ahora"
+        "ultima_conexion": "Justo ahora",
+        # Datos del Motor/Bomba asociado
+        "motor_modelo": "Deutz 6 Cyl / Bomba Cornell 4x3",
+        "motor_horas": 218,
+        "motor_proximo_service": 250,
+        "motor_temperatura": "82 oC",
+        "motor_presion_aceite": "4.2 Bar"
     },
     "FRONTAL-F22": {
         "id_equipo": "FRONTAL-F22",
@@ -32,7 +38,13 @@ equipos = {
         "metros_recorridos": 450,
         "modo_enlace": "Radio LoRa (Antena Base)",
         "rssi_dbm": -92,
-        "ultima_conexion": "Hace 2 min"
+        "ultima_conexion": "Hace 2 min",
+        # Datos del Motor/Bomba asociado
+        "motor_modelo": "Iveco Cursor 9 / Bomba Cornell 6x4",
+        "motor_horas": 485,
+        "motor_proximo_service": 500,
+        "motor_temperatura": "24 oC",
+        "motor_presion_aceite": "0.0 Bar"
     }
 }
 
@@ -56,7 +68,6 @@ ordenes_trabajo = [
     {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos", "responsable": "Electricista", "prioridad": "Media"}
 ]
 
-# NUEVO: LIBRO DE GUARDIA DIGITAL (HISTORIAL DE EVENTOS INDUSTRIALES)
 historial_eventos = [
     {"hora": "15:34", "equipo": "SISTEMA", "evento": "Reinicio de Gateway LoRa Estación Base", "tipo": "info"},
     {"hora": "14:12", "equipo": "PIVOT-P156", "evento": "Bomba de Presión (Cornell/Deutz) Encendida con éxito", "tipo": "marcha"},
@@ -69,6 +80,13 @@ historial_eventos = [
 def index():
     id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
     equipo = equipos.get(id_seleccionado, equipos["PIVOT-P156"])
+    
+    # NUEVO: Calculamos el porcentaje de horas de uso para la barra de mantenimiento
+    horas_actuales = equipo["motor_horas"]
+    horas_limite = equipo["motor_proximo_service"]
+    porcentaje_uso = min(int((horas_actuales / horas_limite) * 100), 100)
+    horas_restantes = max(horas_limite - horas_actuales, 0)
+
     return render_template(
         'dashboard.html', 
         data=equipo, 
@@ -76,7 +94,11 @@ def index():
         stock=inventario, 
         clima=meteorologia, 
         ot=ordenes_trabajo,
-        eventos=historial_eventos  # Pasamos el historial a la pantalla
+        eventos=historial_eventos,
+        mantenimiento={
+            "porcentaje": porcentaje_uso,
+            "restantes": horas_restantes
+        }
     )
 
 @app.route('/api/telemetria', methods=['POST'])
@@ -94,6 +116,11 @@ def recibir_datos():
         else:
             equipos[id_eq]["cajon_actual"] = int(datos.get("cajon_actual", equipos[id_eq]["cajon_actual"]))
         equipos[id_eq]["rssi_dbm"] = int(datos.get("rssi_dbm", equipos[id_eq]["rssi_dbm"]))
+        
+        # Permitir que el Arduino o script mande también horas del motor si es necesario
+        if "motor_horas" in datos:
+            equipos[id_eq]["motor_horas"] = int(datos["motor_horas"])
+            
         return jsonify({"status": "success"}), 200
     return jsonify({"status": "error"}), 404
 
