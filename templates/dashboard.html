@@ -32,6 +32,7 @@
         .badge-marcha { background: rgba(16, 185, 129, 0.1); color: var(--verde); }
         .badge-parado { background: rgba(245, 158, 11, 0.1); color: var(--alerta); }
         .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .badge-info { background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); }
     </style>
     <script>
         function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
@@ -107,6 +108,30 @@
                     <div class="card-dato"><div class="dato-lbl">Acumulado Mensual</div><div class="dato-val" style="color: #3b82f6;">{{ clima.pluviometria_acumulada_mes }} mm</div></div>
                     <div class="card-dato"><div class="dato-lbl">Anemómetro (Viento)</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">💨 {{ clima.velocidad_viento }}</div></div>
                     <div class="card-dato"><div class="dato-lbl">Higrómetro de Suelo</div><div class="dato-val" style="font-size: 14px; margin-top: 8px;">🌱 {{ clima.humedad_suelo }}</div></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">📝 Libro de Guardia Digital (Historial SCADA)</div>
+                <div style="max-height: 180px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Hora</th><th>Origen</th><th>Detalle Técnico del Evento</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for evento in eventos %}
+                            <tr>
+                                <td><span style="color:#64748b;">{{ evento.hora }}</span></td>
+                                <td><code>{{ evento.equipo }}</code></td>
+                                <td>
+                                    <span class="badge {% if evento.tipo == 'marcha' %}badge-marcha{% elif evento.tipo == 'alerta' %}badge-critico{% elif evento.tipo == 'parado' %}badge-parado{% else %}badge-info{% endif %}">
+                                        {{ evento.evento }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
