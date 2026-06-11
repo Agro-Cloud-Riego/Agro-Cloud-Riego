@@ -1,90 +1,97 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from datetime import datetime
 
 app = Flask(__name__)
 
-# BASE DE DATOS EN MEMORIA (Admite WiFi, LoRa y GPS)
+# BASE DE DATOS INDUSTRIAL REDISEÑADA PARA TELEMETRÍA Y GESTIÓN
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
         "tipo": "Pivot Central",
-        "lote": "Lote A2",
-        "bomba_activa": True,
+        "lote": "Lote Alfalfa (156 Ha)",
+        "estado_marcha": "OPERANDO",
         "presion_bar": 2.4,
-        "angulo_actual": 45,
-        "direccion": "ADELANTE",
-        "timer_porcentaje": 60,
-        "hectareas_totales": 156.0,
         "caudal_lh": 120000,
-        "alerta_ia": "Normal - Presión estable en Cornell",
-        "modo_enlace": "WiFi / Celular",
-        "latitud": -25.0451,
-        "longitud": -64.1284,
-        "rssi_dbm": -65
+        # Telemetría Geométrica del Pivot
+        "tipo_geometria": "circular",
+        "angulo_actual": 145,  # Grados de rotación
+        "hectareas_regadas": 62.5,
+        "velocidad_avance": "1.2 m/h",
+        # Conectividad
+        "modo_enlace": "WiFi Rural (Puesto)",
+        "rssi_dbm": -68,
+        "ultima_conexion": "Justo ahora"
     },
     "FRONTAL-F22": {
         "id_equipo": "FRONTAL-F22",
-        "tipo": "Frontal Lineal (22 Tramos)",
-        "lote": "Lote Norte-B",
-        "bomba_activa": False,
+        "tipo": "Avance Frontal Lineal",
+        "lote": "Cuadro Norte (210 Ha)",
+        "estado_marcha": "PARADO",
         "presion_bar": 0.0,
-        "angulo_actual": 120, 
-        "direccion": "REVERSA",
-        "timer_porcentaje": 0, 
-        "hectareas_totales": 210.0,
         "caudal_lh": 0,
-        "alerta_ia": "Estacionado - Listo para operar",
-        "modo_enlace": "Enlace de Radio LoRa",
-        "latitud": -25.0322,
-        "longitud": -64.1115,
-        "rssi_dbm": -92
+        # Telemetría Geométrica del Frontal
+        "tipo_geometria": "lineal",
+        "cajon_actual": 4,  # Tramo o posición en el callejón guía
+        "cajones_totales": 12,
+        "metros_recorridos": 450,
+        # Conectividad
+        "modo_enlace": "Radio LoRa (Antena Base)",
+        "rssi_dbm": -92,
+        "ultima_conexion": "Hace 2 min"
     }
 }
+
+# GESTIÓN DE STOCK DE REPUESTOS (Mantenimiento preventivo)
+inventario = [
+    {"componente": "Aceite de Transmisión (SAE 50)", "cantidad": 45, "unidad": "Litros", "estado": "OK"},
+    {"componente": "Caja de Engranajes (Gearbox Valley/Lindsay)", "cantidad": 3, "unidad": "Unidades", "estado": "CRÍTICO"},
+    {"componente": "Picos Aspersores (Boquillas 3/4)", "cantidad": 120, "unidad": "Unidades", "estado": "OK"},
+    {"componente": "Neumático de Pivot 11.2x38", "cantidad": 2, "unidad": "Unidades", "estado": "BAJO"}
+]
+
+# ESTACIÓN METEOROLÓGICA GENERAL DEL CAMPO
+meteorologia = {
+    "pluviometria_hoy": 14.2,  # mm caídos
+    "pluviometria_acumulada_mes": 42.0,  # mm
+    "velocidad_viento": "18 km/h (Norte)",
+    "humedad_suelo": "32% (Capacidad de campo moderada)",
+    "temperatura": "26.4 °C"
+}
+
+# ÓRDENES DE TRABAJO Y MANTENIMIENTO Activas
+ordenes_trabajo = [
+    {"id": "OT-104", "equipo": "PIVOT-P156", "tarea": "Cambio de aceite de reductoras en torre 4 y 5", "responsable": "Mecánicos", "prioridad": "Alta"},
+    {"id": "OT-105", "equipo": "FRONTAL-F22", "tarea": "Revisión de alineación de tramos y manguera de abasto", "responsable": "Electricista", "prioridad": "Media"}
+]
 
 @app.route('/')
 def index():
     id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
     equipo = equipos.get(id_seleccionado, equipos["PIVOT-P156"])
-    return render_template('dashboard.html', data=equipo, todos_equipos=equipos)
+    return render_template(
+        'dashboard.html', 
+        data=equipo, 
+        todos_equipos=equipos, 
+        stock=inventario, 
+        clima=meteorologia, 
+        ot=ordenes_trabajo
+    )
 
-@app.route('/control/<id_equipo>/<parametro>/<valor>')
-def control_avanzado(id_equipo, parametro, valor):
-    if id_equipo in equipos:
-        eq = equipos[id_equipo]
-        if parametro == "bomba":
-            if valor == "encender":
-                eq["bomba_activa"] = True
-                eq["presion_bar"] = 2.4 if id_equipo == "PIVOT-P156" else 3.1
-                eq["caudal_lh"] = 120000
-            elif valor == "apagar":
-                eq["bomba_activa"] = False
-                eq["presion_bar"] = 0.0
-                eq["caudal_lh"] = 0
-        elif parametro == "direccion":
-            eq["direccion"] = valor.upper()
-        elif parametro == "timer":
-            try:
-                nuevo_timer = int(valor)
-            except ValueError:
-                nuevo_timer = eq["timer_porcentaje"]
-            if nuevo_timer < 0: nuevo_timer = 0
-            if nuevo_timer > 100: nuevo_timer = 100
-            eq["timer_porcentaje"] = nuevo_timer
-
-    return redirect(url_for('index', equipo=id_equipo))
-
+# API para recibir los datos de los sensores de campo (ESP32)
 @app.route('/api/telemetria', methods=['POST'])
-def recibir_datos_campo():
+def recibir_datos():
     datos = request.get_json()
     if not datos or "id_equipo" not in datos:
         return jsonify({"status": "error"}), 400
+    
     id_eq = datos["id_equipo"]
     if id_eq in equipos:
         equipos[id_eq]["presion_bar"] = float(datos.get("presion_bar", equipos[id_eq]["presion_bar"]))
         equipos[id_eq]["caudal_lh"] = int(datos.get("caudal_lh", equipos[id_eq]["caudal_lh"]))
-        equipos[id_eq]["angulo_actual"] = int(datos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
-        equipos[id_eq]["modo_enlace"] = datos.get("modo_enlace", equipos[id_eq]["modo_enlace"])
-        equipos[id_eq]["latitud"] = float(datos.get("latitud", equipos[id_eq]["latitud"]))
-        equipos[id_eq]["longitud"] = float(datos.get("longitud", equipos[id_eq]["longitud"]))
+        if equipos[id_eq]["tipo_geometria"] == "circular":
+            equipos[id_eq]["angulo_actual"] = int(datos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
+        else:
+            equipos[id_eq]["cajon_actual"] = int(datos.get("cajon_actual", equipos[id_eq]["cajon_actual"]))
         equipos[id_eq]["rssi_dbm"] = int(datos.get("rssi_dbm", equipos[id_eq]["rssi_dbm"]))
         return jsonify({"status": "success"}), 200
     return jsonify({"status": "error"}), 404
