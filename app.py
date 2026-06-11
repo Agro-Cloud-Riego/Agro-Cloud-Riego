@@ -1,9 +1,8 @@
-# Sumamos 'url_for' y 'redirect' que faltaban arriba
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
 
-# BASE DE DATOS PROFESIONAL (Control independiente de Hidráulica y Movimiento)
+# BASE DE DATOS EN MEMORIA (Estado actual de los equipos)
 equipos = {
     "PIVOT-P156": {
         "id_equipo": "PIVOT-P156",
@@ -43,8 +42,6 @@ def index():
 def control_avanzado(id_equipo, parametro, valor):
     if id_equipo in equipos:
         eq = equipos[id_equipo]
-        
-        # 1. Control de Bomba
         if parametro == "bomba":
             if valor == "encender":
                 eq["bomba_activa"] = True
@@ -54,18 +51,13 @@ def control_avanzado(id_equipo, parametro, valor):
                 eq["bomba_activa"] = False
                 eq["presion_bar"] = 0.0
                 eq["caudal_lh"] = 0
-                
-        # 2. Control de Dirección
         elif parametro == "direccion":
             eq["direccion"] = valor.upper()
-            
-        # 3. Control de Velocidad (Timer)
         elif parametro == "timer":
             try:
                 nuevo_timer = int(valor)
             except ValueError:
                 nuevo_timer = eq["timer_porcentaje"]
-                
             if nuevo_timer < 0: nuevo_timer = 0
             if nuevo_timer > 100: nuevo_timer = 100
             eq["timer_porcentaje"] = nuevo_timer
@@ -75,8 +67,34 @@ def control_avanzado(id_equipo, parametro, valor):
             else:
                 eq["alerta_ia"] = "Operación normal regulada por telecontrol."
 
-    # Esto era lo que faltaba: redirigir bien manteniendo el equipo seleccionado
     return redirect(url_for('index', equipo=id_equipo))
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# ==========================================
+#  RADAR DE TELEMETRÍA: ENCHUFE PARA ESP32
+# ==========================================
+@app.route('/api/telemetria', methods=['POST'])
+def recibir_datos_campo():
+    # El chip ESP32 va a mandar un paquete de datos por internet
+    datos_recibidos = request.get_json()
+    
+    if not datos_recibidos or "id_equipo" not in datos_recibidos:
+        return jsonify({"status": "error", "message": "Datos invalidos o falta id_equipo"}), 400
+        
+    id_eq = datos_recibidos["id_equipo"]
+    
+    # Si el equipo existe en nuestra lista, le actualizamos los valores con los del sensor real
+    if id_eq in equipos:
+        equipos[id_eq]["presion_bar"] = float(datos_recibidos.get("presion_bar", equipos[id_eq]["presion_bar"]))
+        equipos[id_eq]["caudal_lh"] = int(datos_recibidos.get("caudal_lh", equipos[id_eq]["caudal_lh"]))
+        equipos[id_eq]["angulo_actual"] = int(datos_recibidos.get("angulo_actual", equipos[id_eq]["angulo_actual"]))
+        
+        # Inteligencia Artificial Básica de Seguridad:
+        # Si la bomba está activa pero la presión cae por debajo de 1.2 Bar, asumimos rotura o fuga
+        if equipos[id_eq]["bomba_activa"] and equipos[id_eq]["presion_bar"] < 1.2:
+            equipos[id_eq]["alerta_ia"] = "🚨 ALERTA IA: ¡Caída de presión crítica detectada! Posible rotura de caño o falla en bomba Cornell."
+        else:
+            equipos[id_eq]["alerta_ia"] = "Telemetría ONLINE — Sensores de campo transmitiendo correctamente."
+            
+        return jsonify({"status": "success", "message": "Telemetria actualizada en la nube"}), 200
+    
+    return jsonify({"status": "error", "message": "Equipo no registrado"}), 404
