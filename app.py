@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = 'agroriego_secreto_cejasmardani'
@@ -48,18 +49,51 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-stock_simulado = [
-    {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
-    {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
-    {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
-]
+# --- FUNCIÓN PARA CARGAR STOCK DESDE EL ARCHIVO ODS ---
+def cargar_stock_desde_ods():
+    archivo_ods = "stockriego 21.ods"
+    
+    # Datos de respaldo por si el archivo no se encuentra en el servidor
+    stock_respaldo = [
+        {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
+        {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
+        {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
+    ]
+    
+    if os.path.exists(archivo_ods):
+        try:
+            # Lee la primera hoja del archivo ODS
+            df = pd.read_excel(archivo_ods, engine='odf')
+            
+            # Limpiamos los nombres de las columnas por si tienen espacios
+            df.columns = df.columns.str.strip()
+            
+            # Estructuramos la lista para que la lea el HTML
+            lista_stock = []
+            for _, fila in df.iterrows():
+                # Reemplazá 'Insumo', 'Stock Disp.' y 'Estado' por los nombres exactos de tus columnas si difieren
+                componente = fila.get('Insumo', fila.iloc[0])
+                cantidad = fila.get('Stock Disp.', fila.iloc[1])
+                estado = fila.get('Estado', 'OK')
+                
+                lista_stock.append({
+                    "componente": str(componente),
+                    "cantidad": str(cantidad),
+                    "unidad": "", # Dejamos vacío o lo acoplamos si tenés columna de unidades
+                    "estado": str(estado).upper()
+                })
+            return lista_stock
+        except Exception as e:
+            print(f"Error al leer el archivo ODS, usando respaldo: {e}")
+            return stock_respaldo
+    else:
+        return stock_respaldo
 
 # --- RUTAS DE NAVEGACIÓN ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Usamos .get() de forma segura para evitar fallas de sincronización
         user_input = request.form.get('usuario')
         pass_input = request.form.get('clave')
         
@@ -88,14 +122,15 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
-    # IMPORTANTE: Mapeamos ot_simuladas a 'ot' y stock_simulado a 'stock' 
-    # para que coincidan exactamente con lo que busca tu dashboard.html
+    # Cargamos el stock dinámico desde tu archivo de Calc
+    stock_actualizado = cargar_stock_desde_ods()
+    
     return render_template(
         'dashboard.html', 
         data=datos_panel, 
         todos_equipos=equipos_riego, 
         ot=ot_simuladas, 
-        stock=stock_simulado, 
+        stock=stock_actualizado, 
         user=current_user
     )
 
