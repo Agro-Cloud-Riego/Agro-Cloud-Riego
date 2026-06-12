@@ -49,26 +49,19 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN DETECTIVE PARA VER QUÉ HAY EN EL SERVIDOR ---
+# --- FUNCIÓN DEFINITIVA PARA CARGAR STOCK ---
 def cargar_stock_desde_ods():
-    # Buscamos el archivo de stock
-    archivo_real = None
-    archivos_encontrados = os.listdir('.')
+    archivo_ods = "stockriego 21.ods"
     
-    for archivo in archivos_encontrados:
-        nombre_minuscula = archivo.lower()
-        if nombre_minuscula.startswith('stock') and (nombre_minuscula.endswith('.ods') or nombre_minuscula.endswith('.xlsx')):
-            archivo_real = archivo
-            break
-
-    # SI ENCUENTRA EL ARCHIVO, LO PROCESA
-    if archivo_real:
+    stock_respaldo = [
+        {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
+        {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
+        {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
+    ]
+    
+    if os.path.exists(archivo_ods):
         try:
-            if archivo_real.lower().endswith('.ods'):
-                df = pd.read_excel(archivo_real, engine='odf')
-            else:
-                df = pd.read_excel(archivo_real)
-            
+            df = pd.read_excel(archivo_ods, engine='odf')
             df.columns = df.columns.str.strip()
             
             lista_stock = []
@@ -97,25 +90,10 @@ def cargar_stock_desde_ods():
                 return lista_stock
                 
         except Exception as e:
-            # Si falla al leerlo, nos avisa en la tabla el error
-            return [{"componente": f"⚠️ Error al leer archivo: {archivo_real}", "cantidad": str(e), "unidad": "", "estado": "CRÍTICO"}]
+            print(f"Error procesando el archivo: {e}")
+            return stock_respaldo
             
-    # SI NO ENCUENTRA EL ARCHIVO, EN LUGAR DEL RESPALDO, NOS MUESTRA QUÉ ARCHIVOS HAY
-    lista_diagnostico = []
-    for f in archivos_encontrados:
-        # Filtramos archivos ocultos del sistema para no llenar la pantalla
-        if not f.startswith('.'):
-            lista_diagnostico.append({
-                "componente": f"📁 Archivo en servidor: {f}",
-                "cantidad": "Visible",
-                "unidad": "",
-                "estado": "OK"
-            })
-            
-    if len(lista_diagnostico) == 0:
-        return [{"componente": "❌ Servidor vacío (No se ven archivos)", "cantidad": 0, "unidad": "", "estado": "CRÍTICO"}]
-        
-    return lista_diagnostico
+    return stock_respaldo
 
 # --- RUTAS DE NAVEGACIÓN ---
 
@@ -149,7 +127,6 @@ def index():
         id_solicitado = "FRONTAL-F22"
         
     datos_panel = equipos_riego[id_solicitado]
-    
     stock_actualizado = cargar_stock_desde_ods()
     
     return render_template(
