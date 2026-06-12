@@ -7,9 +7,16 @@
     <style>
         :root { --bg-principal: #0f172a; --bg-tarjeta: #1e293b; --borde: #334155; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #ef4444; }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 10px; }
         h1 { margin: 0; font-size: 26px; color: #fff; font-weight: 800; }
         .logo-meta { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; }
+        
+        /* Barra de Navegación Nueva */
+        nav { display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--borde); }
+        .nav-link { color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: bold; padding: 8px 16px; border-radius: 6px; border: 1px solid transparent; }
+        .nav-link:hover { color: #fff; background-color: var(--bg-tarjeta); }
+        .nav-link.active { color: #fff; background-color: var(--bg-tarjeta); border-color: var(--borde); }
+
         .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); padding: 20px; border-radius: 12px; }
         .panel-titulo { font-size: 16px; font-weight: bold; border-bottom: 1px solid var(--borde); padding-bottom: 10px; margin-bottom: 15px; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
@@ -41,6 +48,11 @@
             <a href="/logout" class="btn-logout">Cerrar Sesión</a>
         </div>
     </header>
+
+    <nav>
+        <a href="/" class="nav-link active">📡 Panel de Control</a>
+        <a href="/stock" class="nav-link">📦 Stock 21</a>
+    </nav>
 
     <div class="dashboard-layout">
         <div class="panel">
@@ -93,43 +105,23 @@
             </div>
         </div>
 
-        <div class="dashboard-layout" style="grid-template-columns: 1fr; gap: 20px;">
-            <div class="panel">
-                <div class="panel-titulo">🛠️ Órdenes de Trabajo</div>
-                <table>
-                    <thead>
-                        <tr><th>Código</th><th>Tarea</th><th>Asignado</th><th>Prioridad</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for tarea in ot %}
-                        <tr>
-                            <td><code>{{ tarea.id }}</code></td>
-                            <td>{{ tarea.tarea }}</td>
-                            <td>{{ tarea.responsable }}</td>
-                            <td><span class="badge {% if tarea.prioridad == 'Alta' %}badge-critico{% else %}badge-parado{% endif %}">{{ tarea.prioridad }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="panel">
-                <div class="panel-titulo">📦 Pañol de Repuestos</div>
-                <table>
-                    <thead>
-                        <tr><th>Insumo</th><th>Stock Disp.</th><th>Estado</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for item in stock %}
-                        <tr>
-                            <td>{{ item.componente }}</td>
-                            <td><strong>{{ item.cantidad }}</strong> {{ item.unidad }}</td>
-                            <td><span class="badge {% if item.estado == 'OK' %}badge-marcha{% else %}badge-critico{% endif %}">{{ item.estado }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="panel">
+            <div class="panel-titulo">🛠️ Órdenes de Trabajo Activas</div>
+            <table>
+                <thead>
+                    <tr><th>Código</th><th>Tarea</th><th>Asignado</th><th>Prioridad</th></tr>
+                </thead>
+                <tbody>
+                    {% for tarea in ot %}
+                    <tr>
+                        <td><code>{{ tarea.id }}</code></td>
+                        <td>{{ tarea.tarea }}</td>
+                        <td>{{ tarea.responsable }}</td>
+                        <td><span class="badge {% if tarea.prioridad == 'Alta' %}badge-critico{% else %}badge-parado{% endif %}">{{ tarea.prioridad }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
