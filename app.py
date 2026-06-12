@@ -59,6 +59,7 @@ stock_simulado = [
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # Usamos .get() de forma segura para evitar fallas de sincronización
         user_input = request.form.get('usuario')
         pass_input = request.form.get('clave')
         
@@ -87,6 +88,8 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
+    # IMPORTANTE: Mapeamos ot_simuladas a 'ot' y stock_simulado a 'stock' 
+    # para que coincidan exactamente con lo que busca tu dashboard.html
     return render_template(
         'dashboard.html', 
         data=datos_panel, 
