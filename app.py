@@ -13,7 +13,6 @@ class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
-# Credencial de acceso
 usuarios_sistema = {
     "marcelo": "agro2026"
 }
@@ -24,7 +23,7 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- DATOS SIMULADOS DEL PANEL ---
+# --- DATOS REALES DEL PANEL ---
 equipos = {
     "PIVOT-P156": {
         "id": "PIVOT-P156",
