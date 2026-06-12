@@ -80,7 +80,6 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    # Sincronizado estrictamente para buscar el FRONTAL-F22 por defecto
     id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
     
     if id_solicitado not in equipos_riego:
@@ -88,7 +87,6 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
-    # Enviamos todas las variables agrupadas que el dashboard necesita
     return render_template(
         'dashboard.html', 
         data=datos_panel, 
