@@ -3,134 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroFlow Pro - Telemetría Rural</title>
+    <title>AgroFlow - Sistema de Gestión Agrícola</title>
     <style>
-        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #1e293b; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #f59e0b; --titulos: #94a3b8; }
-        .modo-noche { --bg-principal: #05070c; --bg-tarjeta: #0b0f17; --borde: #161e2e; --texto-ok: #0ea5e9; --titulos: #64748b; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f1f5f9; margin: 0; padding: 20px; transition: background 0.3s; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; }
-        .logo-meta { font-size: 12px; color: #64748b; text-transform: uppercase; }
-        .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media(max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
-        .columna { display: flex; flex-direction: column; gap: 20px; }
-        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 18px; }
-        .panel-titulo { font-size: 13px; font-weight: bold; color: var(--titulos); text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px solid var(--borde); padding-bottom: 6px; display: flex; justify-content: space-between; }
-        .selector-flota select { background: var(--bg-principal); color: var(--texto-ok); padding: 10px; border-radius: 8px; border: 1px solid var(--texto-ok); font-size: 16px; width: 100%; font-weight: bold; cursor: pointer; }
-        .telemetria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .card-dato { background: rgba(255,255,255,0.01); border-radius: 8px; border: 1px solid var(--borde); padding: 12px; }
-        .dato-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; }
-        .dato-val { font-size: 20px; font-weight: bold; color: var(--texto-ok); margin-top: 4px; }
-        .mapa-simulado { background: #070a12; border: 2px dashed var(--borde); height: 140px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-        .pivot-circulo { width: 100px; height: 100px; border: 2px dashed #334155; border-radius: 50%; position: relative; }
-        .pivot-linea-avance { position: absolute; width: 50%; height: 2px; background: #ef4444; top: 50%; left: 50%; transform-origin: left center; }
-        .frontal-camino { width: 80%; height: 16px; background: #1e293b; border-radius: 4px; position: relative; }
-        .frontal-carro { position: absolute; width: 12px; height: 24px; background: #ef4444; top: -4px; border-radius: 3px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { color: #64748b; padding: 6px; border-bottom: 1px solid var(--borde); text-align: left; }
-        td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.02); }
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-        .badge-marcha { background: rgba(16, 185, 129, 0.1); color: var(--verde); }
-        .badge-parado { background: rgba(245, 158, 11, 0.1); color: var(--alerta); }
-        .badge-critico { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-        .badge-info { background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); }
-        .barra-contenedor { background-color: #1e293b; border-radius: 6px; height: 12px; width: 100%; margin-top: 6px; overflow: hidden; }
-        .barra-progreso { height: 100%; }
-        .color-ok { background-color: var(--verde); }
-        .color-alerta { background-color: var(--alerta); }
-        .color-critico { background-color: #ef4444; }
-        .color-riego { background-color: #0284c7; }
-        .color-lluvia { background-color: #2563eb; }
-        .btn-noche { background: #1e293b; color: #fff; border: 1px solid var(--borde); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
-    </style>
-    <script>
-        function cambiarEquipo(select) { window.location.href = "/?equipo=" + select.value; }
-        function conmutarModoNoche() {
-            document.body.classList.toggle('modo-noche');
-            const btn = document.getElementById('btnNoche');
-            btn.innerHTML = document.body.classList.contains('modo-noche') ? "☀️ Modo Diurno" : "🌙 Modo Nocturno";
+        body {
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=1200') no-repeat center center fixed;
+            background-size: cover;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-    </script>
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px 35px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 360px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .brand-icon {
+            background: #1e4e5a;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 15px;
+            font-size: 28px;
+        }
+        h2 {
+            color: #111827;
+            margin: 0 0 5px 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            text-align: left;
+            margin-bottom: 18px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #4b5563;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            color: #111827;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: #fff;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #3a8d97;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            color: white;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2c6b73;
+        }
+        .error-msg {
+            color: #dc2626;
+            font-size: 13px;
+            margin-bottom: 15px;
+            background: #fee2e2;
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .footer-text {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+    </style>
 </head>
 <body>
+    <div class="login-card">
+        <div class="brand-icon">🚜</div>
+        <h2>AgroFlow</h2>
+        <div class="subtitle">Sistema de Gestión Agrícola</div>
+        
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% endif %}
 
-    <header>
-        <div>
-            <h1>AgroFlow AI 🌐 <span style="font-size: 16px; color: var(--texto-ok);">Centro de Monitoreo</span></h1>
-            <div class="logo-meta">Panel SCADA Avanzado de Telemetría</div>
-        </div>
-        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-            <button id="btnNoche" class="btn-noche" onclick="conmutarModoNoche()">🌙 Modo Nocturno</button>
-            <div style="font-size: 11px; color: #64748b;">Salta, Argentina</div>
-        </div>
-    </header>
-
-    <div class="dashboard-layout">
-        <div class="columna">
-            <div class="panel selector-flota">
-                <div class="panel-titulo">Selección de Unidad Activa</div>
-                <select onchange="cambiarEquipo(this)">
-                    {% for id, eq in todos_equipos.items() %}
-                        <option value="{{ id }}" {% if id == data.id_equipo %}selected{% endif %}>{{ eq.tipo }} - ID: {{ id }}</option>
-                    {% endfor %}
-                </select>
+        <form method="POST">
+            <div class="input-group">
+                <label>Usuario / Email</label>
+                <input type="text" name="usuario" placeholder="usuario@empresa.com" required>
             </div>
-
-            <div class="panel">
-                <div class="panel-titulo">
-                    <span>Telemetría Hidráulica</span>
-                    <span class="badge {% if data.estado_marcha == 'OPERANDO' %}badge-marcha{% else %}badge-parado{% endif %}">{{ data.estado_marcha }}</span>
-                </div>
-                <div class="telemetria-grid">
-                    <div class="card-dato"><div class="dato-lbl">Presión</div><div class="dato-val">{{ data.presion_bar }} Bar</div></div>
-                    <div class="card-dato"><div class="dato-lbl">Caudalímetro</div><div class="dato-val">{{ data.caudal_lh }} L/h</div></div>
-                </div>
+            <div class="input-group">
+                <label>Clave de Acceso</label>
+                <input type="password" name="clave" placeholder="••••••••" required>
             </div>
-
-            <div class="panel">
-                <div class="panel-titulo">⚙️ Unidad de Bombeo / Motor</div>
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">{{ data.motor_modelo }}</div>
-                <div class="telemetria-grid" style="margin-bottom: 10px;">
-                    <div class="card-dato"><div class="dato-lbl">Horas</div><div class="dato-val" style="font-size:16px;">{{ data.motor_horas }} hrs</div></div>
-                    <div class="card-dato"><div class="dato-lbl">Temp</div><div class="dato-val" style="font-size:16px; color:#f59e0b;">{{ data.motor_temperatura }}</div></div>
-                </div>
-                <div style="font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between;">
-                    <span>Mantenimiento Preventivo ({{ mantenimiento.porcentaje }}%)</span>
-                    <strong>Faltan {{ mantenimiento.restantes }} hrs</strong>
-                </div>
-                <div class="barra-contenedor">
-                    <div class="barra-progreso {% if mantenimiento.porcentaje > 85 %}color-critico{% else %}color-ok{% endif %}" style="width: {{ mantenimiento.porcentaje }}%;"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="columna">
-            <div class="panel">
-                <div class="panel-titulo">💧 Balance de Agua Semanal</div>
-                <div style="font-size: 13px; margin-bottom: 8px;">Lámina Total Recibida: <strong>{{ hidrologia.agua_total }} mm</strong></div>
-                <div style="font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between;">
-                    <span>Riego Tecnificado ({{ data.riego_semanal_mm }} mm)</span>
-                    <strong>{{ hidrologia.porcentaje_riego }}%</strong>
-                </div>
-                <div class="barra-contenedor"><div class="barra-progreso color-riego" style="width: {{ hidrologia.porcentaje_riego }}%;"></div></div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-titulo">📝 Historial SCADA</div>
-                <table>
-                    <tbody>
-                        {% for evento in eventos %}
-                        <tr>
-                            <td><span style="color:#64748b;">{{ evento.hora }}</span></td>
-                            <td><code>{{ evento.equipo }}</code></td>
-                            <td><span class="badge {% if evento.tipo == 'marcha' %}badge-marcha{% else %}badge-info{% endif %}">{{ evento.evento }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <button type="submit">Ingresar al Sistema →</button>
+        </form>
+        <div class="footer-text">AgroFlow v1.0.1</div>
     </div>
-
 </body>
 </html>
