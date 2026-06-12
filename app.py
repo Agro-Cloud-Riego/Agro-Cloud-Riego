@@ -25,7 +25,7 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- DATOS DEL AVANCE FRONTAL ---
+# --- MAQUETA DE EQUIPOS CON GEOLOCALIZACIÓN RELES (Coordenadas de Salta) ---
 equipos_riego = {
     "FRONTAL-F22": {
         "id": "FRONTAL-F22",
@@ -33,31 +33,53 @@ equipos_riego = {
         "lote": "Cuadro Norte (210 Ha)",
         "posicion": "Cajón 4 de 12",
         "distancia": "450m",
+        "presion": "3.2 Bar",
+        "caudal": "120.000 L/h",
+        "estado": "MARCHA",
+        "senal": "-85 dBm",
+        "lat": -25.0833,  # Coordenadas de prueba en Salta
+        "lng": -64.1167
+    },
+    "PIVOT-LOTE-A2": {
+        "id": "PIVOT-LOTE-A2",
+        "tipo": "Pivot Central",
+        "lote": "Lote A2 (156 Ha)",
+        "posicion": "Ángulo 180° (Sur)",
+        "distancia": "Rotando",
         "presion": "0.0 Bar",
         "caudal": "0 L/h",
         "estado": "PARADO",
-        "senal": "-92 dBm",
-        "pluviometro": "14.2 mm",
-        "mensual": "42.0 mm",
-        "viento": "18 km/h (Norte)",
-        "humedad": "32% (Moderada)"
+        "senal": "-95 dBm",
+        "lat": -25.0950,
+        "lng": -64.1320
+    },
+    "PIVOT-LOTE-B1": {
+        "id": "PIVOT-LOTE-B1",
+        "tipo": "Pivot Central",
+        "lote": "Lote B1 (120 Ha)",
+        "posicion": "Ángulo 45° (NE)",
+        "distancia": "Rotando",
+        "presion": "2.8 Bar",
+        "caudal": "95.000 L/h",
+        "estado": "MARCHA",
+        "senal": "-78 dBm",
+        "lat": -25.0710,
+        "lng": -64.1010
     }
 }
 
 ot_simuladas = [
-    {"id": "OT-104", "tarea": "Engrase de torres 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"},
+    {"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"},
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN PARA LOGÍSTICA DE REPUSTOS ---
+# --- FUNCIÓN DEFINITIVA PARA CARGAR STOCK ---
 def cargar_stock_desde_ods():
     archivo_ods = "stockriego 21.ods"
-    
     if os.path.exists(archivo_ods):
         try:
             df = pd.read_excel(archivo_ods, engine='odf')
             df.columns = df.columns.str.strip()
-            
             lista_stock = []
             for _, fila in df.iterrows():
                 componente = fila.get('Descripsion /Modelo')
@@ -79,14 +101,10 @@ def cargar_stock_desde_ods():
                     "unidad": "unidades",
                     "estado": estado_final
                 })
-            
             if len(lista_stock) > 0:
                 return lista_stock
-                
         except Exception as e:
             print(f"Error procesando el archivo: {e}")
-            return []
-            
     return []
 
 # --- RUTAS DE NAVEGACIÓN ---
@@ -96,7 +114,6 @@ def login():
     if request.method == 'POST':
         user_input = request.form.get('usuario')
         pass_input = request.form.get('clave')
-        
         if user_input in usuarios_sistema and usuarios_sistema[user_input] == pass_input:
             usuario_obj = User(user_input)
             login_user(usuario_obj)
@@ -111,10 +128,10 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# 1. PANTALLA PRINCIPAL: Dashboard Limpio (Sin la tabla de stock)
 @app.route('/')
 @login_required
 def index():
+    # Recibe el equipo seleccionado desde el menú
     id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
     if id_solicitado not in equipos_riego:
         id_solicitado = "FRONTAL-F22"
@@ -129,7 +146,6 @@ def index():
         user=current_user
     )
 
-# 2. NUEVA PANTALLA INDEPENDIENTE: "Stock 21"
 @app.route('/stock')
 @login_required
 def stock():
