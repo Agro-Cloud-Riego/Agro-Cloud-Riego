@@ -49,11 +49,11 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN PARA CARGAR STOCK DESDE EL ARCHIVO ODS ---
+# --- FUNCIÓN CORREGIDA PARA TU PLANILLA REAL ---
 def cargar_stock_desde_ods():
     archivo_ods = "stockriego 21.ods"
     
-    # Datos de respaldo por si el archivo no se encuentra en el servidor
+    # Respaldo por si falla el archivo
     stock_respaldo = [
         {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
         {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
@@ -62,29 +62,41 @@ def cargar_stock_desde_ods():
     
     if os.path.exists(archivo_ods):
         try:
-            # Lee la primera hoja del archivo ODS
+            # Leemos la planilla completa
             df = pd.read_excel(archivo_ods, engine='odf')
             
-            # Limpiamos los nombres de las columnas por si tienen espacios
+            # Limpiamos espacios raros en los títulos de las columnas
             df.columns = df.columns.str.strip()
             
-            # Estructuramos la lista para que la lea el HTML
             lista_stock = []
             for _, fila in df.iterrows():
-                # Reemplazá 'Insumo', 'Stock Disp.' y 'Estado' por los nombres exactos de tus columnas si difieren
-                componente = fila.get('Insumo', fila.iloc[0])
-                cantidad = fila.get('Stock Disp.', fila.iloc[1])
-                estado = fila.get('Estado', 'OK')
+                # Buscamos exactamente las columnas de tu foto
+                componente = fila.get('Descripsion /Modelo')
+                cantidad = fila.get('Stock Actual')
+                estado_raw = fila.get('Stock Crítico', 'STOCK OK')
+                
+                # Si la fila está vacía, la salteamos
+                if pd.isna(componente):
+                    continue
+                
+                # Formateamos el estado para que combine con tus estilos visuales (OK o CRÍTICO)
+                estado_str = str(estado_raw).upper().strip()
+                if "URGENTE" in estado_str or "CRITICO" in estado_str:
+                    estado_final = "CRÍTICO"
+                else:
+                    estado_final = "OK"
                 
                 lista_stock.append({
-                    "componente": str(componente),
-                    "cantidad": str(cantidad),
-                    "unidad": "", # Dejamos vacío o lo acoplamos si tenés columna de unidades
-                    "estado": str(estado).upper()
+                    "componente": str(componente).strip(),
+                    "cantidad": int(cantidad) if pd.notna(cantidad) else 0,
+                    "unidad": "unidades",
+                    "estado": estado_final
                 })
-            return lista_stock
+            
+            return lista_stock if len(lista_stock) > 0 else stock_respaldo
+            
         except Exception as e:
-            print(f"Error al leer el archivo ODS, usando respaldo: {e}")
+            print(f"Error procesando ODS: {e}")
             return stock_respaldo
     else:
         return stock_respaldo
@@ -122,7 +134,7 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
-    # Cargamos el stock dinámico desde tu archivo de Calc
+    # Cargamos tus repuestos reales actualizados
     stock_actualizado = cargar_stock_desde_ods()
     
     return render_template(
@@ -134,7 +146,7 @@ def index():
         user=current_user
     )
 
-# --- ARRANQUE COMPATIBLE CON PORT BINDING DE RENDER ---
+# --- ARRANQUE ---
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=puerto)
