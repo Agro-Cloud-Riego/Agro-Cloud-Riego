@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroFlow - Sistema de Gestión Agrícola</title>
+    <style>
+        body {
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=1200') no-repeat center center fixed;
+            background-size: cover;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px 35px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 360px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .brand-icon {
+            background: #1e4e5a;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 15px;
+            font-size: 28px;
+        }
+        h2 {
+            color: #111827;
+            margin: 0 0 5px 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            text-align: left;
+            margin-bottom: 18px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #4b5563;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            color: #111827;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: #fff;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #3a8d97;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            color: white;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2c6b73;
+        }
+        .error-msg {
+            color: #dc2626;
+            font-size: 13px;
+            margin-bottom: 15px;
+            background: #fee2e2;
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .footer-text {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand-icon">🚜</div>
+        <h2>AgroFlow</h2>
+        <div class="subtitle">Sistema de Gestión Agrícola</div>
+        
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Usuario / Email</label>
+                <input type="text" name="usuario" placeholder="usuario@empresa.com" required>
+            </div>
+            <div class="input-group">
+                <label>Clave de Acceso</label>
+                <input type="password" name="clave" placeholder="••••••••" required>
+            </div>
+            <button type="submit">Ingresar al Sistema →</button>
+        </form>
+        <div class="footer-text">AgroFlow v1.0.1</div>
+    </div>
+</body>
+</html>
