@@ -4,7 +4,6 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 app = Flask(__name__)
 app.secret_key = 'agroriego_secreto_cejasmardani'
 
-# --- CONFIGURACIÓN DE SEGURIDAD Y LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -23,7 +22,6 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- DATOS REALES ADAPTADOS PARA EL DASHBOARD ---
 equipos_riego = {
     "FRONTAL-F22": {
         "id": "FRONTAL-F22",
@@ -53,21 +51,17 @@ stock_simulado = [
     {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
 ]
 
-# --- RUTAS DE NAVEGACIÓN ---
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user_input = request.form.get('usuario')
         pass_input = request.form.get('clave')
-        
         if user_input in usuarios_sistema and usuarios_sistema[user_input] == pass_input:
             usuario_obj = User(user_input)
             login_user(usuario_obj)
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="Usuario o clave incorrectos")
-            
     return render_template('login.html')
 
 @app.route('/logout')
@@ -80,13 +74,9 @@ def logout():
 @login_required
 def index():
     id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
-    
     if id_solicitado not in equipos_riego:
         id_solicitado = "FRONTAL-F22"
-        
     datos_panel = equipos_riego[id_solicitado]
-    
-    # Sincronizado con las variables exactas que dashboard.html necesita
     return render_template(
         'dashboard.html', 
         data=datos_panel, 
