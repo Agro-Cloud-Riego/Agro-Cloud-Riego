@@ -1,11 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-import os
 
 app = Flask(__name__)
-app.secret_key = 'agroflow_secreto_cejasmardani'
+app.secret_key = 'agroriego_secreto_cejasmardani'
 
-# --- CONFIGURACIÓN DE LOGIN ---
+# --- CONFIGURACIÓN DE SEGURIDAD Y LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -14,7 +13,6 @@ class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
-# Credencial de acceso solicitada
 usuarios_sistema = {
     "marcelo": "agro2026"
 }
@@ -25,7 +23,7 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- DATOS DE CAMPO SIMULADOS ---
+# --- DATOS REALES ADAPTADOS PARA EL DASHBOARD ---
 equipos_riego = {
     "FRONTAL-F22": {
         "id": "FRONTAL-F22",
@@ -44,14 +42,25 @@ equipos_riego = {
     }
 }
 
-# --- RUTAS ---
+ot_simuladas = [
+    {"id": "OT-104", "tarea": "Engrase de torres 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"},
+    {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
+]
+
+stock_simulado = [
+    {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
+    {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
+    {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
+]
+
+# --- RUTAS DE NAVEGACIÓN ---
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user_input = request.form['usuario']
-        pass_input = request.form['clave']
+        user_input = request.form.get('usuario')
+        pass_input = request.form.get('clave')
         
-        # Validación directa
         if user_input in usuarios_sistema and usuarios_sistema[user_input] == pass_input:
             usuario_obj = User(user_input)
             login_user(usuario_obj)
@@ -70,15 +79,22 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    # Detecta qué equipo se seleccionó en el menú desplegable
     id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
     
-    # Si el ID no existe en la lista, usamos el Frontal por defecto
     if id_solicitado not in equipos_riego:
         id_solicitado = "FRONTAL-F22"
         
     datos_panel = equipos_riego[id_solicitado]
-    return render_template('dashboard.html', data=datos_panel, todos_equipos=equipos_riego, user=current_user)
+    
+    # Sincronizado con las variables exactas que dashboard.html necesita
+    return render_template(
+        'dashboard.html', 
+        data=datos_panel, 
+        todos_equipos=equipos_riego, 
+        ot=ot_simuladas, 
+        stock=stock_simulado, 
+        user=current_user
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
