@@ -1,11 +1,3 @@
-¡De una, Marcelo! Acá tenés los tres archivos completos, limpios, revisados renglón por renglón y listos para que los dejes definitivos en tu GitHub.
-
-Con este código solucionamos el error de sintaxis, arreglamos lo del puerto que te trababa la página (Port Binding) y dejamos el diseño nuevo de AgroRiego con la telemetría funcionando al 100%.
-
-🐍 1. El archivo app.py completo
-(Acá ya incluí la biblioteca os al principio y cambié el final para que Render le asigne el puerto automáticamente sin quedarse cargando).
-
-Python
 from flask import Flask, render_template, request, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
