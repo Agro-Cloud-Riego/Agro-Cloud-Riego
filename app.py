@@ -4,7 +4,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 app = Flask(__name__)
 app.secret_key = 'agroflow_secreto_cejasmardani'
 
-# --- CONFIGURACIÓN DE LOGIN ---
+# --- CONFIGURACIÓN DE SEGURIDAD Y LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -13,6 +13,7 @@ class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
+# Credencial de acceso única
 usuarios_sistema = {
     "marcelo": "agro2026"
 }
@@ -23,22 +24,22 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- DATOS REALES DEL PANEL ---
-equipos = {
-    "PIVOT-P156": {
-        "id": "PIVOT-P156",
-        "tipo": "Pivot Central Valley",
-        "lote": "Lote Alfalfa - 156 Ha",
-        "estado": "MARCHA",
-        "presion": "3.8 Bar",
-        "caudal": "140 m³/h",
-        "posicion": "Ángulo 120°",
-        "distancia": "🔄 Girando",
-        "senal": "-72 dBm",
-        "pluviometro": "5.0 mm",
-        "mensual": "45.0 mm",
-        "viento": "12 km/h",
-        "humedad": "45%"
+# --- ESTRUCTURA DE DATOS REALES (EQUIPOS, STOCK Y ORDENES) ---
+equipos_riego = {
+    "FRONTAL-F22": {
+        "id": "FRONTAL-F22",
+        "tipo": "Avance Frontal Lineal",
+        "lote": "Cuadro Norte (210 Ha)",
+        "posicion": "Cajón 4 de 12",
+        "distancia": "450m",
+        "presion": "0.0 Bar",
+        "caudal": "0 L/h",
+        "estado": "PARADO",
+        "senal": "-92 dBm",
+        "pluviometro": "14.2 mm",
+        "mensual": "42.0 mm",
+        "viento": "18 km/h (Norte)",
+        "humedad": "32% (Moderada)"
     }
 }
 
@@ -53,7 +54,8 @@ stock_simulado = [
     {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
 ]
 
-# --- RUTAS ---
+# --- RUTAS DE NAVEGACIÓN ---
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -78,14 +80,19 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    id_seleccionado = request.args.get('equipo', 'PIVOT-P156')
-    if id_seleccionado not in equipos:
-        id_seleccionado = "PIVOT-P156"
+    # Sincronizado estrictamente para buscar el FRONTAL-F22 por defecto
+    id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
+    
+    if id_solicitado not in equipos_riego:
+        id_solicitado = "FRONTAL-F22"
         
+    datos_panel = equipos_riego[id_solicitado]
+    
+    # Enviamos todas las variables agrupadas que el dashboard necesita
     return render_template(
         'dashboard.html', 
-        data=equipos[id_seleccionado], 
-        todos_equipos=equipos, 
+        data=datos_panel, 
+        todos_equipos=equipos_riego, 
         ot=ot_simuladas, 
         stock=stock_simulado, 
         user=current_user
