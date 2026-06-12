@@ -49,37 +49,47 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN CORREGIDA PARA TU PLANILLA REAL ---
+# --- FUNCIÓN INTELIGENTE PARA TU PLANILLA REAL ---
 def cargar_stock_desde_ods():
-    archivo_ods = "stockriego 21.ods"
-    
-    # Respaldo por si falla el archivo
+    # Datos de respaldo por si el servidor no encuentra ningún archivo
     stock_respaldo = [
         {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
         {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
         {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
     ]
     
-    if os.path.exists(archivo_ods):
+    # Escaneamos la carpeta del servidor buscando el archivo real de stock
+    archivo_real = None
+    for archivo in os.listdir('.'):
+        nombre_minuscula = archivo.lower()
+        if nombre_minuscula.startswith('stock') and (nombre_minuscula.endswith('.ods') or nombre_minuscula.endswith('.xlsx')):
+            archivo_real = archivo
+            print(f"¡Archivo de stock detectado en el servidor!: {archivo_real}")
+            break
+
+    if archivo_real:
         try:
-            # Leemos la planilla completa
-            df = pd.read_excel(archivo_ods, engine='odf')
+            # Seleccionamos el motor correcto según el formato detectado
+            if archivo_real.lower().endswith('.ods'):
+                df = pd.read_excel(archivo_real, engine='odf')
+            else:
+                df = pd.read_excel(archivo_real)
             
-            # Limpiamos espacios raros en los títulos de las columnas
+            # Limpiamos los títulos de las columnas de espacios ocultos
             df.columns = df.columns.str.strip()
             
             lista_stock = []
             for _, fila in df.iterrows():
-                # Buscamos exactamente las columnas de tu foto
+                # Mapeamos exactamente las columnas de tu foto de Calc
                 componente = fila.get('Descripsion /Modelo')
                 cantidad = fila.get('Stock Actual')
                 estado_raw = fila.get('Stock Crítico', 'STOCK OK')
                 
-                # Si la fila está vacía, la salteamos
+                # Si la fila no tiene componente, pasamos a la siguiente
                 if pd.isna(componente):
                     continue
                 
-                # Formateamos el estado para que combine con tus estilos visuales (OK o CRÍTICO)
+                # Sincronizamos las alertas de texto con los colores de tu diseño
                 estado_str = str(estado_raw).upper().strip()
                 if "URGENTE" in estado_str or "CRITICO" in estado_str:
                     estado_final = "CRÍTICO"
@@ -93,13 +103,14 @@ def cargar_stock_desde_ods():
                     "estado": estado_final
                 })
             
-            return lista_stock if len(lista_stock) > 0 else stock_respaldo
-            
+            if len(lista_stock) > 0:
+                return lista_stock
+                
         except Exception as e:
-            print(f"Error procesando ODS: {e}")
+            print(f"Error procesando el archivo {archivo_real}: {e}")
             return stock_respaldo
-    else:
-        return stock_respaldo
+            
+    return stock_respaldo
 
 # --- RUTAS DE NAVEGACIÓN ---
 
@@ -134,7 +145,7 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
-    # Cargamos tus repuestos reales actualizados
+    # El sistema escanea y carga los datos reales de tu planilla
     stock_actualizado = cargar_stock_desde_ods()
     
     return render_template(
@@ -146,7 +157,7 @@ def index():
         user=current_user
     )
 
-# --- ARRANQUE ---
+# --- ARRANQUE EN RENDER ---
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=puerto)
