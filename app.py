@@ -49,15 +49,9 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN DEFINITIVA PARA CARGAR STOCK ---
+# --- FUNCIÓN PARA LOGÍSTICA DE REPUSTOS ---
 def cargar_stock_desde_ods():
     archivo_ods = "stockriego 21.ods"
-    
-    stock_respaldo = [
-        {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
-        {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
-        {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
-    ]
     
     if os.path.exists(archivo_ods):
         try:
@@ -91,9 +85,9 @@ def cargar_stock_desde_ods():
                 
         except Exception as e:
             print(f"Error procesando el archivo: {e}")
-            return stock_respaldo
+            return []
             
-    return stock_respaldo
+    return []
 
 # --- RUTAS DE NAVEGACIÓN ---
 
@@ -109,7 +103,6 @@ def login():
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="Usuario o clave incorrectos")
-            
     return render_template('login.html')
 
 @app.route('/logout')
@@ -118,22 +111,31 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# 1. PANTALLA PRINCIPAL: Dashboard Limpio (Sin la tabla de stock)
 @app.route('/')
 @login_required
 def index():
     id_solicitado = request.args.get('equipo', 'FRONTAL-F22')
-    
     if id_solicitado not in equipos_riego:
         id_solicitado = "FRONTAL-F22"
         
     datos_panel = equipos_riego[id_solicitado]
-    stock_actualizado = cargar_stock_desde_ods()
     
     return render_template(
         'dashboard.html', 
         data=datos_panel, 
         todos_equipos=equipos_riego, 
         ot=ot_simuladas, 
+        user=current_user
+    )
+
+# 2. NUEVA PANTALLA INDEPENDIENTE: "Stock 21"
+@app.route('/stock')
+@login_required
+def stock():
+    stock_actualizado = cargar_stock_desde_ods()
+    return render_template(
+        'stock.html', 
         stock=stock_actualizado, 
         user=current_user
     )
