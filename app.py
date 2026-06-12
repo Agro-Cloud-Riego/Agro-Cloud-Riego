@@ -49,47 +49,37 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- FUNCIÓN INTELIGENTE PARA TU PLANILLA REAL ---
+# --- FUNCIÓN DETECTIVE PARA VER QUÉ HAY EN EL SERVIDOR ---
 def cargar_stock_desde_ods():
-    # Datos de respaldo por si el servidor no encuentra ningún archivo
-    stock_respaldo = [
-        {"componente": "Filtro de agua malla 8''", "cantidad": 2, "unidad": "unidades", "estado": "OK"},
-        {"componente": "Aceite para reductor Deutz", "cantidad": 20, "unidad": "litros", "estado": "OK"},
-        {"componente": "Aspersores terminales Valley", "cantidad": 0, "unidad": "unidades", "estado": "CRÍTICO"}
-    ]
-    
-    # Escaneamos la carpeta del servidor buscando el archivo real de stock
+    # Buscamos el archivo de stock
     archivo_real = None
-    for archivo in os.listdir('.'):
+    archivos_encontrados = os.listdir('.')
+    
+    for archivo in archivos_encontrados:
         nombre_minuscula = archivo.lower()
         if nombre_minuscula.startswith('stock') and (nombre_minuscula.endswith('.ods') or nombre_minuscula.endswith('.xlsx')):
             archivo_real = archivo
-            print(f"¡Archivo de stock detectado en el servidor!: {archivo_real}")
             break
 
+    # SI ENCUENTRA EL ARCHIVO, LO PROCESA
     if archivo_real:
         try:
-            # Seleccionamos el motor correcto según el formato detectado
             if archivo_real.lower().endswith('.ods'):
                 df = pd.read_excel(archivo_real, engine='odf')
             else:
                 df = pd.read_excel(archivo_real)
             
-            # Limpiamos los títulos de las columnas de espacios ocultos
             df.columns = df.columns.str.strip()
             
             lista_stock = []
             for _, fila in df.iterrows():
-                # Mapeamos exactamente las columnas de tu foto de Calc
                 componente = fila.get('Descripsion /Modelo')
                 cantidad = fila.get('Stock Actual')
                 estado_raw = fila.get('Stock Crítico', 'STOCK OK')
                 
-                # Si la fila no tiene componente, pasamos a la siguiente
                 if pd.isna(componente):
                     continue
                 
-                # Sincronizamos las alertas de texto con los colores de tu diseño
                 estado_str = str(estado_raw).upper().strip()
                 if "URGENTE" in estado_str or "CRITICO" in estado_str:
                     estado_final = "CRÍTICO"
@@ -107,10 +97,25 @@ def cargar_stock_desde_ods():
                 return lista_stock
                 
         except Exception as e:
-            print(f"Error procesando el archivo {archivo_real}: {e}")
-            return stock_respaldo
+            # Si falla al leerlo, nos avisa en la tabla el error
+            return [{"componente": f"⚠️ Error al leer archivo: {archivo_real}", "cantidad": str(e), "unidad": "", "estado": "CRÍTICO"}]
             
-    return stock_respaldo
+    # SI NO ENCUENTRA EL ARCHIVO, EN LUGAR DEL RESPALDO, NOS MUESTRA QUÉ ARCHIVOS HAY
+    lista_diagnostico = []
+    for f in archivos_encontrados:
+        # Filtramos archivos ocultos del sistema para no llenar la pantalla
+        if not f.startswith('.'):
+            lista_diagnostico.append({
+                "componente": f"📁 Archivo en servidor: {f}",
+                "cantidad": "Visible",
+                "unidad": "",
+                "estado": "OK"
+            })
+            
+    if len(lista_diagnostico) == 0:
+        return [{"componente": "❌ Servidor vacío (No se ven archivos)", "cantidad": 0, "unidad": "", "estado": "CRÍTICO"}]
+        
+    return lista_diagnostico
 
 # --- RUTAS DE NAVEGACIÓN ---
 
@@ -145,7 +150,6 @@ def index():
         
     datos_panel = equipos_riego[id_solicitado]
     
-    # El sistema escanea y carga los datos reales de tu planilla
     stock_actualizado = cargar_stock_desde_ods()
     
     return render_template(
@@ -157,7 +161,6 @@ def index():
         user=current_user
     )
 
-# --- ARRANQUE EN RENDER ---
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=puerto)
