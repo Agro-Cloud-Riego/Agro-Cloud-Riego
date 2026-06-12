@@ -5,139 +5,164 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroRiego - Telemetría Satelital</title>
     <style>
-        body {
-            /* Fondo real de un sistema de riego pivot regando en el campo */
-            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?q=80&w=1200') no-repeat center center fixed;
-            background-size: cover;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+        :root { 
+            --bg-principal: #0f172a; 
+            --bg-tarjeta: #1e293b; 
+            --borde: #334155; 
+            --texto-ok: #38bdf8; 
+            --verde: #10b981; 
+            --alerta: #ef4444; 
         }
-        .login-card {
-            background: rgba(255, 255, 255, 0.96);
-            padding: 40px 35px;
-            border-radius: 20px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
-            width: 360px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        .brand-icon {
-            background: #2563eb;
-            color: white;
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 15px;
-            font-size: 32px;
-            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
-        }
-        h2 {
-            color: #0f172a;
-            margin: 0 0 5px 0;
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-        .subtitle {
-            color: #4b5563;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 30px;
-        }
-        .input-group {
-            text-align: left;
-            margin-bottom: 20px;
-        }
-        .input-group label {
-            display: block;
-            font-size: 11px;
-            font-weight: 700;
-            color: #374151;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        input {
-            width: 100%;
-            padding: 12px 14px;
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            color: #111827;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        input:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #2563eb;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            color: white;
-            margin-top: 10px;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #1d4ed8;
-        }
-        .error-msg {
-            color: #dc2626;
-            font-size: 13px;
-            margin-bottom: 15px;
-            background: #fee2e2;
-            padding: 8px;
-            border-radius: 6px;
-            font-weight: 500;
-        }
-        .footer-text {
-            margin-top: 25px;
-            font-size: 11px;
-            color: #9ca3af;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 26px; color: #fff; font-weight: 800; }
+        .logo-meta { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+        .dashboard-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
+        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+        .panel-titulo { font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--borde); padding-bottom: 10px; margin-bottom: 15px; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
+        .selector-equipo { background: #0f172a; color: #fff; border: 1px solid var(--borde); padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+        .grid-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .dato-caja { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid var(--borde); }
+        .dato-etiqueta { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+        .dato-valor { font-size: 18px; font-weight: bold; color: #f1f5f9; }
+        .valor-destacado { color: var(--texto-ok); }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .badge-marcha { background-color: rgba(16,185,129,0.15); color: var(--verde); border: 1px solid var(--verde); }
+        .badge-parado { background-color: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid #f59e0b; }
+        .badge-critico { background-color: rgba(239,68,68,0.15); color: var(--alerta); border: 1px solid var(--alerta); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--borde); font-size: 14px; }
+        th { color: #64748b; text-transform: uppercase; font-size: 11px; font-weight: 700; }
+        .btn-logout { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; text-decoration: none; transition: background 0.2s; }
+        .btn-logout:hover { background: #dc2626; }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="brand-icon">💦</div>
-        <h2>AgroRiego</h2>
-        <div class="subtitle">Sistema de Telemetría Satelital</div>
-        
-        {% if error %}
-            <div class="error-msg">{{ error }}</div>
-        {% endif %}
 
-        <form method="POST">
-            <div class="input-group">
-                <label>Usuario de Acceso</label>
-                <input type="text" name="usuario" placeholder="marcelo" required>
+    <header>
+        <div>
+            <span class="logo-meta">💦 Sistema de Telemetría Satelital</span>
+            <h1>AgroRiego Pro</h1>
+        </div>
+        <div>
+            <span style="margin-right: 15px; font-size: 14px; color: #94a3b8;">Usuario: <strong>{{ user.id }}</strong></span>
+            <a href="/logout" class="btn-logout">Cerrar Sesión</a>
+        </div>
+    </header>
+
+    <div class="dashboard-layout">
+        <div class="panel">
+            <div class="panel-titulo">
+                <span>📡 Monitoreo de Pivot / Lineal</span>
+                <form method="GET" action="/">
+                    <select name="equipo" class="selector-equipo" onchange="this.form.submit()">
+                        {% for eq_id in todos_equipos %}
+                            <option value="{{ eq_id }}" {% if eq_id == data.id %}selected{% endif %}>{{ eq_id }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
             </div>
-            <div class="input-group">
-                <label>Clave de Seguridad</label>
-                <input type="password" name="clave" placeholder="••••••••" required>
+
+            <div class="grid-datos">
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Equipo</div>
+                    <div class="dato-valor valor-destacado">{{ data.id }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Estado Motor</div>
+                    <div class="dato-valor">
+                        <span class="badge {% if data.estado == 'MARCHA' %}badge-marcha{% else %}badge-parado{% endif %}">{{ data.estado }}</span>
+                    </div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Tipo Sistema</div>
+                    <div class="dato-valor" style="font-size: 15px;">{{ data.tipo }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Ubicación / Lote</div>
+                    <div class="dato-valor" style="font-size: 15px;">{{ data.lote }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Posición actual</div>
+                    <div class="dato-valor">{{ data.posicion }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Avance lineal</div>
+                    <div class="dato-valor">{{ data.distancia }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Presión Terminal</div>
+                    <div class="dato-valor">{{ data.presion }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Caudalímetro</div>
+                    <div class="dato-valor">{{ data.caudal }}</div>
+                </div>
             </div>
-            <button type="submit">Conectar con Equipos →</button>
-        </form>
-        <div class="footer-text">AgroRiego Telemetría v2.0</div>
+
+            <div class="panel-titulo" style="margin-top: 25px; margin-bottom: 10px;">
+                <span>⛅ Estación Meteorológica Local</span>
+            </div>
+            <div class="grid-datos">
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Pluviómetro 24h</div>
+                    <div class="dato-valor" style="color: #34d399;">{{ data.pluviometro }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Acumulado Mensual</div>
+                    <div class="dato-valor">{{ data.mensual }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Velocidad Viento</div>
+                    <div class="dato-valor" style="font-size: 15px;">{{ data.viento }}</div>
+                </div>
+                <div class="dato-caja">
+                    <div class="dato-etiqueta">Humedad Suelo</div>
+                    <div class="dato-valor" style="font-size: 15px;">{{ data.humedad }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-layout" style="grid-template-columns: 1fr; gap: 20px;">
+            <div class="panel">
+                <div class="panel-titulo">🛠️ Órdenes de Trabajo del Equipo</div>
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Tarea Programada</th><th>Asignado</th><th>Prioridad</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for tarea in ot %}
+                        <tr>
+                            <td><code>{{ tarea.id }}</code></td>
+                            <td>{{ tarea.tarea }}</td>
+                            <td>{{ tarea.responsable }}</td>
+                            <td><span class="badge {% if tarea.prioridad == 'Alta' %}badge-critico{% else %}badge-parado{% endif %}">{{ tarea.prioridad }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <div class="panel-titulo">📦 Pañol de Repuestos Críticos de Riego</div>
+                <table>
+                    <thead>
+                        <tr><th>Insumo</th><th>Stock Disp.</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock %}\
+                        <tr>
+                            <td>{{ item.componente }}</td>
+                            <td><strong>{{ item.cantidad }}</strong> {{ item.unidad }}</td>
+                            <td><span class="badge {% if item.estado == 'OK' %}badge-marcha{% elif item.estado == 'BAJO' %}badge-parado{% else %}badge-critico{% endif %}">{{ item.estado }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
+
 </body>
 </html>
