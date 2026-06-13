@@ -5,65 +5,235 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroRiego Pro - Stock 21</title>
     <style>
-        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #233554; --texto-ok: #38bdf8; --verde: #10b981; }
+        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #233554; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #ef4444; }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
+        header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        nav { display: flex; gap: 15px; margin-bottom: 20px; }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        /* Navegación Principal */
+        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link.active { color: #fff; background-color: var(--bg-tarjeta); border: 1px solid var(--borde); }
 
-        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); padding: 20px; border-radius: 12px; }
+        /* Sub-Pestañas del Stock 21 */
+        .tabs-stock { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: #1e293b; color: #94a3b8; border: 1px solid var(--borde); padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .tab-btn.active { background: var(--texto-ok); color: #0b0f19; border-color: var(--texto-ok); }
+
+        .seccion-tab { display: none; }
+        .seccion-tab.active { display: block; }
+
+        .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
         .panel-titulo { font-size: 16px; font-weight: bold; border-bottom: 1px solid var(--borde); padding-bottom: 10px; margin-bottom: 15px; color: #cbd5e1; }
 
+        /* Formularios */
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+        .form-group label { font-size: 12px; color: #94a3b8; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { background: #0b0f19; border: 1px solid var(--borde); padding: 10px; color: white; border-radius: 6px; font-size: 14px; }
+        .btn-submit { background: var(--verde); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; align-self: flex-end; margin-top: 5px; height: 40px; }
+        .btn-submit.salida-btn { background: var(--alerta); }
+
+        /* Tablas */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--borde); font-size: 14px; }
         th { background-color: #0b0f19; color: var(--texto-ok); }
         tr:hover { background-color: rgba(255,255,255,0.02); }
         
-        .badge-cantidad { background-color: rgba(16, 185, 129, 0.15); color: var(--verde); padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-cantidad { background-color: #0b0f19; color: #fff; padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid var(--borde); }
+        .badge-estado { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .ok { background: rgba(16, 185, 129, 0.15); color: var(--verde); }
+        .urgente { background: rgba(239, 68, 68, 0.15); color: var(--alerta); }
     </style>
 </head>
 <body>
 
     <header>
-        <div>
-            <span style="font-size: 11px; color: #64748b; text-transform: uppercase;">📦 GESTIÓN DE INVENTARIO CRÍTICO</span>
-            <h1>AgroRiego Pro</h1>
-        </div>
+        <span style="font-size: 11px; color: #64748b; text-transform: uppercase;">📦 CONTROL DINÁMICO DE STOCK EN TIEMPO REAL</span>
+        <h1>AgroRiego Pro</h1>
     </header>
 
-    <nav>
+    <div class="nav-principal">
         <a href="/" class="nav-link">📡 Panel de Control</a>
         <a href="/stock" class="nav-link active">📦 Stock 21</a>
-    </nav>
-
-    <div class="panel">
-        <div class="panel-titulo">🛠️ Repuestos Disponibles - Pivot & Bombeo</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Descripción del Componente</th>
-                    <th>Categoría</th>
-                    <th>Ubicación</th>
-                    <th>Cantidad</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in stock %}
-                <tr>
-                    <td style="color: #64748b; font-weight: bold;">{{ item.codigo }}</td>
-                    <td style="color: #fff; font-weight: bold;">{{ item.item }}</td>
-                    <td>{{ item.categoria }}</td>
-                    <td style="color: #94a3b8;">{{ item.ubicación }}</td>
-                    <td><span class="badge-cantidad">{{ item.cantidad }} u.</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
 
+    <div class="tabs-stock">
+        <button class="tab-btn active" onclick="cambiarTab('inventario')">📋 1. Inventario Total</button>
+        <button class="tab-btn" onclick="cambiarTab('entradas')">📥 2. Registrar Entrada</button>
+        <button class="tab-btn" onclick="cambiarTab('salidas')">📤 3. Registrar Salida</button>
+    </div>
+
+    <div id="inventario" class="seccion-tab active">
+        <div class="panel">
+            <div class="panel-titulo">🔍 Filtros, Correas y Componentes de Motores en Galpón</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Motor / Equipo</th>
+                        <th>Categoría</th>
+                        <th>Descripción del Repuesto</th>
+                        <th>Nro. de Parte</th>
+                        <th>Ubicación</th>
+                        <th>Mín.</th>
+                        <th>Actual</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stock %}
+                    <tr>
+                        <td style="color: var(--texto-ok); font-weight: bold;">{{ item.motor }}</td>
+                        <td style="color: #94a3b8; font-size: 12px;">{{ item.categoria }}</td>
+                        <td style="color: #fff; font-weight: bold;">{{ item.item }}</td>
+                        <td style="font-family: monospace; color: #cbd5e1;">{{ item.parte }}</td>
+                        <td>{{ item.ubicacion }}</td>
+                        <td style="color: #64748b;">{{ item.minimo }}</td>
+                        <td><span class="badge-cantidad">{{ item.actual }} u.</span></td>
+                        <td>
+                            {% if item.actual >= item.minimo %}
+                                <span class="badge-estado ok">✔ STOCK OK</span>
+                            {% else %}
+                                <span class="badge-estado urgente">⚠ PEDIR URGENTE</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="entradas" class="seccion-tab">
+        <div class="panel">
+            <div class="panel-titulo">📥 Ingreso de Nuevos Repuestos al Stock</div>
+            <form method="POST">
+                <input type="hidden" name="accion" value="entrada">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Seleccionar Repuesto</label>
+                        <select name="parte" required>
+                            {% for item in stock %}
+                            <option value="{{ item.parte }}">{{ item.motor }} - {{ item.item }} ({{ item.parte }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="max-width: 120px;">
+                        <label>Cantidad</label>
+                        <input type="number" name="cantidad" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor / Origen</label>
+                        <input type="text" name="destino_origen" placeholder="Ej: Cat Salta / Remito 44" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Responsable de Carga</label>
+                        <input type="text" name="responsable" placeholder="Ej: Técnico" required>
+                    </div>
+                    <button type="submit" class="btn-submit">Guardar Entrada</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel">
+            <div class="panel-titulo">📋 Historial de Ingresos Recientes</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nro. de Parte</th>
+                        <th>Descripción</th>
+                        <th>Equipo</th>
+                        <th>Cant.</th>
+                        <th>Origen / Comprobante</th>
+                        <th>Registró</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in entradas %}
+                    <tr>
+                        <td style="font-family: monospace;">{{ e.parte }}</td>
+                        <td>{{ e.item }}</td>
+                        <td>{{ e.motor }}</td>
+                        <td style="color: var(--verde); font-weight: bold;">+{{ e.cantidad }}</td>
+                        <td>{{ e.origen }}</td>
+                        <td style="color: #94a3b8;">{{ e.responsable }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not entradas %}<tr><td colspan="6" style="color:#64748b; text-align:center;">No hay entradas cargadas en este ciclo.</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="salidas" class="seccion-tab">
+        <div class="panel">
+            <div class="panel-titulo">📤 Egreso de Insumos (Retiro para Mantenimiento)</div>
+            <form method="POST">
+                <input type="hidden" name="accion" value="salida">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Seleccionar Repuesto a Retirar</label>
+                        <select name="parte" required>
+                            {% for item in stock %}
+                            <option value="{{ item.parte }}">{{ item.motor }} - {{ item.item }} [Disponibles: {{ item.actual }} u.]</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="max-width: 120px;">
+                        <label>Cantidad</label>
+                        <input type="number" name="cantidad" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Equipo Destino / Pozo</label>
+                        <input type="text" name="destino_origen" placeholder="Ej: Pozo Escondido A1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Retirado Por</label>
+                        <input type="text" name="responsable" placeholder="Ej: Mecánico" required>
+                    </div>
+                    <button type="submit" class="btn-submit salida-btn">Confirmar Salida</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel">
+            <div class="panel-titulo">📋 Historial de Egresos / Repuestos Utilizados</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nro. de Parte</th>
+                        <th>Descripción</th>
+                        <th>Equipo</th>
+                        <th>Cant.</th>
+                        <th>Destino de Colocación</th>
+                        <th>Retiró</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in salidas %}
+                    <tr>
+                        <td style="font-family: monospace;">{{ s.parte }}</td>
+                        <td>{{ s.item }}</td>
+                        <td>{{ s.motor }}</td>
+                        <td style="color: var(--alerta); font-weight: bold;">-{{ s.cantidad }}</td>
+                        <td>{{ s.destino }}</td>
+                        <td style="color: #94a3b8;">{{ s.responsable }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not salidas %}<tr><td colspan="6" style="color:#64748b; text-align:center;">No hay salidas cargadas en este ciclo.</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function cambiarTab(tabId) {
+            document.querySelectorAll('.seccion-tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
 </body>
 </html>
