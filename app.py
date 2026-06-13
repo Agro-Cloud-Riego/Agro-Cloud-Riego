@@ -22,7 +22,6 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- VISTAS DE LOGIN Y LOGOUT (Esto es lo que faltaba y causaba el error) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -32,8 +31,6 @@ def login():
             user = User(usuario)
             login_user(user)
             return redirect(url_for('index'))
-    # Si entra por GET, te muestra un formulario ultra básico o te redirige directo si querés saltearlo
-    # Para que no falle, renderizamos una plantilla simple o un texto de acceso
     return '''
         <form method="post" style="background:#131c2e; color:white; padding:30px; border-radius:8px; max-width:300px; margin:100px auto; font-family:sans-serif;">
             <h2>AgroRiego Login</h2>
@@ -50,7 +47,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- DATA DE LOTES Y HISTORIAL PARA GRÁFICOS ---
+# --- BASE DE DATOS TELEMETRÍA ---
 equipos_riego = {
     "PIVOT-LOTE-A2": {
         "id": "PIVOT-LOTE-A2",
@@ -76,8 +73,7 @@ equipos_riego = {
         "eventos": [
             {"fecha": "09/06/2026", "hora": "12:15 PM", "estado": "Desconectado", "badge": "badge-critico"},
             {"fecha": "09/06/2026", "hora": "02:55 AM", "estado": "Apagado", "badge": "badge-parado"},
-            {"fecha": "08/06/2026", "hora": "11:11 AM", "estado": "Regando", "badge": "badge-marcha"},
-            {"fecha": "08/06/2026", "hora": "10:04 AM", "estado": "Apagado", "badge": "badge-parado"}
+            {"fecha": "08/06/2026", "hora": "11:11 AM", "estado": "Regando", "badge": "badge-marcha"}
         ]
     },
     "FRONTAL-F22": {
@@ -102,8 +98,7 @@ equipos_riego = {
         "historial_posicion": [100, 200, 200, 300, 400, 450],
         "historial_lamina": [12.0, 12.0, 0.0, 10.5, 12.0, 12.0],
         "eventos": [
-            {"fecha": "12/06/2026", "hora": "06:15 PM", "estado": "Regando", "badge": "badge-marcha"},
-            {"fecha": "11/06/2026", "hora": "04:30 AM", "estado": "Falla Presión", "badge": "badge-critico"}
+            {"fecha": "12/06/2026", "hora": "06:15 PM", "estado": "Regando", "badge": "badge-marcha"}
         ]
     }
 }
@@ -111,6 +106,16 @@ equipos_riego = {
 ot_simuladas = [
     {"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"},
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
+]
+
+# --- INVENTARIO DE STOCK 21 ACTUALIZADO ---
+inventario_repuestos = [
+    {"codigo": "REP-001", "item": "Motorreductor 50:1 Valley/Lindsay", "categoria": "Mecánica", "cantidad": 4, "ubicación": "Estante A1"},
+    {"codigo": "REP-002", "item": "Caja de engranajes (Gearbox) de Torre", "categoria": "Mecánica", "cantidad": 3, "ubicación": "Estante A2"},
+    {"codigo": "REP-003", "item": "Contactor Eléctrico 25A 480V", "categoria": "Electricidad", "cantidad": 12, "ubicación": "Caja Mandos B"},
+    {"codigo": "REP-004", "item": "Microinterruptor de seguridad (Microswitch)", "categoria": "Electricidad", "cantidad": 8, "ubicación": "Caja Mandos C"},
+    {"codigo": "REP-005", "item": "Neumático Completo de Pivot 14.9-24", "categoria": "Estructura", "cantidad": 2, "ubicación": "Patio Trasero"},
+    {"codigo": "REP-006", "item": "Aspersores e Insertos i-Wob3 (Kit completo)", "categoria": "Riego", "cantidad": 45, "ubicación": "Depósito Central"}
 ]
 
 @app.route('/')
@@ -122,10 +127,11 @@ def index():
     datos_panel = equipos_riego[id_solicitado]
     return render_template('dashboard.html', data=datos_panel, todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
+# RUTA CORREGIDA: Ahora pasa los datos reales a la plantilla stock.html
 @app.route('/stock')
 @login_required
 def stock():
-    return "<h3>Página de Stock Vincualda</h3>"
+    return render_template('stock.html', stock=inventario_repuestos, user=current_user)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
