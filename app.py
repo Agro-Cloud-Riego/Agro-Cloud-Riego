@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import sqlite3
 import os
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'agroriego_secreto_cejasmardani'
@@ -58,11 +59,11 @@ def inicializar_db():
                 cantidad INTEGER,
                 destino_origen TEXT,
                 responsable TEXT,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                fecha TEXT
             )
         ''')
         
-        # Tu lista exacta y real de repuestos del Stock 21
+        # Lista exacta y real de repuestos del Stock 21
         repuestos_iniciales = [
             ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
             ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
@@ -107,31 +108,29 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-
 # --- TELEMETRÍA DE EQUIPOS ---
 equipos_riego = {
     "PIVOT-LOTE-A2": {
         "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
         "posicion": "340°", "presion": "2.4 Bar", "caudal": "115.000 L/h", "estado": "DESCONECTADO", "senal": "-98 dBm",
         "lat": -25.0950, "lng": -64.1320, "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6,
-        "ultima_lectura": "09/06/2026 a las 10:14 AM",
-        "graficos_eje_x": ["06-06 00:00", "06-06 14:00", "07-06 08:00", "07-06 22:00", "08-06 12:00", "09-06 02:00", "09-06 10:14"],
-        "historial_presion": [0.0, 1.2, 2.5, 2.4, 1.8, 2.4, 0.0], "historial_posicion": [180, 220, 250, 250, 290, 340, 340],
-        "historial_lamina": [0, 22.3, 22.3, 0, 15.5, 22.3, 0],
-        "eventos": [{"fecha": "09/06/2026", "hora": "12:15 PM", "estado": "Desconectado", "badge": "badge-critico"}]
+        "ultima_lectura": "13/06/2026 a las 05:45 PM",
+        "graficos_eje_x": ["10-06 00:00", "11-06 14:00", "12-06 08:00", "13-06 17:45"],
+        "historial_presion": [0.0, 2.5, 2.4, 0.0], "historial_posicion": [180, 250, 340, 340],
+        "historial_lamina": [0, 22.3, 22.3, 0],
+        "eventos": [{"fecha": "13/06/2026", "hora": "17:45 PM", "estado": "Desconectado", "badge": "badge-critico"}]
     },
     "FRONTAL-F22": {
         "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
         "posicion": "Cajón 4 de 12", "presion": "3.2 Bar", "caudal": "120.000 L/h", "estado": "MARCHA", "senal": "-85 dBm",
         "lat": -25.0833, "lng": -64.1167, "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2,
-        "ultima_lectura": "12/06/2026 a las 08:00 PM",
-        "graficos_eje_x": ["10-06 00:00", "12-06 20:00"], "historial_presion": [3.2, 3.2], "historial_posicion": [100, 450], "historial_lamina": [12.0, 12.0],
-        "eventos": [{"fecha": "12/06/2026", "hora": "06:15 PM", "estado": "Regando", "badge": "badge-marcha"}]
+        "ultima_lectura": "13/06/2026 a las 05:50 PM",
+        "graficos_eje_x": ["11-06 00:00", "13-06 17:50"], "historial_presion": [3.2, 3.2], "historial_posicion": [100, 450], "historial_lamina": [12.0, 12.0],
+        "eventos": [{"fecha": "13/06/2026", "hora": "17:50 PM", "estado": "Regando", "badge": "badge-marcha"}]
     }
 }
 
 ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"}]
-
 
 @app.route('/')
 @login_required
@@ -139,7 +138,6 @@ def index():
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
     return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
-
 
 # --- RUTA DE STOCK 21 CONECTADO A BASE DE DATOS ---
 @app.route('/stock', methods=['GET', 'POST'])
@@ -151,9 +149,13 @@ def stock():
     if request.method == 'POST':
         tipo_accion = request.form.get('accion') 
         nro_parte = request.form.get('parte')
-        cantidad = int(request.form.get('cantidad', 0))
+        # Vinculación corregida con el 'quantity' del formulario html
+        cantidad = int(request.form.get('quantity', 0))
         responsable = request.form.get('responsable', 'Taller')
         destino_origen = request.form.get('destino_origen', '-')
+        
+        # Hora local Argentina (-3) para los reportes de movimiento
+        fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
 
         cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
         fila = cursor.fetchone()
@@ -165,24 +167,24 @@ def stock():
                 nuevo_stock = stock_actual + cantidad
                 cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, nro_parte))
                 cursor.execute('''
-                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable)
-                    VALUES ('entrada', ?, ?, ?, ?)
-                ''', (nro_parte, cantidad, destino_origen, responsable))
+                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
+                    VALUES ('entrada', ?, ?, ?, ?, ?)
+                ''', (nro_parte, cantidad, destino_origen, responsable, fecha_local))
             
             elif tipo_accion == 'salida':
                 if stock_actual >= cantidad:
                     nuevo_stock = stock_actual - cantidad
                     cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, nro_parte))
                     cursor.execute('''
-                        INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable)
-                        VALUES ('salida', ?, ?, ?, ?)
-                    ''', (nro_parte, cantidad, destino_origen, responsable))
+                        INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
+                        VALUES ('salida', ?, ?, ?, ?, ?)
+                    ''', (nro_parte, cantidad, destino_origen, responsable, fecha_local))
 
             conn.commit()
             conn.close()
             return redirect(url_for('stock'))
 
-    # Cargar datos actualizados desde la BD
+    # Cargar datos desde la BD
     cursor.execute("SELECT * FROM inventario")
     lista_inventario = cursor.fetchall()
 
