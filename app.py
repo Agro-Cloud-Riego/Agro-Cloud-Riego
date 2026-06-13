@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+import sqlite3
 import os
 
 app = Flask(__name__)
 app.secret_key = 'agroriego_secreto_cejasmardani'
+DATABASE = 'agroriego_stock.db'
 
 # --- CONFIGURACIÓN DE LOGIN ---
 login_manager = LoginManager()
@@ -22,8 +24,72 @@ def load_user(user_id):
         return User(user_id)
     return None
 
+# --- GESTIÓN DE BASE DE DATOS (Para el Stock 21 permanente) ---
+def conectar_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def inicializar_db():
+    """Crea la base de datos y carga tus repuestos reales si no existe"""
+    if not os.path.exists(DATABASE):
+        conn = conectar_db()
+        cursor = conn.cursor()
+        
+        # Tabla de Inventario
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inventario (
+                parte TEXT PRIMARY KEY,
+                motor TEXT,
+                categoria TEXT,
+                item TEXT,
+                ubicacion TEXT,
+                minimo INTEGER,
+                actual INTEGER
+            )
+        ''')
+        
+        # Tabla de Historial de Movimientos
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS movimientos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT,
+                parte TEXT,
+                cantidad INTEGER,
+                destino_origen TEXT,
+                responsable TEXT,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tu lista exacta de repuestos del Stock 21
+        repuestos_iniciales = [
+            ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
+            ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
+            ("106-3969", "Caterpillar", "Filtros", "Filtro Aire Primario", "Estante A2", 1, 2),
+            ("504074043", "Iveco T5/T8", "Filtros", "Filtro de Aceite", "Estante B1", 3, 4),
+            ("504107584", "Iveco T5/T8", "Filtros", "Filtro de Combustible", "Estante B1", 2, 2),
+            ("504013423", "Iveco T5/T8", "Correas", "Correa Poly-V", "Estante B2", 2, 1),
+            ("1174416", "Deutz 1013", "Filtros", "Filtro de Aceite", "Estante C1", 4, 6),
+            ("1174423", "Deutz 1013", "Filtros", "Filtro de Combustible", "Estante C1", 3, 3),
+            ("4272819", "Deutz 1013", "Repuestos", "Bomba de Pre-alimentación", "Caja Herramientas", 1, 0),
+            ("1182313", "Deutz 1013 Powers", "Filtros", "Filtro Aire Reforzado", "Estante C2", 2, 2),
+            ("Poliuretano", "Varios", "Bombas", "Goma de Acoplamiento", "Estante D1", 2, 3),
+            ("Carburo Silicio", "Varios", "Bombas", "Sello Mecánico Cornell", "Estante D1", 2, 1)
+        ]
+        
+        cursor.executemany('''
+            INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', repuestos_iniciales)
+        
+        conn.commit()
+        conn.close()
+
+# --- RUTA LOGIN CORREGIDA (Llama a tu plantilla HTML real) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = None
     if request.method == 'POST':
         usuario = request.form.get('username')
         clave = request.form.get('password')
@@ -31,14 +97,10 @@ def login():
             user = User(usuario)
             login_user(user)
             return redirect(url_for('index'))
-    return '''
-        <form method="post" style="background:#131c2e; color:white; padding:30px; border-radius:8px; max-width:300px; margin:100px auto; font-family:sans-serif;">
-            <h2>AgroRiego Login</h2>
-            <label>Usuario:</label><br><input type="text" name="username" style="width:100%; margin-bottom:10px;"><br>
-            <label>Contraseña:</label><br><input type="password" name="password" style="width:100%; margin-bottom:10px;"><br>
-            <button type="submit" style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Entrar</button>
-        </form>
-    '''
+        else:
+            error = "Usuario o contraseña incorrectos."
+            
+    return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
@@ -46,7 +108,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- TELEMETRÍA DE EQUIPOS ---
+# --- TELEMETRÍA DE EQUIPOS (Tus datos originales del Panel) ---
 equipos_riego = {
     "PIVOT-LOTE-A2": {
         "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
@@ -71,27 +133,6 @@ equipos_riego = {
 ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"}]
 
 
-# --- BASE DE DATOS INVENTARIO REAL (STOCK 21) ---
-# Usamos un diccionario indexado por Nro. de Parte para buscar y actualizar rápido
-inventario_repuestos = {
-    "1R-0739": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "1R-0739", "actual": 5, "minimo": 2, "ubicacion": "Estante A1"},
-    "1R-0770": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro Combustible / Trampa Agua", "parte": "1R-0770", "actual": 1, "minimo": 2, "ubicacion": "Estante A1"},
-    "106-3969": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro Aire Primario", "parte": "106-3969", "actual": 2, "minimo": 1, "ubicacion": "Estante A2"},
-    "504074043": {"motor": "Iveco T5/T8", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "504074043", "actual": 4, "minimo": 3, "ubicacion": "Estante B1"},
-    "504107584": {"motor": "Iveco T5/T8", "categoria": "Filtros", "item": "Filtro de Combustible", "parte": "504107584", "actual": 2, "minimo": 2, "ubicacion": "Estante B1"},
-    "504013423": {"motor": "Iveco T5/T8", "categoria": "Correas", "item": "Correa Poly-V", "parte": "504013423", "actual": 1, "minimo": 2, "ubicacion": "Estante B2"},
-    "1174416": {"motor": "Deutz 1013", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "1174416", "actual": 6, "minimo": 4, "ubicacion": "Estante C1"},
-    "1174423": {"motor": "Deutz 1013", "categoria": "Filtros", "item": "Filtro de Combustible", "parte": "1174423", "actual": 3, "minimo": 3, "ubicacion": "Estante C1"},
-    "4272819": {"motor": "Deutz 1013", "categoria": "Repuestos", "item": "Bomba de Pre-alimentación", "parte": "4272819", "actual": 0, "minimo": 1, "ubicacion": "Caja Herramientas"},
-    "1182313": {"motor": "Deutz 1013 Powers", "categoria": "Filtros", "item": "Filtro Aire Reforzado", "parte": "1182313", "actual": 2, "minimo": 2, "ubicacion": "Estante C2"},
-    "Poliuretano": {"motor": "Varios", "categoria": "Bombas", "item": "Goma de Acoplamiento", "parte": "Poliuretano", "actual": 3, "minimo": 2, "ubicacion": "Estante D1"},
-    "Carburo Silicio": {"motor": "Varios", "categoria": "Bombas", "item": "Sello Mecánico Cornell", "parte": "Carburo Silicio", "actual": 1, "minimo": 2, "ubicacion": "Estante D1"}
-}
-
-# Historiales para las otras pestañas
-historial_entradas = []
-historial_salidas = []
-
 @app.route('/')
 @login_required
 def index():
@@ -100,43 +141,68 @@ def index():
     return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
 
-# --- RUTA DE STOCK INTERACTIVA ---
+# --- STOCK 21 CONECTADO A BASE DE DATOS ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
+    conn = conectar_db()
+    cursor = conn.cursor()
+
     if request.method == 'POST':
-        tipo_accion = request.form.get('accion') # 'entrada' o 'salida'
+        tipo_accion = request.form.get('accion') 
         nro_parte = request.form.get('parte')
         cantidad = int(request.form.get('cantidad', 0))
         responsable = request.form.get('responsable', 'Taller')
         destino_origen = request.form.get('destino_origen', '-')
 
-        if nro_parte in inventario_repuestos and cantidad > 0:
-            item = inventario_repuestos[nro_parte]
+        cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
+        fila = cursor.fetchone()
+
+        if fila and cantidad > 0:
+            stock_actual = fila['actual']
             
             if tipo_accion == 'entrada':
-                item['actual'] += cantidad
-                historial_entradas.insert(0, {
-                    "parte": nro_parte, "item": item['item'], "motor": item['motor'],
-                    "cantidad": cantidad, "origen": destino_origen, "responsable": responsable
-                })
+                nuevo_stock = stock_actual + cantidad
+                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, nro_parte))
+                cursor.execute('''
+                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable)
+                    VALUES ('entrada', ?, ?, ?, ?)
+                ''', (nro_parte, cantidad, destino_origen, responsable))
             
             elif tipo_accion == 'salida':
-                if item['actual'] >= cantidad:
-                    item['actual'] -= cantidad
-                    historial_salidas.insert(0, {
-                        "parte": nro_parte, "item": item['item'], "motor": item['motor'],
-                        "cantidad": cantidad, "destino": destino_origen, "responsable": responsable
-                    })
-                else:
-                    # Si no hay suficiente stock, no hace el descuento
-                    pass
+                if stock_actual >= cantidad:
+                    nuevo_stock = stock_actual - cantidad
+                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, nro_parte))
+                    cursor.execute('''
+                        INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable)
+                        VALUES ('salida', ?, ?, ?, ?)
+                    ''', (nro_parte, cantidad, destino_origen, responsable))
 
+            conn.commit()
+            conn.close()
             return redirect(url_for('stock'))
 
-    # Pasamos las listas ordenadas para la interfaz de las 3 pestañas
-    lista_inventario = list(inventario_repuestos.values())
-    return render_template('stock.html', stock=lista_inventario, entradas=historial_entradas, salidas=historial_salidas, user=current_user)
+    # Leer datos reales desde la BD
+    cursor.execute("SELECT * FROM inventario")
+    lista_inventario = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT m.*, i.item, i.motor FROM movimientos m 
+        JOIN inventario i ON m.parte = i.parte 
+        WHERE m.tipo = 'entrada' ORDER BY m.id DESC LIMIT 10
+    ''')
+    entradas = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT m.*, i.item, i.motor FROM movimientos m 
+        JOIN inventario i ON m.parte = i.parte 
+        WHERE m.tipo = 'salida' ORDER BY m.id DESC LIMIT 10
+    ''')
+    salidas = cursor.fetchall()
+
+    conn.close()
+    return render_template('stock.html', stock=lista_inventario, entradas=entradas, salidas=salidas, user=current_user)
 
 if __name__ == '__main__':
+    inicializar_db()
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
