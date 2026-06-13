@@ -80,7 +80,7 @@
 
     <header>
         <div>
-            <span style="font-size: 11px; color: #64748b; uppercase; letter-spacing: 1px;">💦 SISTEMA DE TELEMETRÍA CENTRALIZADO</span>
+            <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">💦 SISTEMA DE TELEMETRÍA CENTRALIZADO</span>
             <h1>AgroRiego Pro</h1>
         </div>
         <div>
@@ -186,7 +186,7 @@
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }).addTo(map);
         L.marker([{{ data.lat }}, {{ data.lng }}]).addTo(map).bindPopup("<b>{{ data.id }}</b>").openPopup();
 
-        // Cambiar pestañas internas
+        // Lógica corregida para alternar pestañas
         function cambiarPestana(tipo) {
             document.getElementById('btn-ciclo').classList.remove('activa');
             document.getElementById('btn-eventos').classList.remove('activa');
@@ -202,57 +202,54 @@
             }
         }
 
-        // --- RENDERIZADO DE GRÁFICOS USANDO LOS DATOS DE FLASK ---
-        const etiquetasX = {{ data.graficos_eje_x|tojson }};
+        // Renderizado seguro de gráficos Chart.js
+        const etiquetasX = {{ data.graficos_eje_x|tojson if data.graficos_eje_x else [] }};
 
-        // Gráfico 1: Presión (Área azul clara)
         new Chart(document.getElementById('chartPresion'), {
             type: 'line',
             data: {
                 labels: etiquetasX,
                 datasets: [{
                     label: 'Presión (Bar)',
-                    data: {{ data.historial_presion|tojson }},
+                    data: {{ data.historial_presion|tojson if data.historial_presion else [] }},
                     borderColor: '#38bdf8',
                     backgroundColor: 'rgba(56, 189, 248, 0.15)',
                     fill: true,
                     tension: 0.2
                 }]
             },
-            options: { responsive: true, scales: { y: { grid: { color: '#233554' } }, x: { grid: { display: false } } } }
+            options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // Gráfico 2: Posición (Línea continua)
         new Chart(document.getElementById('chartPosicion'), {
             type: 'line',
             data: {
                 labels: etiquetasX,
                 datasets: [{
                     label: 'Posición (°)',
-                    data: {{ data.historial_posicion|tojson }},
+                    data: {{ data.historial_posicion|tojson if data.historial_posicion else [] }},
                     borderColor: '#a855f7',
                     fill: false,
                     tension: 0.1
                 }]
             },
-            options: { responsive: true, scales: { y: { grid: { color: '#233554' } }, x: { grid: { display: false } } } }
+            options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // Gráfico 3: Lámina (Área verde estilo Ponce)
         new Chart(document.getElementById('chartLamina'), {
             type: 'line',
             data: {
                 labels: etiquetasX,
                 datasets: [{
                     label: 'Lámina (mm)',
-                    data: {{ data.historial_lamina|tojson }},
+                    data: {{ data.historial_lamina|tojson if data.historial_lamina else [] }},
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
                     fill: true,
                     tension: 0.1
                 }]
             },
-            options: { responsive: true, scales: { y: { grid: { color: '#233554' } }, x: { grid: { display: false } } } }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     </script>
 </body>
