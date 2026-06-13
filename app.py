@@ -25,14 +25,14 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- CONFIGURACIÓN DE BASE DE DATOS (Para el Stock 21 Permanente) ---
+# --- CONFIGURACIÓN DE BASE DE DATOS (Stock 21 Permanente) ---
 def conectar_db():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
 def inicializar_db():
-    """Crea la base de datos y el inventario si no existe el archivo físico"""
+    """Crea la base de datos y el inventario inicial si no existe el archivo físico"""
     if not os.path.exists(DATABASE):
         conn = conectar_db()
         cursor = conn.cursor()
@@ -63,7 +63,7 @@ def inicializar_db():
             )
         ''')
         
-        # Lista exacta y real de repuestos del Stock 21
+        # Lista real de repuestos del taller (Filtros, correas y sellos)
         repuestos_iniciales = [
             ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
             ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
@@ -87,7 +87,7 @@ def inicializar_db():
         conn.commit()
         conn.close()
 
-# --- RUTA LOGIN ---
+# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -108,38 +108,38 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- TELEMETRÍA DE EQUIPOS ---
-equipos_riego = {
-    "PIVOT-LOTE-A2": {
-        "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
-        "posicion": "340°", "presion": "2.4 Bar", "caudal": "115.000 L/h", "estado": "DESCONECTADO", "senal": "-98 dBm",
-        "lat": -25.0950, "lng": -64.1320, "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6,
-        "ultima_lectura": "13/06/2026 a las 05:45 PM",
-        "graficos_eje_x": ["10-06 00:00", "11-06 14:00", "12-06 08:00", "13-06 17:45"],
-        "historial_presion": [0.0, 2.5, 2.4, 0.0], "historial_posicion": [180, 250, 340, 340],
-        "historial_lamina": [0, 22.3, 22.3, 0],
-        "eventos": [{"fecha": "13/06/2026", "hora": "17:45 PM", "estado": "Desconectado", "badge": "badge-critico"}]
-    },
-    "FRONTAL-F22": {
-        "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
-        "posicion": "Cajón 4 de 12", "presion": "3.2 Bar", "caudal": "120.000 L/h", "estado": "MARCHA", "senal": "-85 dBm",
-        "lat": -25.0833, "lng": -64.1167, "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2,
-        "ultima_lectura": "13/06/2026 a las 05:50 PM",
-        "graficos_eje_x": ["11-06 00:00", "13-06 17:50"], "historial_presion": [3.2, 3.2], "historial_posicion": [100, 450], "historial_lamina": [12.0, 12.0],
-        "eventos": [{"fecha": "13/06/2026", "hora": "17:50 PM", "estado": "Regando", "badge": "badge-marcha"}]
-    }
-}
-
-ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"}]
-
+# --- PANEL PRINCIPAL (Monitoreo + Calculadora Integrada) ---
 @app.route('/')
 @login_required
 def index():
+    # Datos de telemetría simulados para los lotes y mapas reales
+    equipos_riego = {
+        "PIVOT-LOTE-A2": {
+            "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
+            "posicion": "340°", "presion": "2.4 Bar", "caudal": "115.000 L/h", "estado": "DESCONECTADO", "senal": "-98 dBm",
+            "lat": -25.0950, "lng": -64.1320, "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6,
+            "ultima_lectura": "13/06/2026 a las 05:45 PM",
+            "graficos_eje_x": ["10-06 00:00", "11-06 14:00", "12-06 08:00", "13-06 17:45"],
+            "historial_presion": [0.0, 2.5, 2.4, 0.0], "historial_posicion": [180, 250, 340, 340], "historial_lamina": [0, 22.3, 22.3, 0]
+        },
+        "FRONTAL-F22": {
+            "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
+            "posicion": "Cajón 4 de 12", "presion": "3.2 Bar", "caudal": "120.000 L/h", "estado": "MARCHA", "senal": "-85 dBm",
+            "lat": -25.0833, "lng": -64.1167, "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2,
+            "ultima_lectura": "13/06/2026 a las 05:50 PM",
+            "graficos_eje_x": ["11-06 00:00", "13-06 17:50"], "historial_presion": [3.2, 3.2], "historial_posicion": [100, 450], "historial_lamina": [12.0, 12.0]
+        }
+    }
+    
+    ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5 y revisión de alineación", "responsable": "Equipo Técnico", "prioridad": "Alta"}]
+    
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
+    if id_solicitado not in equipos_riego: 
+        id_solicitado = "PIVOT-LOTE-A2"
+        
     return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
-# --- RUTA DE STOCK 21 CONECTADO A BASE DE DATOS ---
+# --- PANEL DE GESTIÓN DE STOCK 21 ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
@@ -149,12 +149,11 @@ def stock():
     if request.method == 'POST':
         tipo_accion = request.form.get('accion') 
         nro_parte = request.form.get('parte')
-        # Vinculación corregida con el 'quantity' del formulario html
         cantidad = int(request.form.get('quantity', 0))
         responsable = request.form.get('responsable', 'Taller')
         destino_origen = request.form.get('destino_origen', '-')
         
-        # Hora local Argentina (-3) para los reportes de movimiento
+        # Hora local Argentina (-3) para registrar los movimientos del taller
         fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
 
         cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
@@ -184,7 +183,7 @@ def stock():
             conn.close()
             return redirect(url_for('stock'))
 
-    # Cargar datos desde la BD
+    # Cargar listas completas ordenadas desde la base de datos
     cursor.execute("SELECT * FROM inventario")
     lista_inventario = cursor.fetchall()
 
