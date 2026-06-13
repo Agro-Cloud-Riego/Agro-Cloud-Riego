@@ -36,18 +36,16 @@
         .contenido-dash { display: none; }
         .contenido-dash.active { display: block; }
 
-        .grid-layout { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
         @media (max-width: 1024px) { .grid-layout { grid-template-columns: 1fr; } }
 
         .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* Selectores de Equipo */
         .selector-equipos { display: flex; gap: 10px; margin-bottom: 20px; }
         .btn-equipo { background: #1e293b; border: 1px solid var(--borde); color: #fff; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
         .btn-equipo.activo { border-color: var(--verde); background: rgba(16, 185, 129, 0.1); color: var(--verde); }
 
-        /* Telemetría e Indicadores */
         .grid-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; }
         .indicador { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--borde); text-align: center; }
         .ind-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
@@ -60,18 +58,20 @@
         #map { height: 300px; width: 100%; border-radius: 8px; border: 1px solid var(--borde); }
         .chart-container { height: 200px; position: relative; margin-bottom: 15px; }
 
-        /* Estilos Calculadora */
+        /* Estilos Calculadora y Formularios de OT */
         .calc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 768px) { .calc-container { grid-template-columns: 1fr; } }
-        .form-calc { display: flex; flex-direction: column; gap: 15px; }
+        .form-calc { display: flex; flex-direction: column; gap: 12px; }
         .group-calc { display: flex; flex-direction: column; gap: 5px; }
-        .group-calc label { font-size: 13px; color: #94a3b8; font-weight: bold; }
-        .group-calc input, .group-calc select { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; }
-        .btn-calc { background: var(--texto-ok); color: #0b0f19; font-weight: bold; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; text-transform: uppercase; }
-        .btn-calc:hover { background: #7dd3fc; }
+        .group-calc label { font-size: 12px; color: #94a3b8; font-weight: bold; }
+        .group-calc input, .group-calc select { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 9px; border-radius: 6px; font-size: 13px; }
+        .btn-calc { background: var(--texto-ok); color: #0b0f19; font-weight: bold; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; text-transform: uppercase; }
         
         .resultado-box { background: #0f172a; border: 2px dashed var(--borde); border-radius: 8px; padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .res-num { font-size: 36px; font-weight: bold; margin: 10px 0; }
+
+        .btn-ot-listo { background: var(--verde); color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px; }
+        .btn-ot-listo:hover { background: #059669; }
 
         .logout-btn { color: var(--alerta); text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid var(--alerta); padding: 6px 12px; border-radius: 6px; }
     </style>
@@ -143,6 +143,55 @@
 
             <div class="col-derecha">
                 <div class="tarjeta">
+                    <div class="tarjeta-titulo" style="color: var(--texto-ok);">Asignar Orden de Trabajo</div>
+                    <form method="POST" class="form-calc">
+                        <input type="hidden" name="form_tipo" value="nueva_ot">
+                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                        
+                        <div class="group-calc">
+                            <label>Tarea / Repuesto a cambiar</label>
+                            <input type="text" name="tarea" placeholder="Ej: Cambiar filtro Iveco 504107584" required>
+                        </div>
+                        <div class="group-calc">
+                            <label>Responsable</label>
+                            <select name="responsable" required>
+                                <option value="Electricista">Electricista</option>
+                                <option value="Téc. Preventista">Preventista</option>
+                                <option value="Téc. Mecánico">Especialista Mecánico (Gearboxes/Bombas)</option>
+                            </select>
+                        </div>
+                        <div class="group-calc">
+                            <label>Prioridad</label>
+                            <select name="prioridad" required>
+                                <option value="Baja">Baja</option>
+                                <option value="Media">Media</option>
+                                <option value="Alta">Alta Crítica</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-ot-listo" style="font-size:13px; padding:10px; text-align:center;">Enviar al Equipo</button>
+                    </form>
+                </div>
+
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo">Órdenes Técnicas Activas ({{ data.nombre_corto }})</div>
+                    {% for o in ot %}
+                        <div style="background: #0f172a; padding: 12px; border-radius: 6px; border-left: 4px solid {% if o.prioridad == 'Alta' %}var(--alerta){% else %}var(--amarillo){% endif %}; margin-bottom: 12px;">
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: bold; display: flex; justify-content: space-between;">
+                                <span>OT-#{{ o.id }} - {{ o.fecha }}</span>
+                                <span style="color: {% if o.prioridad == 'Alta' %}var(--alerta){% else %}var(--amarillo){% endif %}; text-transform: uppercase;">{{ o.prioridad }}</span>
+                            </div>
+                            <div style="font-size: 14px; font-weight: bold; margin: 4px 0; color:#fff;">{{ o.tarea }}</div>
+                            <div style="font-size: 12px; color: #38bdf8;">Encargado: {{ o.responsable }}</div>
+                            
+                            <a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-ot-listo">✓ Marcar Solucionado</a>
+                        </div>
+                    {% endfor %}
+                    {% if not ot %}
+                        <div style="color: #64748b; font-size: 13px; text-align: center; padding: 10px;">No hay tareas pendientes en este equipo.</div>
+                    {% endif %}
+                </div>
+
+                <div class="tarjeta">
                     <div class="tarjeta-titulo">Resumen Horas de Trabajo</div>
                     <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
                         <div style="display: flex; justify-content: space-between;"><span>Riego Efectivo:</span><strong style="color: var(--verde);">{{ data.hs_riego }} hs</strong></div>
@@ -150,17 +199,6 @@
                         <div style="display: flex; justify-content: space-between;"><span>Equipo Parado:</span><strong style="color: #64748b;">{{ data.hs_parado }} hs</strong></div>
                         <div style="display: flex; justify-content: space-between;"><span>Fallas de Presión:</span><strong style="color: var(--alerta);">{{ data.hs_falla }} hs</strong></div>
                     </div>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">Órdenes Técnicas Activas</div>
-                    {% for o in ot %}
-                        <div style="background: #0f172a; padding: 12px; border-radius: 6px; border-left: 4px solid var(--amarillo); margin-bottom: 10px;">
-                            <div style="font-size: 11px; color: var(--amarillo); font-weight: bold;">{{ o.id }} - PRIORIDAD {{ o.prioridad }}</div>
-                            <div style="font-size: 14px; font-weight: bold; margin: 3px 0;">{{ o.tarea }}</div>
-                            <div style="font-size: 12px; color: #94a3b8;">Asignado a: {{ o.responsable }}</div>
-                        </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -209,7 +247,6 @@
     </div>
 
     <script>
-        // Lógica de navegación interna del Dashboard
         function cambiarTabDash(tabId) {
             document.querySelectorAll('.contenido-dash').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-dash-btn').forEach(el => el.classList.remove('active'));
@@ -217,34 +254,24 @@
             document.getElementById(tabId).classList.add('active');
             event.currentTarget.classList.add('active');
             
-            // Forzar a Leaflet a recalcular el tamaño del mapa si se vuelve a la pestaña
             if(tabId === 'vison-general' && window.mapa_riego) {
                 setTimeout(() => { window.mapa_riego.invalidateSize(); }, 100);
             }
         }
 
-        // --- MATEMÁTICA DE LA CALCULADORA DE PÉRDIDAS ---
         function calcularPerdidaCampo() {
             var cultivo = document.getElementById('calc-cultivo').value;
             var granosPorM2 = parseFloat(document.getElementById('calc-granos').value) || 0;
             var rindeQQ = parseFloat(document.getElementById('calc-rinde').value) || 1;
 
-            // Peso de 1 grano en gramos (Soja aprox 0.15g, Maíz aprox 0.30g)
             var pesoGranoGramos = (cultivo === 'soja') ? 0.15 : 0.30;
-
-            // FÓRMULA DE CAMPO: 
-            // granos/m2 * pesoGrano * 10 = kg perdidos por Hectárea
             var kgPerdidosHa = granosPorM2 * pesoGranoGramos * 10;
-            
-            // Convertir rinde de quintales (1 qq = 100 kg) a kg totales por hectárea
             var kgRindeTotal = rindeQQ * 100;
             var porcentajePerdida = (kgPerdidosHa / kgRindeTotal) * 100;
 
-            // Mostrar resultados numéricos
             document.getElementById('res-kilos').innerText = kgPerdidosHa.toFixed(1) + " kg/Ha";
             document.getElementById('res-porcentaje').innerText = "Porcentaje del rinde: " + porcentajePerdida.toFixed(2) + "%";
 
-            // Definir límites de alerta INTA (Tolerancia estándar de pérdida: Soja ~80kg/Ha, Maíz ~120kg/Ha)
             var limiteTolerancia = (cultivo === 'soja') ? 80 : 120;
             var elKilos = document.getElementById('res-kilos');
             var elBadge = document.getElementById('res-badge');
@@ -268,14 +295,13 @@
         }
 
         function actualizarPesoReferencia() {
-            // Reinicia visual al cambiar cultivo para invitar a calcular de nuevo
             document.getElementById('res-badge').className = "badge";
             document.getElementById('res-badge').style.background = "#1e293b";
             document.getElementById('res-badge').style.color = "#94a3b8";
             document.getElementById('res-badge').innerText = "REQUIERE CALCULAR";
         }
 
-        // --- MAPA (LEAFLET) ---
+        // --- MAPA ---
         var lat = {{ data.lat }};
         var lng = {{ data.lng }};
         var map = L.map('map').setView([lat, lng], 14);
@@ -291,7 +317,7 @@
             .bindPopup('<b>{{ data.nombre_corto }}</b><br>Estado: {{ data.estado }}')
             .openPopup();
 
-        // --- GRÁFICOS (CHART.JS) ---
+        // --- GRÁFICOS ---
         var etiquetasX = {{ data.graficos_eje_x|tojson if data.graficos_eje_x else [] }};
 
         new Chart(document.getElementById('chartPresion'), {
