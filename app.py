@@ -78,7 +78,7 @@ def inicializar_db():
             ("Carburo Silicio", "Varios", "Bombas", "Sello Mecánico Cornell", "Estante D1", 2, 1)
         ]
         
-        cursor.exec_marcelo = cursor.executemany('''
+        cursor.executemany('''
             INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', repuestos_iniciales)
