@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
 
@@ -41,98 +41,102 @@ def login():
     '''
 
 @app.route('/logout')
-@login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
 
 
-# --- BASE DE DATOS TELEMETRÍA ---
+# --- TELEMETRÍA DE EQUIPOS ---
 equipos_riego = {
     "PIVOT-LOTE-A2": {
-        "id": "PIVOT-LOTE-A2",
-        "nombre_corto": "Lote A2",
-        "tipo": "Pivot Central",
-        "lote": "Lote A2 (156 Ha)",
-        "posicion": "340°",
-        "presion": "2.4 Bar",
-        "caudal": "115.000 L/h",
-        "estado": "DESCONECTADO",
-        "senal": "-98 dBm",
-        "lat": -25.0950,
-        "lng": -64.1320,
-        "hs_riego": 47.7,
-        "hs_falla": 0.0,
-        "hs_movimiento": 0.0,
-        "hs_parado": 14.6,
+        "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
+        "posicion": "340°", "presion": "2.4 Bar", "caudal": "115.000 L/h", "estado": "DESCONECTADO", "senal": "-98 dBm",
+        "lat": -25.0950, "lng": -64.1320, "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6,
         "ultima_lectura": "09/06/2026 a las 10:14 AM",
         "graficos_eje_x": ["06-06 00:00", "06-06 14:00", "07-06 08:00", "07-06 22:00", "08-06 12:00", "09-06 02:00", "09-06 10:14"],
-        "historial_presion": [0.0, 1.2, 2.5, 2.4, 1.8, 2.4, 0.0],
-        "historial_posicion": [180, 220, 250, 250, 290, 340, 340],
+        "historial_presion": [0.0, 1.2, 2.5, 2.4, 1.8, 2.4, 0.0], "historial_posicion": [180, 220, 250, 250, 290, 340, 340],
         "historial_lamina": [0, 22.3, 22.3, 0, 15.5, 22.3, 0],
-        "eventos": [
-            {"fecha": "09/06/2026", "hora": "12:15 PM", "estado": "Desconectado", "badge": "badge-critico"},
-            {"fecha": "09/06/2026", "hora": "02:55 AM", "estado": "Apagado", "badge": "badge-parado"},
-            {"fecha": "08/06/2026", "hora": "11:11 AM", "estado": "Regando", "badge": "badge-marcha"}
-        ]
+        "eventos": [{"fecha": "09/06/2026", "hora": "12:15 PM", "estado": "Desconectado", "badge": "badge-critico"}]
     },
     "FRONTAL-F22": {
-        "id": "FRONTAL-F22",
-        "nombre_corto": "Frontal F22",
-        "tipo": "Avance Frontal Lineal",
-        "lote": "Cuadro Norte (210 Ha)",
-        "posicion": "Cajón 4 de 12",
-        "presion": "3.2 Bar",
-        "caudal": "120.000 L/h",
-        "estado": "MARCHA",
-        "senal": "-85 dBm",
-        "lat": -25.0833,
-        "lng": -64.1167,
-        "hs_riego": 72.3,
-        "hs_falla": 1.1,
-        "hs_movimiento": 5.4,
-        "hs_parado": 8.2,
+        "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
+        "posicion": "Cajón 4 de 12", "presion": "3.2 Bar", "caudal": "120.000 L/h", "estado": "MARCHA", "senal": "-85 dBm",
+        "lat": -25.0833, "lng": -64.1167, "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2,
         "ultima_lectura": "12/06/2026 a las 08:00 PM",
-        "graficos_eje_x": ["10-06 00:00", "11-06 04:00", "11-06 16:00", "12-06 04:00", "12-06 12:00", "12-06 20:00"],
-        "historial_presion": [3.0, 3.2, 0.0, 2.8, 3.2, 3.2],
-        "historial_posicion": [100, 200, 200, 300, 400, 450],
-        "historial_lamina": [12.0, 12.0, 0.0, 10.5, 12.0, 12.0],
-        "eventos": [
-            {"fecha": "12/06/2026", "hora": "06:15 PM", "estado": "Regando", "badge": "badge-marcha"}
-        ]
+        "graficos_eje_x": ["10-06 00:00", "12-06 20:00"], "historial_presion": [3.2, 3.2], "historial_posicion": [100, 450], "historial_lamina": [12.0, 12.0],
+        "eventos": [{"fecha": "12/06/2026", "hora": "06:15 PM", "estado": "Regando", "badge": "badge-marcha"}]
     }
 }
 
-ot_simuladas = [
-    {"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"},
-    {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
-]
+ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5", "responsable": "Téc. Mecánico", "prioridad": "Alta"}]
 
-# --- INVENTARIO REAL STOCK 21 (MECÁNICA, ELECTRICIDAD, DETECCION DE FALLAS) ---
-inventario_repuestos = [
-    {"codigo": "STK21-042", "item": "Motorreductor Central Valley 40:1 0.75HP", "categoria": "Mecánica Pivot", "cantidad": 2, "ubicación": "Estante A - Fila Sup"},
-    {"codigo": "STK21-089", "item": "Caja de Engranajes / Gearbox Lindsay (Zimmatic)", "categoria": "Mecánica Pivot", "cantidad": 3, "ubicación": "Estante B - Piso"},
-    {"codigo": "STK21-112", "item": "Contactor Telemecanique 32A 480V (Bobina 110V)", "categoria": "Tableros Eléctricos", "cantidad": 7, "ubicación": "Gabinete Azul 1"},
-    {"codigo": "STK21-015", "item": "Microswitch de Alineación e Interrupción Doble", "categoria": "Cajas de Torre", "cantidad": 14, "ubicación": "Caja Plástica M1"},
-    {"codigo": "STK21-204", "item": "Fusible de Potencia 30A Cartucho de Retardo", "categoria": "Protecciones", "cantidad": 20, "ubicación": "Gabinete Azul 2"},
-    {"codigo": "STK21-310", "item": "Boquillas / Aspersores Nelson R3000 Rotator (Varios tamaños)", "categoria": "Insumos Riego", "cantidad": 65, "ubicación": "Cajón Técnico Norte"},
-    {"codigo": "STK21-007", "item": "Kit de Reparación Bomba Cornell (Sellos y empaquetaduras)", "categoria": "Estación Bombeo", "cantidad": 2, "ubicación": "Taller Central"},
-    {"codigo": "STK21-155", "item": "Filtro de Combustible Donaldson (Motor Iveco/Deutz)", "categoria": "Generadores", "cantidad": 6, "ubicación": "Estante C - Insumos"}
-]
+
+# --- BASE DE DATOS INVENTARIO REAL (STOCK 21) ---
+# Usamos un diccionario indexado por Nro. de Parte para buscar y actualizar rápido
+inventario_repuestos = {
+    "1R-0739": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "1R-0739", "actual": 5, "minimo": 2, "ubicacion": "Estante A1"},
+    "1R-0770": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro Combustible / Trampa Agua", "parte": "1R-0770", "actual": 1, "minimo": 2, "ubicacion": "Estante A1"},
+    "106-3969": {"motor": "Caterpillar", "categoria": "Filtros", "item": "Filtro Aire Primario", "parte": "106-3969", "actual": 2, "minimo": 1, "ubicacion": "Estante A2"},
+    "504074043": {"motor": "Iveco T5/T8", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "504074043", "actual": 4, "minimo": 3, "ubicacion": "Estante B1"},
+    "504107584": {"motor": "Iveco T5/T8", "categoria": "Filtros", "item": "Filtro de Combustible", "parte": "504107584", "actual": 2, "minimo": 2, "ubicacion": "Estante B1"},
+    "504013423": {"motor": "Iveco T5/T8", "categoria": "Correas", "item": "Correa Poly-V", "parte": "504013423", "actual": 1, "minimo": 2, "ubicacion": "Estante B2"},
+    "1174416": {"motor": "Deutz 1013", "categoria": "Filtros", "item": "Filtro de Aceite", "parte": "1174416", "actual": 6, "minimo": 4, "ubicacion": "Estante C1"},
+    "1174423": {"motor": "Deutz 1013", "categoria": "Filtros", "item": "Filtro de Combustible", "parte": "1174423", "actual": 3, "minimo": 3, "ubicacion": "Estante C1"},
+    "4272819": {"motor": "Deutz 1013", "categoria": "Repuestos", "item": "Bomba de Pre-alimentación", "parte": "4272819", "actual": 0, "minimo": 1, "ubicacion": "Caja Herramientas"},
+    "1182313": {"motor": "Deutz 1013 Powers", "categoria": "Filtros", "item": "Filtro Aire Reforzado", "parte": "1182313", "actual": 2, "minimo": 2, "ubicacion": "Estante C2"},
+    "Poliuretano": {"motor": "Varios", "categoria": "Bombas", "item": "Goma de Acoplamiento", "parte": "Poliuretano", "actual": 3, "minimo": 2, "ubicacion": "Estante D1"},
+    "Carburo Silicio": {"motor": "Varios", "categoria": "Bombas", "item": "Sello Mecánico Cornell", "parte": "Carburo Silicio", "actual": 1, "minimo": 2, "ubicacion": "Estante D1"}
+}
+
+# Historiales para las otras pestañas
+historial_entradas = []
+historial_salidas = []
 
 @app.route('/')
 @login_required
 def index():
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    if id_solicitado not in equipos_riego:
-        id_solicitado = "PIVOT-LOTE-A2"
-    datos_panel = equipos_riego[id_solicitado]
-    return render_template('dashboard.html', data=datos_panel, todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
+    if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
+    return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
-@app.route('/stock')
+
+# --- RUTA DE STOCK INTERACTIVA ---
+@app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
-    return render_template('stock.html', stock=inventario_repuestos, user=current_user)
+    if request.method == 'POST':
+        tipo_accion = request.form.get('accion') # 'entrada' o 'salida'
+        nro_parte = request.form.get('parte')
+        cantidad = int(request.form.get('cantidad', 0))
+        responsable = request.form.get('responsable', 'Taller')
+        destino_origen = request.form.get('destino_origen', '-')
+
+        if nro_parte in inventario_repuestos and cantidad > 0:
+            item = inventario_repuestos[nro_parte]
+            
+            if tipo_accion == 'entrada':
+                item['actual'] += cantidad
+                historial_entradas.insert(0, {
+                    "parte": nro_parte, "item": item['item'], "motor": item['motor'],
+                    "cantidad": cantidad, "origen": destino_origen, "responsable": responsable
+                })
+            
+            elif tipo_accion == 'salida':
+                if item['actual'] >= cantidad:
+                    item['actual'] -= cantidad
+                    historial_salidas.insert(0, {
+                        "parte": nro_parte, "item": item['item'], "motor": item['motor'],
+                        "cantidad": cantidad, "destino": destino_origen, "responsable": responsable
+                    })
+                else:
+                    # Si no hay suficiente stock, no hace el descuento
+                    pass
+
+            return redirect(url_for('stock'))
+
+    # Pasamos las listas ordenadas para la interfaz de las 3 pestañas
+    lista_inventario = list(inventario_repuestos.values())
+    return render_template('stock.html', stock=lista_inventario, entradas=historial_entradas, salidas=historial_salidas, user=current_user)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
