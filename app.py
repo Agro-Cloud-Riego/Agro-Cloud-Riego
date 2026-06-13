@@ -25,67 +25,87 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- CONFIGURACIÓN DE BASE DE DATOS (Stock 21 Permanente) ---
+# --- CONFIGURACIÓN DE BASE DE DATOS ---
 def conectar_db():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
 def inicializar_db():
-    """Crea la base de datos y el inventario inicial si no existe el archivo físico"""
-    if not os.path.exists(DATABASE):
-        conn = conectar_db()
-        cursor = conn.cursor()
-        
-        # Tabla de Inventario
+    """Crea la base de datos, inventario y órdenes de trabajo si no existen"""
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # Tabla de Inventario
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inventario (
+            parte TEXT PRIMARY KEY,
+            motor TEXT,
+            categoria TEXT,
+            item TEXT,
+            ubicacion TEXT,
+            minimo INTEGER,
+            actual INTEGER
+        )
+    ''')
+    
+    # Tabla de Historial de Movimientos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS movimientos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo TEXT,
+            parte TEXT,
+            cantidad INTEGER,
+            destino_origen TEXT,
+            responsable TEXT,
+            fecha TEXT
+        )
+    ''')
+
+    # NUEVA: Tabla de Órdenes de Trabajo Reales
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ordenes_trabajo (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tarea TEXT,
+            responsable TEXT,
+            prioridad TEXT,
+            equipo_id TEXT,
+            estado TEXT,
+            fecha TEXT
+        )
+    ''')
+    
+    # Lista real de repuestos del taller
+    repuestos_iniciales = [
+        ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
+        ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
+        ("106-3969", "Caterpillar", "Filtros", "Filtro Aire Primario", "Estante A2", 1, 2),
+        ("504074043", "Iveco T5/T8", "Filtros", "Filtro de Aceite", "Estante B1", 3, 4),
+        ("504107584", "Iveco T5/T8", "Filtros", "Filtro de Combustible", "Estante B1", 2, 2),
+        ("504013423", "Iveco T5/T8", "Correas", "Correa Poly-V", "Estante B2", 2, 1),
+        ("1174416", "Deutz 1013", "Filtros", "Filtro de Aceite", "Estante C1", 4, 6),
+        ("1174423", "Deutz 1013", "Filtros", "Filtro de Combustible", "Estante C1", 3, 3),
+        ("4272819", "Deutz 1013", "Repuestos", "Bomba de Pre-alimentación", "Caja Herramientas", 1, 0),
+        ("1182313", "Deutz 1013 Powers", "Filtros", "Filtro Aire Reforzado", "Estante C2", 2, 2),
+        ("Poliuretano", "Varios", "Bombas", "Goma de Acoplamiento", "Estante D1", 2, 3),
+        ("Carburo Silicio", "Varios", "Bombas", "Sello Mecánico Cornell", "Estante D1", 2, 1)
+    ]
+    
+    cursor.executemany('''
+        INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', repuestos_iniciales)
+    
+    # Insertar una OT de prueba si la tabla está vacía
+    cursor.execute("SELECT COUNT(*) as total FROM ordenes_trabajo WHERE estado = 'PENDIENTE'")
+    if cursor.fetchone()['total'] == 0:
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS inventario (
-                parte TEXT PRIMARY KEY,
-                motor TEXT,
-                categoria TEXT,
-                item TEXT,
-                ubicacion TEXT,
-                minimo INTEGER,
-                actual INTEGER
-            )
+            INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha)
+            VALUES ('Revisión de alineación tramo 4', 'Téc. Mecánico', 'Alta', 'PIVOT-LOTE-A2', 'PENDIENTE', '2026-06-13')
         ''')
-        
-        # Tabla de Historial de Movimientos
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS movimientos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tipo TEXT,
-                parte TEXT,
-                cantidad INTEGER,
-                destino_origen TEXT,
-                responsable TEXT,
-                fecha TEXT
-            )
-        ''')
-        
-        # Lista real de repuestos del taller (Filtros, correas y sellos)
-        repuestos_iniciales = [
-            ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
-            ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
-            ("106-3969", "Caterpillar", "Filtros", "Filtro Aire Primario", "Estante A2", 1, 2),
-            ("504074043", "Iveco T5/T8", "Filtros", "Filtro de Aceite", "Estante B1", 3, 4),
-            ("504107584", "Iveco T5/T8", "Filtros", "Filtro de Combustible", "Estante B1", 2, 2),
-            ("504013423", "Iveco T5/T8", "Correas", "Correa Poly-V", "Estante B2", 2, 1),
-            ("1174416", "Deutz 1013", "Filtros", "Filtro de Aceite", "Estante C1", 4, 6),
-            ("1174423", "Deutz 1013", "Filtros", "Filtro de Combustible", "Estante C1", 3, 3),
-            ("4272819", "Deutz 1013", "Repuestos", "Bomba de Pre-alimentación", "Caja Herramientas", 1, 0),
-            ("1182313", "Deutz 1013 Powers", "Filtros", "Filtro Aire Reforzado", "Estante C2", 2, 2),
-            ("Poliuretano", "Varios", "Bombas", "Goma de Acoplamiento", "Estante D1", 2, 3),
-            ("Carburo Silicio", "Varios", "Bombas", "Sello Mecánico Cornell", "Estante D1", 2, 1)
-        ]
-        
-        cursor.executemany('''
-            INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', repuestos_iniciales)
-        
-        conn.commit()
-        conn.close()
+    
+    conn.commit()
+    conn.close()
 
 # --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -100,7 +120,6 @@ def login():
             return redirect(url_for('index'))
         else:
             error = "Usuario o contraseña incorrectos."
-            
     return render_template('login.html', error=error)
 
 @app.route('/logout')
@@ -108,11 +127,29 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- PANEL PRINCIPAL (Monitoreo + Calculadora Integrada) ---
-@app.route('/')
+# --- PANEL PRINCIPAL (Monitoreo, Calculadora y Gestión de OT) ---
+@app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
-    # Datos de telemetría simulados para los lotes y mapas reales
+    conn = conectar_db()
+    cursor = conn.cursor()
+
+    # Procesar la creación de una nueva Orden de Trabajo
+    if request.method == 'POST' and request.form.get('form_tipo') == 'nueva_ot':
+        tarea = request.form.get('tarea')
+        responsable = request.form.get('responsable')
+        prioridad = request.form.get('prioridad')
+        equipo_id = request.form.get('equipo_id')
+        fecha_actual = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
+        
+        cursor.execute('''
+            INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha)
+            VALUES (?, ?, ?, ?, 'PENDIENTE', ?)
+        ''', (tarea, responsable, prioridad, equipo_id, fecha_actual))
+        conn.commit()
+        return redirect(url_for('index', equipo=equipo_id))
+
+    # Datos de telemetría de los equipos
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
@@ -131,13 +168,33 @@ def index():
         }
     }
     
-    ot_simuladas = [{"id": "OT-104", "tarea": "Engrase de towers 4 y 5 y revisión de alineación", "responsable": "Equipo Técnico", "prioridad": "Alta"}]
-    
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     if id_solicitado not in equipos_riego: 
         id_solicitado = "PIVOT-LOTE-A2"
-        
-    return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
+
+    # Leer OT pendientes de la Base de Datos para el equipo seleccionado
+    cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
+    ot_reales = cursor.fetchall()
+    
+    conn.close()
+    return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_reales, user=current_user)
+
+# --- ACCIÓN: FINALIZAR ORDEN DE TRABAJO ---
+@app.route('/finalizar-ot/<int:ot_id>')
+@login_required
+def finalizar_ot(ot_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # Obtener el id del equipo antes de marcar como completada para volver a la misma vista
+    cursor.execute("SELECT equipo_id FROM ordenes_trabajo WHERE id = ?", (ot_id,))
+    fila = cursor.fetchone()
+    equipo_id = fila['equipo_id'] if fila else 'PIVOT-LOTE-A2'
+    
+    cursor.execute("UPDATE ordenes_trabajo SET estado = 'COMPLETADA' WHERE id = ?", (ot_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index', equipo=equipo_id))
 
 # --- PANEL DE GESTIÓN DE STOCK 21 ---
 @app.route('/stock', methods=['GET', 'POST'])
@@ -150,10 +207,9 @@ def stock():
         tipo_accion = request.form.get('accion') 
         nro_parte = request.form.get('parte')
         cantidad = int(request.form.get('quantity', 0))
-        responsable = request.form.get('responsable', 'Taller')
-        destino_origen = request.form.get('destino_origen', '-')
+        responsable = request.form.get('responsable')
+        destino_origen = request.form.get('destino_origen')
         
-        # Hora local Argentina (-3) para registrar los movimientos del taller
         fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
 
         cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
@@ -183,7 +239,6 @@ def stock():
             conn.close()
             return redirect(url_for('stock'))
 
-    # Cargar listas completas ordenadas desde la base de datos
     cursor.execute("SELECT * FROM inventario")
     lista_inventario = cursor.fetchall()
 
