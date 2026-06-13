@@ -58,20 +58,15 @@
         #map { height: 300px; width: 100%; border-radius: 8px; border: 1px solid var(--borde); }
         .chart-container { height: 200px; position: relative; margin-bottom: 15px; }
 
-        /* Estilos Calculadora y Formularios de OT */
-        .calc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .calc-container { grid-template-columns: 1fr; } }
         .form-calc { display: flex; flex-direction: column; gap: 12px; }
         .group-calc { display: flex; flex-direction: column; gap: 5px; }
         .group-calc label { font-size: 12px; color: #94a3b8; font-weight: bold; }
         .group-calc input, .group-calc select { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 9px; border-radius: 6px; font-size: 13px; }
-        .btn-calc { background: var(--texto-ok); color: #0b0f19; font-weight: bold; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; text-transform: uppercase; }
+        .btn-ot-listo { background: var(--verde); color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px; }
         
+        .calc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .resultado-box { background: #0f172a; border: 2px dashed var(--borde); border-radius: 8px; padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .res-num { font-size: 36px; font-weight: bold; margin: 10px 0; }
-
-        .btn-ot-listo { background: var(--verde); color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px; }
-        .btn-ot-listo:hover { background: #059669; }
 
         .logout-btn { color: var(--alerta); text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid var(--alerta); padding: 6px 12px; border-radius: 6px; }
     </style>
@@ -114,10 +109,10 @@
                     </div>
                     
                     <div class="grid-indicadores">
-                        <div class="indicador"><div class="ind-label">Posición</div><div class="ind-valor" style="color: #a855f7;">{{ data.posicion }}</div></div>
+                        <div class="indicador"><div class="ind-label">Lámina Total Acumulada</div><div class="ind-valor" style="color: #60a5fa; font-size: 22px;">{{ total_acumulado_mm }} mm</div></div>
                         <div class="indicador"><div class="ind-label">Presión</div><div class="ind-valor" style="color: #38bdf8;">{{ data.presion }}</div></div>
-                        <div class="indicador"><div class="ind-label">Caudal</div><div class="ind-valor" style="color: #10b981;">{{ data.caudal }}</div></div>
-                        <div class="indicador"><div class="ind-label">Señal RTK</div><div class="ind-valor">{{ data.senal }}</div></div>
+                        <div class="indicador"><div class="ind-label">Caudal Actual</div><div class="ind-valor" style="color: #10b981;">{{ data.caudal }}</div></div>
+                        <div class="indicador"><div class="ind-label">Posición Estructura</div><div class="ind-valor" style="color: #a855f7;">{{ data.posicion }}</div></div>
                     </div>
                 </div>
 
@@ -127,21 +122,43 @@
                 </div>
 
                 <div class="tarjeta">
-                    <div class="tarjeta-titulo">Historial Técnico de Presión y Lámina de Agua</div>
+                    <div class="tarjeta-titulo">Balance Hídrico Real - Registro de las Últimas Vueltas de Riego</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
-                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Presión (Bar)</h4>
-                            <div class="chart-container"><canvas id="chartPresion"></canvas></div>
+                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Lámina Aplicada por Vuelta ($mm$)</h4>
+                            <div class="chart-container"><canvas id="chartLaminaReal"></canvas></div>
                         </div>
                         <div>
-                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Agua Aplicada (mm)</h4>
-                            <div class="chart-container"><canvas id="chartLamina"></canvas></div>
+                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Tiempo de Operación por Ciclo ($hs$)</h4>
+                            <div class="chart-container"><canvas id="chartHorasReal"></canvas></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-derecha">
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo" style="color: #60a5fa;">Cargar Vuelta de Riego Terminada</div>
+                    <form method="POST" class="form-calc">
+                        <input type="hidden" name="form_tipo" value="nuevo_riego">
+                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                        
+                        <div class="group-calc">
+                            <label>Lámina Aplicada ($mm$)</label>
+                            <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 15.5" required>
+                        </div>
+                        <div class="group-calc">
+                            <label>Horas Reales Operadas</label>
+                            <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 22" required>
+                        </div>
+                        <div class="group-calc">
+                            <label>Fecha de Finalización</label>
+                            <input type="date" name="fecha_riego" required>
+                        </div>
+                        <button type="submit" class="btn-ot-listo" style="background:#3b82f6; font-size:13px; padding:10px; text-align:center;">Guardar Registro Hídrico</button>
+                    </form>
+                </div>
+
                 <div class="tarjeta">
                     <div class="tarjeta-titulo" style="color: var(--texto-ok);">Asignar Orden de Trabajo</div>
                     <form method="POST" class="form-calc">
@@ -150,7 +167,7 @@
                         
                         <div class="group-calc">
                             <label>Tarea / Repuesto a cambiar</label>
-                            <input type="text" name="tarea" placeholder="Ej: Cambiar filtro Iveco 504107584" required>
+                            <input type="text" name="tarea" placeholder="Ej: Revisar presión cañería terminal" required>
                         </div>
                         <div class="group-calc">
                             <label>Responsable</label>
@@ -182,23 +199,12 @@
                             </div>
                             <div style="font-size: 14px; font-weight: bold; margin: 4px 0; color:#fff;">{{ o.tarea }}</div>
                             <div style="font-size: 12px; color: #38bdf8;">Encargado: {{ o.responsable }}</div>
-                            
                             <a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-ot-listo">✓ Marcar Solucionado</a>
                         </div>
                     {% endfor %}
                     {% if not ot %}
                         <div style="color: #64748b; font-size: 13px; text-align: center; padding: 10px;">No hay tareas pendientes en este equipo.</div>
                     {% endif %}
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">Resumen Horas de Trabajo</div>
-                    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
-                        <div style="display: flex; justify-content: space-between;"><span>Riego Efectivo:</span><strong style="color: var(--verde);">{{ data.hs_riego }} hs</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Movimiento en Seco:</span><strong>{{ data.hs_movimiento }} hs</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Equipo Parado:</span><strong style="color: #64748b;">{{ data.hs_parado }} hs</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Fallas de Presión:</span><strong style="color: var(--alerta);">{{ data.hs_falla }} hs</strong></div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -317,36 +323,37 @@
             .bindPopup('<b>{{ data.nombre_corto }}</b><br>Estado: {{ data.estado }}')
             .openPopup();
 
-        // --- GRÁFICOS ---
-        var etiquetasX = {{ data.graficos_eje_x|tojson if data.graficos_eje_x else [] }};
+        // --- LÓGICA DE GRÁFICOS REALES ASOCIADOS A LA BD ---
+        var etiquetasFechas = {{ fechas_riego|tojson if fechas_riego else [] }};
+        var datosLaminas = {{ laminas_riego|tojson if laminas_riego else [] }};
+        var datosHoras = {{ horas_riego|tojson if horas_riego else [] }};
 
-        new Chart(document.getElementById('chartPresion'), {
-            type: 'line',
+        new Chart(document.getElementById('chartLaminaReal'), {
+            type: 'bar', // Formato de barras para ver los aportes semanales individuales
             data: {
-                labels: etiquetasX,
+                labels: etiquetasFechas,
                 datasets: [{
-                    label: 'Presión (Bar)',
-                    data: {{ data.historial_presion|tojson if data.historial_presion else [] }},
-                    borderColor: '#38bdf8',
-                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                    fill: true,
-                    tension: 0.2
+                    label: 'Lámina Aplicada (mm)',
+                    data: datosLaminas,
+                    backgroundColor: '#60a5fa',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
 
-        new Chart(document.getElementById('chartLamina'), {
+        new Chart(document.getElementById('chartHorasReal'), {
             type: 'line',
             data: {
-                labels: etiquetasX,
+                labels: etiquetasFechas,
                 datasets: [{
-                    label: 'Lámina (mm)',
-                    data: {{ data.historial_lamina|tojson if data.historial_lamina else [] }},
+                    label: 'Tiempo de Marcha (hs)',
+                    data: datosHoras,
                     borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     fill: true,
-                    tension: 0.1
+                    tension: 0.2
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
