@@ -108,14 +108,16 @@ ot_simuladas = [
     {"id": "OT-105", "tarea": "Revisión presión de neumáticos", "responsable": "Preventivo", "prioridad": "Baja"}
 ]
 
-# --- INVENTARIO DE STOCK 21 ACTUALIZADO ---
+# --- INVENTARIO REAL STOCK 21 (MECÁNICA, ELECTRICIDAD, DETECCION DE FALLAS) ---
 inventario_repuestos = [
-    {"codigo": "REP-001", "item": "Motorreductor 50:1 Valley/Lindsay", "categoria": "Mecánica", "cantidad": 4, "ubicación": "Estante A1"},
-    {"codigo": "REP-002", "item": "Caja de engranajes (Gearbox) de Torre", "categoria": "Mecánica", "cantidad": 3, "ubicación": "Estante A2"},
-    {"codigo": "REP-003", "item": "Contactor Eléctrico 25A 480V", "categoria": "Electricidad", "cantidad": 12, "ubicación": "Caja Mandos B"},
-    {"codigo": "REP-004", "item": "Microinterruptor de seguridad (Microswitch)", "categoria": "Electricidad", "cantidad": 8, "ubicación": "Caja Mandos C"},
-    {"codigo": "REP-005", "item": "Neumático Completo de Pivot 14.9-24", "categoria": "Estructura", "cantidad": 2, "ubicación": "Patio Trasero"},
-    {"codigo": "REP-006", "item": "Aspersores e Insertos i-Wob3 (Kit completo)", "categoria": "Riego", "cantidad": 45, "ubicación": "Depósito Central"}
+    {"codigo": "STK21-042", "item": "Motorreductor Central Valley 40:1 0.75HP", "categoria": "Mecánica Pivot", "cantidad": 2, "ubicación": "Estante A - Fila Sup"},
+    {"codigo": "STK21-089", "item": "Caja de Engranajes / Gearbox Lindsay (Zimmatic)", "categoria": "Mecánica Pivot", "cantidad": 3, "ubicación": "Estante B - Piso"},
+    {"codigo": "STK21-112", "item": "Contactor Telemecanique 32A 480V (Bobina 110V)", "categoria": "Tableros Eléctricos", "cantidad": 7, "ubicación": "Gabinete Azul 1"},
+    {"codigo": "STK21-015", "item": "Microswitch de Alineación e Interrupción Doble", "categoria": "Cajas de Torre", "cantidad": 14, "ubicación": "Caja Plástica M1"},
+    {"codigo": "STK21-204", "item": "Fusible de Potencia 30A Cartucho de Retardo", "categoria": "Protecciones", "cantidad": 20, "ubicación": "Gabinete Azul 2"},
+    {"codigo": "STK21-310", "item": "Boquillas / Aspersores Nelson R3000 Rotator (Varios tamaños)", "categoria": "Insumos Riego", "cantidad": 65, "ubicación": "Cajón Técnico Norte"},
+    {"codigo": "STK21-007", "item": "Kit de Reparación Bomba Cornell (Sellos y empaquetaduras)", "categoria": "Estación Bombeo", "cantidad": 2, "ubicación": "Taller Central"},
+    {"codigo": "STK21-155", "item": "Filtro de Combustible Donaldson (Motor Iveco/Deutz)", "categoria": "Generadores", "cantidad": 6, "ubicación": "Estante C - Insumos"}
 ]
 
 @app.route('/')
@@ -127,7 +129,6 @@ def index():
     datos_panel = equipos_riego[id_solicitado]
     return render_template('dashboard.html', data=datos_panel, todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
-# RUTA CORREGIDA: Ahora pasa los datos reales a la plantilla stock.html
 @app.route('/stock')
 @login_required
 def stock():
