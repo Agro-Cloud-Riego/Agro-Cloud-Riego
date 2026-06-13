@@ -6,7 +6,7 @@
     <title>AgroRiego - Telemetría Satelital</title>
     <style>
         body {
-            /* Imagen grande de un riego pivot regando en alta definición */
+            /* Imagen en alta definición de un riego por pivot real regando el campo */
             background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?q=80&w=1600') no-repeat center center fixed;
             background-size: cover;
             font-family: sans-serif;
@@ -25,9 +25,9 @@
             text-align: center; 
             box-sizing: border-box; 
         }
-        /* Círculo del ícono de riego */
+        /* Círculo superior con el ícono de riego tecnológico */
         .brand-icon { 
-            background: #10b981; /* Un color verde agrícola tecnológico */
+            background: #10b981; 
             color: white; 
             width: 70px; 
             height: 70px; 
@@ -41,14 +41,14 @@
         }
         h2 { margin: 0 0 5px 0; color: #111827; font-size: 26px; font-weight: bold; }
         
-        /* Texto abajo del ícono */
+        /* Texto solicitado debajo del ícono de riego */
         .subtitle { 
             color: #4b5563; 
-            font-size: 13px; 
-            font-weight: 600;
+            font-size: 12px; 
+            font-weight: bold;
             margin-bottom: 25px; 
             text-transform: uppercase; 
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
         }
         
         .input-group { text-align: left; margin-bottom: 20px; }
@@ -75,11 +75,11 @@
         <form method="POST">
             <div class="input-group">
                 <label>Usuario</label>
-                <input type="text" name="usuario" placeholder="Ingresá tu usuario" required>
+                <input type="text" name="username" placeholder="Ingresá tu usuario" required>
             </div>
             <div class="input-group">
                 <label>Contraseña</label>
-                <input type="password" name="clave" placeholder="••••••••" required>
+                <input type="password" name="password" placeholder="••••••••" required>
             </div>
             <button type="submit">Ingresar al Sistema</button>
         </form>
