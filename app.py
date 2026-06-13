@@ -24,14 +24,14 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- GESTIÓN DE BASE DE DATOS (Para el Stock 21 permanente) ---
+# --- CONFIGURACIÓN DE BASE DE DATOS (Para el Stock 21 Permanente) ---
 def conectar_db():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
 def inicializar_db():
-    """Crea la base de datos y carga tus repuestos reales si no existe"""
+    """Crea la base de datos y el inventario si no existe el archivo físico"""
     if not os.path.exists(DATABASE):
         conn = conectar_db()
         cursor = conn.cursor()
@@ -62,7 +62,7 @@ def inicializar_db():
             )
         ''')
         
-        # Tu lista exacta de repuestos del Stock 21
+        # Tu lista exacta y real de repuestos del Stock 21
         repuestos_iniciales = [
             ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
             ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
@@ -86,7 +86,7 @@ def inicializar_db():
         conn.commit()
         conn.close()
 
-# --- RUTA LOGIN CORREGIDA (Llama a tu plantilla HTML real) ---
+# --- RUTA LOGIN CORREGIDA (¡Llama a tu plantilla HTML real sin el cuadro feo!) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -108,7 +108,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- TELEMETRÍA DE EQUIPOS (Tus datos originales del Panel) ---
+# --- TELEMETRÍA DE EQUIPOS (Tus Datos Originales) ---
 equipos_riego = {
     "PIVOT-LOTE-A2": {
         "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
@@ -141,7 +141,7 @@ def index():
     return render_template('dashboard.html', data=equipos_riego[id_solicitado], todos_equipos=equipos_riego, ot=ot_simuladas, user=current_user)
 
 
-# --- STOCK 21 CONECTADO A BASE DE DATOS ---
+# --- RUTA DE STOCK 21 CONECTADO A BASE DE DATOS ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
@@ -171,7 +171,7 @@ def stock():
             
             elif tipo_accion == 'salida':
                 if stock_actual >= cantidad:
-                    nuevo_stock = stock_actual - cantidad
+                    nuevo_stock = stock_actual - carrot_stock = stock_actual - cantidad
                     cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, nro_parte))
                     cursor.execute('''
                         INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable)
@@ -182,7 +182,7 @@ def stock():
             conn.close()
             return redirect(url_for('stock'))
 
-    # Leer datos reales desde la BD
+    # Cargar datos actualizados desde la BD
     cursor.execute("SELECT * FROM inventario")
     lista_inventario = cursor.fetchall()
 
