@@ -46,6 +46,10 @@
         .btn-equipo { background: #1e293b; border: 1px solid var(--borde); color: #fff; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
         .btn-equipo.activo { border-color: var(--verde); background: rgba(16, 185, 129, 0.1); color: var(--verde); }
 
+        /* Banner de Alerta Crítica Parpadeante */
+        .alerta-box-critica { background: rgba(239, 68, 68, 0.15); border: 2px solid var(--alerta); border-radius: 8px; padding: 15px; margin-bottom: 20px; animation: parpadeo 2s infinite; }
+        @keyframes parpadeo { 0% { border-color: var(--alerta); } 50% { border-color: #7f1d1d; } 100% { border-color: var(--alerta); } }
+
         .grid-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; }
         .indicador { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--borde); text-align: center; }
         .ind-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
@@ -85,6 +89,21 @@
         <a href="{{ url_for('index') }}" class="nav-link active">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock 21 Repuestos</a>
     </div>
+
+    {% if alertas %}
+        <div class="alerta-box-critica">
+            <h3 style="margin: 0 0 10px 0; color: var(--alerta); font-size: 16px;">⚠️ FALLA DETECTADA EN SISTEMA DE RIEGO</h3>
+            {% for a in alertas %}
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 5px; font-size: 14px;">
+                    <div>
+                        <strong>{{ a.equipo_id }}</strong> - <span style="color: var(--amarillo);">{{ a.tipo_falla }}</span>: {{ a.descripcion }} 
+                        <br><span style="font-size: 11px; color: #64748b;">Registrado: {{ a.fecha_hora }}</span>
+                    </div>
+                    <a href="{{ url_for('desactivar_alerta', alerta_id=a.id) }}" class="btn-ot-listo" style="background: var(--alerta); margin:0;">Apagar Alerta</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 
     <div class="tabs-dashboard">
         <button class="tab-dash-btn active" onclick="cambiarTabDash('vison-general')">📡 Monitoreo de Pivots</button>
@@ -137,6 +156,29 @@
             </div>
 
             <div class="col-derecha">
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo" style="color: var(--alerta);">Reportar Incidencia Crítica</div>
+                    <form method="POST" class="form-calc">
+                        <input type="hidden" name="form_tipo" value="nueva_alerta">
+                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                        
+                        <div class="group-calc">
+                            <label>Tipo de Falla</label>
+                            <select name="tipo_falla" required>
+                                <option value="Caída de Presión">Caída de Presión (Bomba/Filtros)</option>
+                                <option value="Parada de Motor">Parada Motor Generador (Diésel)</option>
+                                <option value="Falla de Alineación">Desalineación de Tramos / Torres</option>
+                                <option value="Problema Eléctrico">Falla Eléctrica (Anillo colector/Fusibles)</option>
+                            </select>
+                        </div>
+                        <div class="group-calc">
+                            <label>Descripción del Problema</label>
+                            <input type="text" name="descripcion" placeholder="Ej: Motor calentó y se plantó solo" required>
+                        </div>
+                        <button type="submit" class="btn-ot-listo" style="background: var(--alerta); font-size:13px; padding:10px; text-align:center;">Disparar Alerta General</button>
+                    </form>
+                </div>
+
                 <div class="tarjeta">
                     <div class="tarjeta-titulo" style="color: #60a5fa;">Cargar Vuelta de Riego Terminada</div>
                     <form method="POST" class="form-calc">
@@ -256,10 +298,8 @@
         function cambiarTabDash(tabId) {
             document.querySelectorAll('.contenido-dash').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-dash-btn').forEach(el => el.classList.remove('active'));
-            
             document.getElementById(tabId).classList.add('active');
             event.currentTarget.classList.add('active');
-            
             if(tabId === 'vison-general' && window.mapa_riego) {
                 setTimeout(() => { window.mapa_riego.invalidateSize(); }, 100);
             }
@@ -323,13 +363,13 @@
             .bindPopup('<b>{{ data.nombre_corto }}</b><br>Estado: {{ data.estado }}')
             .openPopup();
 
-        // --- LÓGICA DE GRÁFICOS REALES ASOCIADOS A LA BD ---
+        // --- GRÁFICOS ---
         var etiquetasFechas = {{ fechas_riego|tojson if fechas_riego else [] }};
         var datosLaminas = {{ laminas_riego|tojson if laminas_riego else [] }};
         var datosHoras = {{ horas_riego|tojson if horas_riego else [] }};
 
         new Chart(document.getElementById('chartLaminaReal'), {
-            type: 'bar', // Formato de barras para ver los aportes semanales individuales
+            type: 'bar',
             data: {
                 labels: etiquetasFechas,
                 datasets: [{
