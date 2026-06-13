@@ -3,41 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock 21 - AgroRiego</title>
+    <title>AgroRiego Pro - Stock 21</title>
     <style>
-        :root { --bg-principal: #0f172a; --bg-tarjeta: #1e293b; --borde: #334155; --texto-ok: #38bdf8; --verde: #10b981; --alerta: #ef4444; }
+        :root { --bg-principal: #0b0f19; --bg-tarjeta: #131c2e; --borde: #233554; --texto-ok: #38bdf8; --verde: #10b981; }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 10px; }
-        h1 { margin: 0; font-size: 26px; color: #fff; font-weight: 800; }
-        .logo-meta { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
+        h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        nav { display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--borde); }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: bold; padding: 8px 16px; border-radius: 6px; border: 1px solid transparent; }
-        .nav-link:hover { color: #fff; background-color: var(--bg-tarjeta); }
-        .nav-link.active { color: #fff; background-color: var(--bg-tarjeta); border-color: var(--borde); }
+        nav { display: flex; gap: 15px; margin-bottom: 20px; }
+        .nav-link { color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        .nav-link.active { color: #fff; background-color: var(--bg-tarjeta); border: 1px solid var(--borde); }
 
         .panel { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); padding: 20px; border-radius: 12px; }
-        .panel-titulo { font-size: 18px; font-weight: bold; border-bottom: 1px solid var(--borde); padding-bottom: 10px; margin-bottom: 15px; color: #cbd5e1; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .badge-marcha { background-color: rgba(16,185,129,0.15); color: var(--verde); border: 1px solid var(--verde); }
-        .badge-critico { background-color: rgba(239,68,68,0.15); color: var(--alerta); border: 1px solid var(--alerta); }
+        .panel-titulo { font-size: 16px; font-weight: bold; border-bottom: 1px solid var(--borde); padding-bottom: 10px; margin-bottom: 15px; color: #cbd5e1; }
+
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--borde); font-size: 14px; }
-        th { color: #64748b; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        th { background-color: #0b0f19; color: var(--texto-ok); }
         tr:hover { background-color: rgba(255,255,255,0.02); }
-        .btn-logout { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; font-size: 13px; }
+        
+        .badge-cantidad { background-color: rgba(16, 185, 129, 0.15); color: var(--verde); padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <header>
         <div>
-            <span class="logo-meta">📦 Módulo de Inventario Integrado</span>
+            <span style="font-size: 11px; color: #64748b; text-transform: uppercase;">📦 GESTIÓN DE INVENTARIO CRÍTICO</span>
             <h1>AgroRiego Pro</h1>
-        </div>
-        <div>
-            <span style="margin-right: 15px; font-size: 14px; color: #94a3b8;">Usuario: <strong>{{ user.id }}</strong></span>
-            <a href="/logout" class="btn-logout">Cerrar Sesión</a>
         </div>
     </header>
 
@@ -47,25 +40,25 @@
     </nav>
 
     <div class="panel">
-        <div class="panel-titulo">📋 Inventario Físico - Stock 21</div>
+        <div class="panel-titulo">🛠️ Repuestos Disponibles - Pivot & Bombeo</div>
         <table>
             <thead>
                 <tr>
-                    <th>Descripción / Modelo</th>
-                    <th>Cantidad Disponible</th>
-                    <th>Estado Alerta</th>
+                    <th>Código</th>
+                    <th>Descripción del Componente</th>
+                    <th>Categoría</th>
+                    <th>Ubicación</th>
+                    <th>Cantidad</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in stock %}
                 <tr>
-                    <td><strong>{{ item.componente }}</strong></td>
-                    <td><span style="font-size: 15px; color: #f1f5f9;">{{ item.cantidad }}</span> {{ item.unidad }}</td>
-                    <td>
-                        <span class="badge {% if item.estado == 'OK' %}badge-marcha{% else %}badge-critico{% endif %}">
-                            {{ item.estado }}
-                        </span>
-                    </td>
+                    <td style="color: #64748b; font-weight: bold;">{{ item.codigo }}</td>
+                    <td style="color: #fff; font-weight: bold;">{{ item.item }}</td>
+                    <td>{{ item.categoria }}</td>
+                    <td style="color: #94a3b8;">{{ item.ubicación }}</td>
+                    <td><span class="badge-cantidad">{{ item.cantidad }} u.</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
