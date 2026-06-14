@@ -3,400 +3,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Panel Central</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <title>AgroRiego Pro - Monitoreo Avanzado</title>
+    <!-- Incluir biblioteca de gráficos Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
-        :root { 
-            --bg-principal: #0b0f19; 
-            --bg-tarjeta: #131c2e; 
-            --borde: #233554; 
-            --texto-ok: #38bdf8; 
-            --verde: #10b981; 
-            --alerta: #ef4444; 
-            --amarillo: #f59e0b; 
+        :root {
+            --bg-principal: #0b0f19;
+            --bg-tarjeta: #131c2e;
+            --borde: #233554;
+            --texto-ok: #38bdf8;
+            --verde: #10b981;
+            --amarillo: #f59e0b;
+            --alerta: #ef4444;
         }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; font-weight: bold; }
+        h1 { margin: 0; font-size: 24px; color: #fff; }
         
         .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
 
-        .tabs-dashboard { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-dash-btn { background: var(--bg-tarjeta); border: 1px solid var(--borde); color: #94a3b8; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .tab-dash-btn:hover { color: #fff; }
-        .tab-dash-btn.active { background: #1e293b; color: var(--texto-ok); border-color: var(--texto-ok); }
-
-        .contenido-dash { display: none; }
-        .contenido-dash.active { display: block; }
-
-        .grid-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
-        @media (max-width: 1024px) { .grid-layout { grid-template-columns: 1fr; } }
-
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        
         .selector-equipos { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn-equipo { background: #1e293b; border: 1px solid var(--borde); color: #fff; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
-        .btn-equipo.activo { border-color: var(--verde); background: rgba(16, 185, 129, 0.1); color: var(--verde); }
-
-        /* Banner de Alerta Crítica Parpadeante */
-        .alerta-box-critica { background: rgba(239, 68, 68, 0.15); border: 2px solid var(--alerta); border-radius: 8px; padding: 15px; margin-bottom: 20px; animation: parpadeo 2s infinite; }
-        @keyframes parpadeo { 0% { border-color: var(--alerta); } 50% { border-color: #7f1d1d; } 100% { border-color: var(--alerta); } }
-
-        .grid-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; }
-        .indicador { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--borde); text-align: center; }
-        .ind-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
-        .ind-valor { font-size: 18px; font-weight: bold; color: #fff; }
-
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .badge-marcha { background: rgba(16, 185, 129, 0.2); color: var(--verde); }
-        .badge-critico { background: rgba(239, 68, 68, 0.2); color: var(--alerta); }
-
-        #map { height: 300px; width: 100%; border-radius: 8px; border: 1px solid var(--borde); }
-        .chart-container { height: 200px; position: relative; margin-bottom: 15px; }
-
-        .form-calc { display: flex; flex-direction: column; gap: 12px; }
-        .group-calc { display: flex; flex-direction: column; gap: 5px; }
-        .group-calc label { font-size: 12px; color: #94a3b8; font-weight: bold; }
-        .group-calc input, .group-calc select { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 9px; border-radius: 6px; font-size: 13px; }
-        .btn-ot-listo { background: var(--verde); color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px; }
+        .btn-equipo { background: var(--bg-tarjeta); border: 1px solid var(--borde); color: #94a3b8; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; }
+        .btn-equipo.activo { border-color: var(--texto-ok); color: #fff; background: rgba(56, 189, 248, 0.1); }
         
-        .calc-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .resultado-box { background: #0f172a; border: 2px dashed var(--borde); border-radius: 8px; padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .res-num { font-size: 36px; font-weight: bold; margin: 10px 0; }
+        .grid-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media(max-width: 900px) { .grid-dashboard { grid-template-columns: 1fr; } }
+        
+        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        .alertas-contenedor { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .alerta-item { background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--alerta); padding: 12px; border-radius: 0 8px 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        .btn-resolver { background: var(--alerta); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; text-decoration: none; }
 
-        .logout-btn { color: var(--alerta); text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid var(--alerta); padding: 6px 12px; border-radius: 6px; }
+        .grid-telemetria { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
+        .dato-caja { background: #0f172a; border: 1px solid var(--borde); padding: 12px; border-radius: 8px; text-align: center; }
+        .dato-valor { font-size: 20px; font-weight: bold; margin-top: 5px; color: var(--texto-ok); }
+        .dato-valor.marcha { color: var(--verde); }
+        .dato-valor.desconectado { color: var(--alerta); }
+        
+        .formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 600px) { .formulario { grid-template-columns: 1fr; } }
+        .grupo-campo { display: flex; flex-direction: column; }
+        label { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
+        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); padding: 10px; color: white; border-radius: 6px; font-size: 14px; }
+        .btn-enviar { background: var(--verde); border: none; color: white; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
+        .btn-enviar:hover { background: #059669; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
+        .btn-accion { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>AgroRiego Pro - Telemetría Satelital</h1>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span style="color: #94a3b8; font-size: 14px;">Usuario: <strong>{{ user.id }}</strong></span>
-            <a href="{{ url_for('logout') }}" class="logout-btn">Cerrar Sesión</a>
+        <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
+        <div style="font-size: 14px; color: #94a3b8;">
+            Usuario: <strong>{{ user.id }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
         </div>
     </header>
 
     <div class="nav-principal">
         <a href="{{ url_for('index') }}" class="nav-link active">Panel de Monitoreo</a>
-        <a href="{{ url_for('stock') }}" class="nav-link">Stock 21 Repuestos</a>
+        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
+        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
     </div>
 
+    <!-- SELECCIÓN DE PIVOTS -->
+    <div class="selector-equipos">
+        {% for eq_id, eq_info in todos_equipos.items() %}
+            <a href="?equipo={{ eq_id }}" class="btn-equipo {% if eq_id == data.id %}activo{% endif %}">
+                🛰️ {{ eq_info.nombre_corto }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <!-- SECCIÓN DE ALERTAS ACTIVAS -->
     {% if alertas %}
-        <div class="alerta-box-critica">
-            <h3 style="margin: 0 0 10px 0; color: var(--alerta); font-size: 16px;">⚠️ FALLA DETECTADA EN SISTEMA DE RIEGO</h3>
-            {% for a in alertas %}
-                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 5px; font-size: 14px;">
-                    <div>
-                        <strong>{{ a.equipo_id }}</strong> - <span style="color: var(--amarillo);">{{ a.tipo_falla }}</span>: {{ a.descripcion }} 
-                        <br><span style="font-size: 11px; color: #64748b;">Registrado: {{ a.fecha_hora }}</span>
-                    </div>
-                    <a href="{{ url_for('desactivar_alerta', alerta_id=a.id) }}" class="btn-ot-listo" style="background: var(--alerta); margin:0;">Apagar Alerta</a>
-                </div>
-            {% endfor %}
+    <div class="alertas-contenedor">
+        {% for al in alertas %}
+        <div class="alerta-item">
+            <div>
+                <strong style="color: var(--alerta);">⚠️ FALLA REPORTADA ({{ al.equipo_id }}):</strong> 
+                <span style="color: #fff;">{{ al.tipo_falla }}</span> - 
+                <small style="color: #94a3b8;">{{ al.descripcion }} [{{ al.fecha_hora }}]</small>
+            </div>
+            <a href="{{ url_for('desactivar_alerta', alerta_id=al.id) }}" class="btn-resolver">Marcar Solucionada</a>
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
-    <div class="tabs-dashboard">
-        <button class="tab-dash-btn active" onclick="cambiarTabDash('vison-general')">📡 Monitoreo de Pivots</button>
-        <button class="tab-dash-btn" onclick="cambiarTabDash('calculadora-perdidas')">🧮 Calculadora de Pérdida de Grano</button>
-    </div>
+    <div class="grid-dashboard">
+        <!-- SECCIÓN IZQUIERDA: MONITOREO Y GRÁFICOS -->
+        <div>
+            <!-- TELEMETRÍA TIEMPO REAL -->
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">📡 Datos del Sistema Actual: {{ data.nombre_corto }}</div>
+                <div class="grid-telemetria">
+                    <div class="dato-caja">
+                        <label>Estado Motor</label>
+                        <div class="dato-valor {% if data.estado == 'MARCHA' %}marcha{% else %}desconectado{% endif %}">{{ data.estado }}</div>
+                    </div>
+                    <div class="dato-caja">
+                        <label>Presión Extremo</label>
+                        <div class="dato-valor">{{ data.presion }}</div>
+                    </div>
+                    <div class="dato-caja">
+                        <label>Caudalímetro</label>
+                        <div class="dato-valor">{{ data.caudal }}</div>
+                    </div>
+                    <div class="dato-caja">
+                        <label>Posición Tramo</label>
+                        <div class="dato-valor">{{ data.posicion }}</div>
+                    </div>
+                </div>
+                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">Última sincronización: {{ data.ultima_lectura }}</p>
+            </div>
 
-    <div id="vison-general" class="contenido-dash active">
-        <div class="selector-equipos">
-            {% for eq_id, eq in todos_equipos.items() %}
-                <a href="?equipo={{ eq_id }}" class="btn-equipo {% if data.id == eq_id %}activo{% endif %}">
-                    {{ eq.nombre_corto }}
-                </a>
-            {% endfor %}
+            <!-- GRÁFICO HISTÓRICO DE LÁMINA -->
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">📊 Evolución de Riego Reciente (Últimas entradas)</div>
+                <div style="background: #0f172a; border-radius: 8px; padding: 10px;">
+                    <canvas id="graficoRiego" style="max-height: 260px;"></canvas>
+                </div>
+            </div>
+
+            <!-- TABLA DE ORDENES DE TRABAJO PENDIENTES -->
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">🛠️ Órdenes de Trabajo Pendientes ({{ data.nombre_corto }})</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nro</th>
+                            <th>Fecha</th>
+                            <th>Tarea a Realizar</th>
+                            <th>Responsable Técnico</th>
+                            <th>Prioridad</th>
+                            <th>Insumo Comprometido</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in ot %}
+                        <tr>
+                            <td>#{{ o.id }}</td>
+                            <td>{{ o.fecha }}</td>
+                            <td><strong>{{ o.tarea }}</strong></td>
+                            <td>{{ o.responsable }}</td>
+                            <td>
+                                <span style="color: {% if o.prioridad == 'CRITICA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">
+                                    {{ o.prioridad }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if o.repuesto_asociado %}
+                                    <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 2px 4px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
+                                {% else %}
+                                    <span style="color: #64748b;">Ninguno</span>
+                                {% endif %}
+                            </td>
+                            <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accion">✓ Despachar</a></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not ot %}
+                        <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este pivot.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="grid-layout">
-            <div class="col-izquierda">
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">
-                        <span>Estado Actual: {{ data.tipo }} - {{ data.lote }}</span>
-                        <span class="badge {% if data.estado == 'MARCHA' %}badge-marcha{% else %}badge-critico{% endif %}">{{ data.estado }}</span>
+        <!-- SECCIÓN DERECHA: CARGA DE DATOS DIARIOS -->
+        <div>
+            <!-- FORMULARIO 1: PARTE DE RIEGO DIARIO -->
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">🌊 Registrar Turno / Lámina de Riego</div>
+                <form method="POST" class="formulario">
+                    <input type="hidden" name="form_tipo" value="nuevo_riego">
+                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                    
+                    <div class="grupo-campo">
+                        <label>Fecha de Operación</label>
+                        <input type="date" name="fecha_riego" required value="2026-06-13">
+                    </div>
+                    <div class="grupo-campo">
+                        <label>Lámina Aplicada (mm)</label>
+                        <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 12.5" required>
+                    </div>
+                    <div class="grupo-campo" style="grid-column: 1 / -1;">
+                        <label>Horas de Marcha del Motor</label>
+                        <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 14.5" required>
                     </div>
                     
-                    <div class="grid-indicadores">
-                        <div class="indicador"><div class="ind-label">Lámina Total Acumulada</div><div class="ind-valor" style="color: #60a5fa; font-size: 22px;">{{ total_acumulado_mm }} mm</div></div>
-                        <div class="indicador"><div class="ind-label">Presión</div><div class="ind-valor" style="color: #38bdf8;">{{ data.presion }}</div></div>
-                        <div class="indicador"><div class="ind-label">Caudal Actual</div><div class="ind-valor" style="color: #10b981;">{{ data.caudal }}</div></div>
-                        <div class="indicador"><div class="ind-label">Posición Estructura</div><div class="ind-valor" style="color: #a855f7;">{{ data.posicion }}</div></div>
+                    <button type="submit" class="btn-enviar">Guardar en Libro Hídrico</button>
+                </form>
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--borde); font-size: 14px;">
+                    Lámina Acumulada del Pivot: <strong style="color: var(--verde);">{{ total_acumulado_mm }} mm</strong>
+                </div>
+            </div>
+
+            <!-- FORMULARIO 2: CREACIÓN DE ORDEN DE TRABAJO -->
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">👨‍🔧 Levantar Orden de Trabajo (OT)</div>
+                <form method="POST" class="formulario">
+                    <input type="hidden" name="form_tipo" value="nueva_ot">
+                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                    
+                    <div class="grupo-campo" style="grid-column: 1 / -1;">
+                        <label>Descripción del Problema Técnico</label>
+                        <textarea name="tarea" rows="2" placeholder="Ej: Cambio de retén en caja reductora tramo 4" required></textarea>
                     </div>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">Ubicación Georeferenciada (Campo Real)</div>
-                    <div id="map"></div>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">Balance Hídrico Real - Registro de las Últimas Vueltas de Riego</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Lámina Aplicada por Vuelta ($mm$)</h4>
-                            <div class="chart-container"><canvas id="chartLaminaReal"></canvas></div>
-                        </div>
-                        <div>
-                            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Tiempo de Operación por Ciclo ($hs$)</h4>
-                            <div class="chart-container"><canvas id="chartHorasReal"></canvas></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-derecha">
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo" style="color: var(--alerta);">Reportar Incidencia Crítica</div>
-                    <form method="POST" class="form-calc">
-                        <input type="hidden" name="form_tipo" value="nueva_alerta">
-                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                        
-                        <div class="group-calc">
-                            <label>Tipo de Falla</label>
-                            <select name="tipo_falla" required>
-                                <option value="Caída de Presión">Caída de Presión (Bomba/Filtros)</option>
-                                <option value="Parada de Motor">Parada Motor Generador (Diésel)</option>
-                                <option value="Falla de Alineación">Desalineación de Tramos / Torres</option>
-                                <option value="Problema Eléctrico">Falla Eléctrica (Anillo colector/Fusibles)</option>
-                            </select>
-                        </div>
-                        <div class="group-calc">
-                            <label>Descripción del Problema</label>
-                            <input type="text" name="descripcion" placeholder="Ej: Motor calentó y se plantó solo" required>
-                        </div>
-                        <button type="submit" class="btn-ot-listo" style="background: var(--alerta); font-size:13px; padding:10px; text-align:center;">Disparar Alerta General</button>
-                    </form>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo" style="color: #60a5fa;">Cargar Vuelta de Riego Terminada</div>
-                    <form method="POST" class="form-calc">
-                        <input type="hidden" name="form_tipo" value="nuevo_riego">
-                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                        
-                        <div class="group-calc">
-                            <label>Lámina Aplicada ($mm$)</label>
-                            <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 15.5" required>
-                        </div>
-                        <div class="group-calc">
-                            <label>Horas Reales Operadas</label>
-                            <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 22" required>
-                        </div>
-                        <div class="group-calc">
-                            <label>Fecha de Finalización</label>
-                            <input type="date" name="fecha_riego" required>
-                        </div>
-                        <button type="submit" class="btn-ot-listo" style="background:#3b82f6; font-size:13px; padding:10px; text-align:center;">Guardar Registro Hídrico</button>
-                    </form>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo" style="color: var(--texto-ok);">Asignar Orden de Trabajo</div>
-                    <form method="POST" class="form-calc">
-                        <input type="hidden" name="form_tipo" value="nueva_ot">
-                        <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                        
-                        <div class="group-calc">
-                            <label>Tarea / Repuesto a cambiar</label>
-                            <input type="text" name="tarea" placeholder="Ej: Revisar presión cañería terminal" required>
-                        </div>
-                        <div class="group-calc">
-                            <label>Responsable</label>
-                            <select name="responsable" required>
-                                <option value="Electricista">Electricista</option>
-                                <option value="Téc. Preventista">Preventista</option>
-                                <option value="Téc. Mecánico">Especialista Mecánico (Gearboxes/Bombas)</option>
-                            </select>
-                        </div>
-                        <div class="group-calc">
-                            <label>Prioridad</label>
-                            <select name="prioridad" required>
-                                <option value="Baja">Baja</option>
-                                <option value="Media">Media</option>
-                                <option value="Alta">Alta Crítica</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn-ot-listo" style="font-size:13px; padding:10px; text-align:center;">Enviar al Equipo</button>
-                    </form>
-                </div>
-
-                <div class="tarjeta">
-                    <div class="tarjeta-titulo">Órdenes Técnicas Activas ({{ data.nombre_corto }})</div>
-                    {% for o in ot %}
-                        <div style="background: #0f172a; padding: 12px; border-radius: 6px; border-left: 4px solid {% if o.prioridad == 'Alta' %}var(--alerta){% else %}var(--amarillo){% endif %}; margin-bottom: 12px;">
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: bold; display: flex; justify-content: space-between;">
-                                <span>OT-#{{ o.id }} - {{ o.fecha }}</span>
-                                <span style="color: {% if o.prioridad == 'Alta' %}var(--alerta){% else %}var(--amarillo){% endif %}; text-transform: uppercase;">{{ o.prioridad }}</span>
-                            </div>
-                            <div style="font-size: 14px; font-weight: bold; margin: 4px 0; color:#fff;">{{ o.tarea }}</div>
-                            <div style="font-size: 12px; color: #38bdf8;">Encargado: {{ o.responsable }}</div>
-                            <a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-ot-listo">✓ Marcar Solucionado</a>
-                        </div>
-                    {% endfor %}
-                    {% if not ot %}
-                        <div style="color: #64748b; font-size: 13px; text-align: center; padding: 10px;">No hay tareas pendientes en este equipo.</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="calculadora-perdidas" class="contenido-dash">
-        <div class="tarjeta">
-            <div class="tarjeta-titulo" style="color: var(--texto-ok); font-size: 18px;">
-                Calculadora Técnica de Eficiencia de Cosecha (Muestreo en Suelo)
-            </div>
-            <p style="color: #94a3b8; font-size: 14px; margin-top: -10px; margin-bottom: 25px;">
-                Ingresá los datos obtenidos del conteo de granos en el marco de muestreo (1 m²) detrás de la cosechadora para calcular los kg totales que se están perdiendo por hectárea.
-            </p>
-
-            <div class="calc-container">
-                <div class="form-calc">
-                    <div class="group-calc">
-                        <label>Cultivo a Evaluar</label>
-                        <select id="calc-cultivo" onchange="actualizarPesoReferencia()">
-                            <option value="soja">Soja (Peso promedio: 0.15 gramos por grano)</option>
-                            <option value="maiz">Maíz (Peso promedio: 0.30 gramos por grano)</option>
+                    <div class="grupo-campo">
+                        <label>Asignar Técnico</label>
+                        <select name="responsable">
+                            <option value="Electricista">Electricista de Turno</option>
+                            <option value="Preventista">Preventista de Campo</option>
+                            <option value="Especialista Mecánico">Mecánico de Cajas/Bombas</option>
                         </select>
                     </div>
-                    <div class="group-calc">
-                        <label>Granos Encontrados en el Suelo (Promedio por m²)</label>
-                        <input type="number" id="calc-granos" min="0" placeholder="Ej: 60" value="40">
+                    <div class="grupo-campo">
+                        <label>Prioridad</label>
+                        <select name="prioridad">
+                            <option value="NORMAL">Normal / Programado</option>
+                            <option value="CRITICA">Crítica / Equipo Parado</option>
+                        </select>
                     </div>
-                    <div class="group-calc">
-                        <label>Rendimiento Estimado del Lote (Quintales por Hectárea - qq/Ha)</label>
-                        <input type="number" id="calc-rinde" min="1" placeholder="Ej: 32" value="30">
+                    <div class="grupo-campo" style="grid-column: 1 / -1;">
+                        <label>Vincular Repuesto de Stock (Opcional)</label>
+                        <select name="repuesto_asociado">
+                            <option value="">-- No requiere o no está en stock --</option>
+                            {% for rep in repuestos %}
+                                <option value="{{ rep.parte }}">{{ rep.item }} [Cod: {{ rep.parte }}] - {{ rep.motor }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <button type="button" class="btn-calc" onclick="calcularPerdidaCampo()">Calcular Impacto Comercial</button>
-                </div>
+                    <button type="submit" class="btn-enviar" style="background: var(--texto-ok); color: #0b0f19;">Lanzar Orden Técnica</button>
+                </form>
+            </div>
 
-                <div class="resultado-box" id="box-resultado">
-                    <span style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: bold;">Pérdida Estimada</span>
-                    <div class="res-num" id="res-kilos" style="color: var(--verde);">0.0 kg/Ha</div>
-                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px;" id="res-porcentaje">Porcentaje del rinde: 0.0%</div>
-                    <span class="badge" id="res-badge" style="background: rgba(16, 185, 129, 0.2); color: var(--verde);">Esperando Cálculo</span>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 15px; max-width: 280px; text-align: center;" id="res-consejo">
-                        Presioná el botón para analizar la eficiencia de la trilla.
+            <!-- FORMULARIO 3: ALERTA DE FALLA CRÍTICA -->
+            <div class="tarjeta" style="border-color: rgba(239, 68, 68, 0.4);">
+                <div class="tarjeta-titulo" style="color: var(--alerta);">⚠️ Reportar Rotura o Detención</div>
+                <form method="POST" class="formulario">
+                    <input type="hidden" name="form_tipo" value="nueva_alerta">
+                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                    
+                    <div class="grupo-campo">
+                        <label>Tipo de Falla</label>
+                        <select name="tipo_falla">
+                            <option value="Falta de Presión (Cañería)">Falta de Presión (Cañería)</option>
+                            <option value="Desalineación Mecánica">Desalineación Mecánica</option>
+                            <option value="Corte Eléctrico (Tramo)">Corte Eléctrico (Tramo)</option>
+                            <option value="Problema en Grupo Electrógeno/Motor">Problema en Grupo Electrógeno/Motor</option>
+                        </select>
                     </div>
-                </div>
+                    <div class="grupo-campo">
+                        <label>Detalle Adicional</label>
+                        <input type="text" name="descripcion" placeholder="Ej: Fusible quemado tramo central" required>
+                    </div>
+                    <button type="submit" class="btn-enviar" style="background: var(--alerta);">Emitir Alerta Crítica</button>
+                </form>
             </div>
         </div>
     </div>
 
+    <!-- SCRIPT CONFIGURACIÓN DE GRÁFICOS (CHART.JS) -->
     <script>
-        function cambiarTabDash(tabId) {
-            document.querySelectorAll('.contenido-dash').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-dash-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
-            if(tabId === 'vison-general' && window.mapa_riego) {
-                setTimeout(() => { window.mapa_riego.invalidateSize(); }, 100);
-            }
-        }
-
-        function calcularPerdidaCampo() {
-            var cultivo = document.getElementById('calc-cultivo').value;
-            var granosPorM2 = parseFloat(document.getElementById('calc-granos').value) || 0;
-            var rindeQQ = parseFloat(document.getElementById('calc-rinde').value) || 1;
-
-            var pesoGranoGramos = (cultivo === 'soja') ? 0.15 : 0.30;
-            var kgPerdidosHa = granosPorM2 * pesoGranoGramos * 10;
-            var kgRindeTotal = rindeQQ * 100;
-            var porcentajePerdida = (kgPerdidosHa / kgRindeTotal) * 100;
-
-            document.getElementById('res-kilos').innerText = kgPerdidosHa.toFixed(1) + " kg/Ha";
-            document.getElementById('res-porcentaje').innerText = "Porcentaje del rinde: " + porcentajePerdida.toFixed(2) + "%";
-
-            var limiteTolerancia = (cultivo === 'soja') ? 80 : 120;
-            var elKilos = document.getElementById('res-kilos');
-            var elBadge = document.getElementById('res-badge');
-            var elConsejo = document.getElementById('res-consejo');
-
-            if (kgPerdidosHa <= limiteTolerancia) {
-                elKilos.style.color = "var(--verde)";
-                elBadge.className = "badge badge-marcha";
-                elBadge.innerText = "✓ EFICIENCIA EXCELENTE";
-                elBadge.style.background = "rgba(16, 185, 129, 0.2)";
-                elBadge.style.color = "var(--verde)";
-                elConsejo.innerText = "La cosechadora está trabajando dentro de los rangos de tolerancia permitidos por el INTA. Trilla limpia.";
-            } else {
-                elKilos.style.color = "var(--alerta)";
-                elBadge.className = "badge badge-critico";
-                elBadge.innerText = "⚠️ PÉRDIDA ELEVADA";
-                elBadge.style.background = "rgba(239, 68, 68, 0.2)";
-                elBadge.style.color = "var(--alerta)";
-                elConsejo.innerText = "Se están superando los límites recomendados. Se aconseja revisar la velocidad de avance, regular las revoluciones del rotor o ajustar las camisas del rulo.";
-            }
-        }
-
-        function actualizarPesoReferencia() {
-            document.getElementById('res-badge').className = "badge";
-            document.getElementById('res-badge').style.background = "#1e293b";
-            document.getElementById('res-badge').style.color = "#94a3b8";
-            document.getElementById('res-badge').innerText = "REQUIERE CALCULAR";
-        }
-
-        // --- MAPA ---
-        var lat = {{ data.lat }};
-        var lng = {{ data.lng }};
-        var map = L.map('map').setView([lat, lng], 14);
-        window.mapa_riego = map;
-
-        L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains:['mt0','mt1','mt2','mt3'],
-            attribution: 'Mapas de Satélite Google'
-        }).addTo(map);
-
-        var marcador = L.marker([lat, lng]).addTo(map)
-            .bindPopup('<b>{{ data.nombre_corto }}</b><br>Estado: {{ data.estado }}')
-            .openPopup();
-
-        // --- GRÁFICOS ---
-        var etiquetasFechas = {{ fechas_riego|tojson if fechas_riego else [] }};
-        var datosLaminas = {{ laminas_riego|tojson if laminas_riego else [] }};
-        var datosHoras = {{ horas_riego|tojson if horas_riego else [] }};
-
-        new Chart(document.getElementById('chartLaminaReal'), {
+        const ctx = document.getElementById('graficoRiego').getContext('2d');
+        
+        // Inyectar variables desde Flask de forma segura
+        const fechas = {{ fechas_riego | tojson }};
+        const laminas = {{ laminas_riego | tojson }};
+        const horas = {{ horas_riego | tojson }};
+        
+        new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: etiquetasFechas,
-                datasets: [{
-                    label: 'Lámina Aplicada (mm)',
-                    data: datosLaminas,
-                    backgroundColor: '#60a5fa',
-                    borderColor: '#3b82f6',
-                    borderWidth: 1
-                }]
+                labels: fechas,
+                datasets: [
+                    {
+                        label: 'Lámina Aplicada (mm)',
+                        data: laminas,
+                        backgroundColor: '#38bdf8',
+                        yAxisID: 'y',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Horas Operadas',
+                        data: horas,
+                        type: 'line',
+                        borderColor: '#10b981',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        fill: false,
+                        yAxisID: 'y1'
+                    }
+                ]
             },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-
-        new Chart(document.getElementById('chartHorasReal'), {
-            type: 'line',
-            data: {
-                labels: etiquetasFechas,
-                datasets: [{
-                    label: 'Tiempo de Marcha (hs)',
-                    data: datosHoras,
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.2
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                scales: {
+                    x: { grid: { color: '#233554' }, ticks: { color: '#94a3b8' } },
+                    y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros', color: '#38bdf8' } },
+                    y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha', color: '#10b981' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#fff' } }
+                }
+            }
         });
     </script>
 </body>
