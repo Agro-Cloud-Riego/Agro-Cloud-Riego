@@ -162,6 +162,7 @@ def index():
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
+    # Estructura estática de pivots activos (con corrección de hectáreas)
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
@@ -315,22 +316,19 @@ def stock():
     conn.close()
     return render_template('stock.html', stock=lista_inventario, entradas=entradas, salidas=salidas, user=current_user)
 
-# --- NUEVA RUTA: REPORTES E HISTORIALES ---
+# --- REPORTE GENERAL ---
 @app.route('/reportes')
 @login_required
 def reportes():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # 1. Historial completo de riegos cargados
     cursor.execute("SELECT * FROM registro_riego ORDER BY fecha DESC")
     historico_riegos = cursor.fetchall()
     
-    # 2. Historial de Órdenes de Trabajo ya completadas y solucionadas
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'COMPLETADA' ORDER BY fecha DESC")
     historico_ots = cursor.fetchall()
     
-    # 3. Resumen estadístico rápido por equipo para el reporte
     cursor.execute("SELECT equipo_id, SUM(lamina_mm) as mm_totales, SUM(horas_operadas) as hs_totales, COUNT(id) as vueltas FROM registro_riego GROUP BY equipo_id")
     resumen_equipos = cursor.fetchall()
     
