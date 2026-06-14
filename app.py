@@ -98,7 +98,7 @@ def inicializar_db():
         )
     ''')
     
-    # Cargar repuestos base (si no existen)
+    # Cargar repuestos base
     repuestos_iniciales = [
         ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
         ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
@@ -120,25 +120,6 @@ def inicializar_db():
 
     conn.commit()
     conn.close()
-
-# --- RUTAS ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        usuario = request.form.get('username')
-        clave = request.form.get('password')
-        if usuario in usuarios_sistema and usuarios_sistema[usuario] == clave:
-            user = User(usuario)
-            login_user(user)
-            return redirect(url_for('index'))
-        else: error = "Usuario o contraseña incorrectos."
-    return render_template('login.html', error=error)
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
 
 # --- PANEL CENTRAL ---
 @app.route('/', methods=['GET', 'POST'])
@@ -231,7 +212,7 @@ def index():
                            alertas=alertas_activas,
                            repuestos=repuestos_taller)
 
-# --- ACCIÓN: FINALIZAR OT ---
+# --- ACCIONES RÁPIDAS ---
 @app.route('/finalizar-ot/<int:ot_id>')
 @login_required
 def finalizar_ot(ot_id):
@@ -270,7 +251,7 @@ def desactivar_alerta(alerta_id):
     conn.close()
     return redirect(url_for('index', equipo=equipo_id))
 
-# --- PANEL GESTIÓN DE STOCK (CON ALTA DE ARTÍCULOS NUEVOS) ---
+# --- PANEL STOCK ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
@@ -280,7 +261,6 @@ def stock():
     if request.method == 'POST':
         form_origen = request.form.get('form_origen')
         
-        # CASO A: Se agregó un artículo técnico completamente nuevo
         if form_origen == 'alta_articulo':
             parte = request.form.get('parte').strip()
             item = request.form.get('item').strip()
@@ -296,8 +276,6 @@ def stock():
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (parte, motor_equipo, categoria, item, ubicacion, minimo, actual))
                 conn.commit()
-                
-                # Si se ingresó con stock inicial mayor a 0, registramos movimiento de entrada inicial
                 if actual > 0:
                     fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
                     cursor.execute('''
@@ -307,25 +285,24 @@ def stock():
                     conn.commit()
             return redirect(url_for('stock'))
             
-        # CASO B: Registrar Entrada / Salida de stock ya existente
         elif form_origen == 'movimiento_stock':
             tipo_accion = request.form.get('accion') 
             nro_parte = request.form.get('part')
-            cantidad = int(request.form.get('quantity', 0))
+            amount = int(request.form.get('quantity', 0))
             responsable = request.form.get('responsable')
             destino_origen = request.form.get('destino_origen')
             fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
             
             cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
             fila = cursor.fetchone()
-            if fila and cantidad > 0:
+            if fila and amount > 0:
                 stock_actual = fila['actual']
                 if tipo_accion == 'entrada':
-                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual + cantidad, nro_parte))
-                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('entrada', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
-                elif tipo_accion == 'salida' and stock_actual >= cantidad:
-                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual - cantidad, nro_parte))
-                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('salida', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
+                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual + amount, nro_parte))
+                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('entrada', ?, ?, ?, ?, ?)", (nro_parte, amount, destino_origen, responsable, fecha_local))
+                elif tipo_accion == 'salida' and stock_actual >= amount:
+                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual - amount, nro_parte))
+                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('salida', ?, ?, ?, ?, ?)", (nro_parte, amount, destino_origen, responsable, fecha_local))
                 conn.commit()
             return redirect(url_for('stock'))
 
@@ -337,6 +314,50 @@ def stock():
     salidas = cursor.fetchall()
     conn.close()
     return render_template('stock.html', stock=lista_inventario, entradas=entradas, salidas=salidas, user=current_user)
+
+# --- NUEVA RUTA: REPORTES E HISTORIALES ---
+@app.route('/reportes')
+@login_required
+def reportes():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # 1. Historial completo de riegos cargados
+    cursor.execute("SELECT * FROM registro_riego ORDER BY fecha DESC")
+    historico_riegos = cursor.fetchall()
+    
+    # 2. Historial de Órdenes de Trabajo ya completadas y solucionadas
+    cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'COMPLETADA' ORDER BY fecha DESC")
+    historico_ots = cursor.fetchall()
+    
+    # 3. Resumen estadístico rápido por equipo para el reporte
+    cursor.execute("SELECT equipo_id, SUM(lamina_mm) as mm_totales, SUM(horas_operadas) as hs_totales, COUNT(id) as vueltas FROM registro_riego GROUP BY equipo_id")
+    resumen_equipos = cursor.fetchall()
+    
+    conn.close()
+    return render_template('reportes.html', 
+                           riegos=historico_riegos, 
+                           ots=historico_ots, 
+                           resumen=resumen_equipos, 
+                           user=current_user)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        usuario = request.form.get('username')
+        clave = request.form.get('password')
+        if usuario in usuarios_sistema and usuarios_sistema[usuario] == clave:
+            user = User(usuario)
+            login_user(user)
+            return redirect(url_for('index'))
+        else: error = "Usuario o contraseña incorrectos."
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     inicializar_db()
