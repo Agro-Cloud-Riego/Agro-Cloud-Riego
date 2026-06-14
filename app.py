@@ -32,7 +32,6 @@ def conectar_db():
     return conn
 
 def inicializar_db():
-    """Crea la base de datos y todas las tablas operativas"""
     conn = conectar_db()
     cursor = conn.cursor()
     
@@ -71,7 +70,8 @@ def inicializar_db():
             prioridad TEXT,
             equipo_id TEXT,
             estado TEXT,
-            fecha TEXT
+            fecha TEXT,
+            repuesto_asociado TEXT DEFAULT NULL
         )
     ''')
 
@@ -86,7 +86,7 @@ def inicializar_db():
         )
     ''')
 
-    # NUEVA: Tabla de Alertas de Falla del Sistema
+    # Tabla de Alertas de Falla del Sistema
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alertas_sistema (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +98,7 @@ def inicializar_db():
         )
     ''')
     
-    # Cargar repuestos iniciales
+    # Cargar repuestos base (si no existen)
     repuestos_iniciales = [
         ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
         ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
@@ -117,14 +117,6 @@ def inicializar_db():
         INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', repuestos_iniciales)
-    
-    # Insertar alertas de prueba si está vacía
-    cursor.execute("SELECT COUNT(*) as total FROM alertas_sistema WHERE estado = 'ACTIVA'")
-    if cursor.fetchone()['total'] == 0:
-        cursor.execute('''
-            INSERT INTO alertas_sistema (equipo_id, tipo_falla, descripcion, estado, fecha_hora)
-            VALUES ('PIVOT-LOTE-A2', 'Caída de Presión', 'Presión en punta menor a 1.2 Bar. Posible rotura de boquilla o acople.', 'ACTIVA', '2026-06-13 18:15:00')
-        ''')
 
     conn.commit()
     conn.close()
@@ -148,25 +140,29 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- PANEL CENTRAL (Monitoreo e Integraciones) ---
+# --- PANEL CENTRAL ---
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
     conn = conectar_db()
     cursor = conn.cursor()
 
-    # Procesar nueva OT
     if request.method == 'POST' and request.form.get('form_tipo') == 'nueva_ot':
         tarea = request.form.get('tarea')
         responsable = request.form.get('responsable')
         prioridad = request.form.get('prioridad')
         equipo_id = request.form.get('equipo_id')
+        repuesto = request.form.get('repuesto_asociado')
+        if repuesto == "": repuesto = None
+        
         fecha_actual = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
-        cursor.execute("INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha) VALUES (?, ?, ?, ?, 'PENDIENTE', ?)", (tarea, responsable, prioridad, equipo_id, fecha_actual))
+        cursor.execute('''
+            INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado) 
+            VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)
+        ''', (tarea, responsable, prioridad, equipo_id, fecha_actual, repuesto))
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
-    # Procesar nueva vuelta de riego
     if request.method == 'POST' and request.form.get('form_tipo') == 'nuevo_riego':
         equipo_id = request.form.get('equipo_id')
         lamina = float(request.form.get('lamina_mm', 0))
@@ -176,7 +172,6 @@ def index():
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
-    # Registrar una nueva falla manual desde el panel
     if request.method == 'POST' and request.form.get('form_tipo') == 'nueva_alerta':
         equipo_id = request.form.get('equipo_id')
         tipo = request.form.get('tipo_falla')
@@ -204,7 +199,6 @@ def index():
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
 
-    # Leer datos de la BD
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
     ot_reales = cursor.fetchall()
     
@@ -218,9 +212,11 @@ def index():
     cursor.execute("SELECT SUM(lamina_mm) as total FROM registro_riego WHERE equipo_id = ?", (id_solicitado,))
     total_mm = cursor.fetchone()['total'] or 0.0
 
-    # LEER ALERTAS ACTIVAS GENERALES DEL SISTEMA
     cursor.execute("SELECT * FROM alertas_sistema WHERE estado = 'ACTIVA' ORDER BY id DESC")
     alertas_activas = cursor.fetchall()
+
+    cursor.execute("SELECT parte, item, motor FROM inventario WHERE actual > 0")
+    repuestos_taller = cursor.fetchall()
 
     conn.close()
     return render_template('dashboard.html', 
@@ -232,9 +228,35 @@ def index():
                            laminas_riego=datos_y_lamina,
                            horas_riego=datos_y_horas,
                            total_acumulado_mm=round(total_mm, 1),
-                           alertas=alertas_activas)
+                           alertas=alertas_activas,
+                           repuestos=repuestos_taller)
 
-# --- ACCIÓN: SOLUCIONAR / APAGAR ALERTA ---
+# --- ACCIÓN: FINALIZAR OT ---
+@app.route('/finalizar-ot/<int:ot_id>')
+@login_required
+def finalizar_ot(ot_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT equipo_id, repuesto_asociado, tarea, responsable FROM ordenes_trabajo WHERE id = ?", (ot_id,))
+    ot = cursor.fetchone()
+    if ot:
+        equipo_id = ot['equipo_id']
+        repuesto = ot['repuesto_asociado']
+        if repuesto:
+            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (repuesto,))
+            inv = cursor.fetchone()
+            if inv and inv['actual'] > 0:
+                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (inv['actual'] - 1, repuesto))
+                fecha_mov = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
+                cursor.execute('''
+                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) 
+                    VALUES ('salida', ?, 1, ?, ?, ?)
+                ''', (repuesto, f"Uso en OT #{ot_id} ({equipo_id})", ot['responsable'], fecha_mov))
+        cursor.execute("UPDATE ordenes_trabajo SET estado = 'COMPLETADA' WHERE id = ?", (ot_id,))
+        conn.commit()
+    conn.close()
+    return redirect(url_for('index', equipo=equipo_id if ot else 'PIVOT-LOTE-A2'))
+
 @app.route('/desactivar-alerta/<int:alerta_id>')
 @login_required
 def desactivar_alerta(alerta_id):
@@ -243,51 +265,71 @@ def desactivar_alerta(alerta_id):
     cursor.execute("SELECT equipo_id FROM alertas_sistema WHERE id = ?", (alerta_id,))
     fila = cursor.fetchone()
     equipo_id = fila['equipo_id'] if fila else 'PIVOT-LOTE-A2'
-    
     cursor.execute("UPDATE alertas_sistema SET estado = 'SOLUCIONADA' WHERE id = ?", (alerta_id,))
     conn.commit()
     conn.close()
     return redirect(url_for('index', equipo=equipo_id))
 
-@app.route('/finalizar-ot/<int:ot_id>')
-@login_required
-def finalizar_ot(ot_id):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT equipo_id FROM ordenes_trabajo WHERE id = ?", (ot_id,))
-    fila = cursor.fetchone()
-    equipo_id = fila['equipo_id'] if fila else 'PIVOT-LOTE-A2'
-    cursor.execute("UPDATE ordenes_trabajo SET estado = 'COMPLETADA' WHERE id = ?", (ot_id,))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('index', equipo=equipo_id))
-
-# --- PANEL GESTIÓN DE STOCK ---
+# --- PANEL GESTIÓN DE STOCK (CON ALTA DE ARTÍCULOS NUEVOS) ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
     conn = conectar_db()
     cursor = conn.cursor()
+    
     if request.method == 'POST':
-        tipo_accion = request.form.get('accion') 
-        nro_parte = request.form.get('part')
-        cantidad = int(request.form.get('quantity', 0))
-        responsable = request.form.get('responsable')
-        destino_origen = request.form.get('destino_origen')
-        fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
-        fila = cursor.fetchone()
-        if fila and cantidad > 0:
-            stock_actual = fila['actual']
-            if tipo_accion == 'entrada':
-                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual + cantidad, nro_parte))
-                cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('entrada', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
-            elif tipo_accion == 'salida' and stock_actual >= cantidad:
-                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual - cantidad, nro_parte))
-                cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('salida', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
-            conn.commit()
+        form_origen = request.form.get('form_origen')
+        
+        # CASO A: Se agregó un artículo técnico completamente nuevo
+        if form_origen == 'alta_articulo':
+            parte = request.form.get('parte').strip()
+            item = request.form.get('item').strip()
+            categoria = request.form.get('categoria')
+            motor_equipo = request.form.get('motor_equipo').strip()
+            ubicacion = request.form.get('ubicacion').strip()
+            minimo = int(request.form.get('minimo', 0))
+            actual = int(request.form.get('actual', 0))
+            
+            if parte and item:
+                cursor.execute('''
+                    INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (parte, motor_equipo, categoria, item, ubicacion, minimo, actual))
+                conn.commit()
+                
+                # Si se ingresó con stock inicial mayor a 0, registramos movimiento de entrada inicial
+                if actual > 0:
+                    fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
+                    cursor.execute('''
+                        INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
+                        VALUES ('entrada', ?, ?, 'Carga Inicial de Sistema', 'Marcelo Daniel', ?)
+                    ''', (parte, actual, fecha_local))
+                    conn.commit()
             return redirect(url_for('stock'))
-    cursor.execute("SELECT * FROM inventario")
+            
+        # CASO B: Registrar Entrada / Salida de stock ya existente
+        elif form_origen == 'movimiento_stock':
+            tipo_accion = request.form.get('accion') 
+            nro_parte = request.form.get('part')
+            cantidad = int(request.form.get('quantity', 0))
+            responsable = request.form.get('responsable')
+            destino_origen = request.form.get('destino_origen')
+            fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
+            
+            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
+            fila = cursor.fetchone()
+            if fila and cantidad > 0:
+                stock_actual = fila['actual']
+                if tipo_accion == 'entrada':
+                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual + cantidad, nro_parte))
+                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('entrada', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
+                elif tipo_accion == 'salida' and stock_actual >= cantidad:
+                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual - cantidad, nro_parte))
+                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('salida', ?, ?, ?, ?, ?)", (nro_parte, cantidad, destino_origen, responsable, fecha_local))
+                conn.commit()
+            return redirect(url_for('stock'))
+
+    cursor.execute("SELECT * FROM inventario ORDER BY categoria ASC, item ASC")
     lista_inventario = cursor.fetchall()
     cursor.execute("SELECT m.*, i.item, i.motor FROM movimientos m JOIN inventario i ON m.parte = i.parte WHERE m.tipo = 'entrada' ORDER BY m.id DESC LIMIT 10")
     entradas = cursor.fetchall()
