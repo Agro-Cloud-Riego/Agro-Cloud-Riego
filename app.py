@@ -1,11 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import sqlite3
 import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = 'agroriego_secreto_cejasmardani'
+app.secret_key = 'agroriego_secreto_marcelocarabajal'
 DATABASE = 'agroriego_stock.db'
 
 # --- CONFIGURACIÓN DE LOGIN ---
@@ -98,6 +98,22 @@ def inicializar_db():
         )
     ''')
     
+    # NUEVA TABLA: Estado de Telemetría en Tiempo Real de las Placas Hardware
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS telemetria_equipos (
+            equipo_id TEXT PRIMARY KEY,
+            latitud REAL,
+            longitud REAL,
+            presion_terminal REAL,
+            rssi TEXT,
+            ultima_actualizacion TEXT
+        )
+    ''')
+    
+    # Insertar valores iniciales por defecto para telemetría si no existen
+    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.0950, -64.1320, 2.4, '-98 dBm', 'Nunca')")
+    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.0833, -64.1167, 3.2, '-85 dBm', 'Nunca')")
+
     # Cargar repuestos base
     repuestos_iniciales = [
         ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
@@ -120,6 +136,52 @@ def inicializar_db():
 
     conn.commit()
     conn.close()
+
+# --- ENTRADA DE DATOS DESDE LA PLACA HELTEC (API GATEWAY) ---
+@app.route('/api/telemetria', methods=['POST'])
+def recibir_telemetria():
+    """
+    Ruta para recibir datos mediante POST HTTP desde el Gateway LoRa.
+    No interfiere con el uso de la web.
+    """
+    data = request.get_json()
+    if not data or 'equipo_id' not in data:
+        return jsonify({"status": "error", "message": "Datos incompletos"}), 400
+        
+    equipo_id = data.get('equipo_id')
+    lat = data.get('latitud')
+    lng = data.get('longitud')
+    presion = data.get('presion_terminal')
+    rssi = data.get('rssi', '-90 dBm')
+    fecha_gps = (datetime.utcnow() - timedelta(hours=3)).strftime('%d/%m/%Y a las %I:%M %p')
+    
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # Actualizar tabla de telemetría en tiempo real
+    cursor.execute('''
+        INSERT INTO telemetria_equipos (equipo_id, latitud, longitud, presion_terminal, rssi, ultima_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(equipo_id) DO UPDATE SET
+            latitud=excluded.latitud,
+            longitud=excluded.longitud,
+            presion_terminal=excluded.presion_terminal,
+            rssi=excluded.rssi,
+            ultima_actualizacion=excluded.ultima_actualizacion
+    ''', (equipo_id, lat, lng, presion, rssi, fecha_gps))
+    
+    # Alerta automática preventiva si la presión baja de 1.5 Bar
+    if presion and float(presion) < 1.5:
+        cursor.execute("SELECT COUNT(*) FROM alertas_sistema WHERE equipo_id = ? AND tipo_falla = 'Baja Presión Inalámbrica' AND estado = 'ACTIVA'", (equipo_id,))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO alertas_sistema (equipo_id, tipo_falla, descripcion, estado, fecha_hora)
+                VALUES (?, 'Baja Presión Inalámbrica', ?, 'ACTIVA', ?)
+            ''', (equipo_id, f"Presión crítica detectada por hardware LoRa: {presion} Bar", (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')))
+            
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok", "message": "Telemetría integrada correctamente"}), 200
 
 # --- PANEL CENTRAL ---
 @app.route('/', methods=['GET', 'POST'])
@@ -162,24 +224,35 @@ def index():
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
-    # Estructura estática de pivots activos (con corrección de hectáreas)
+    # Estructura de equipos estáticos
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
-            "posicion": "340°", "presion": "2.4 Bar", "caudal": "115.000 L/h", "estado": "DESCONECTADO", "senal": "-98 dBm",
-            "lat": -25.0950, "lng": -64.1320, "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6,
-            "ultima_lectura": "13/06/2026 a las 05:45 PM"
+            "posicion": "Calculando...", "caudal": "115.000 L/h", "estado": "MARCHA",
+            "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6
         },
         "FRONTAL-F22": {
             "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
-            "posicion": "Cajón 4 de 12", "presion": "3.2 Bar", "caudal": "120.000 L/h", "estado": "MARCHA", "senal": "-85 dBm",
-            "lat": -25.0833, "lng": -64.1167, "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2,
-            "ultima_lectura": "13/06/2026 a las 05:50 PM"
+            "posicion": "Tramo Fijo", "caudal": "120.000 L/h", "estado": "MARCHA",
+            "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2
         }
     }
     
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
+    
+    # Cruzar con los datos dinámicos de telemetría de la base de datos
+    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
+    tel_db = cursor.fetchone()
+    
+    data_render = equipos_riego[id_solicitado]
+    if tel_db:
+        data_render["presion"] = f"{tel_db['presion_terminal']} Bar"
+        data_render["senal"] = tel_db["rssi"]
+        data_render["lat"] = tel_db["latitud"]
+        data_render["lng"] = tel_db["longitud"]
+        data_render["ultima_lectura"] = tel_db["ultima_actualizacion"]
+        data_render["posicion"] = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
 
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
     ot_reales = cursor.fetchall()
@@ -202,7 +275,7 @@ def index():
 
     conn.close()
     return render_template('dashboard.html', 
-                           data=equipos_riego[id_solicitado], 
+                           data=data_render, 
                            todos_equipos=equipos_riego, 
                            ot=ot_reales, 
                            user=current_user,
