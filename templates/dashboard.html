@@ -176,7 +176,7 @@
 
         <div>
             <div class="tarjeta">
-                <div class="tarjeta-titulo">¼️ Registrar Turno / Lámina de Riego</div>
+                <div class="tarjeta-titulo">📝 Registrar Turno / Lámina de Riego</div>
                 <form method="POST" class="formulario">
                     <input type="hidden" name="form_tipo" value="nuevo_riego">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
@@ -255,7 +255,7 @@
                         </select>
                     </div>
                     <div class="grupo-campo">
-                        <label>Detalle Adicional</label>
+                        <label>Detail Adicional</label>
                         <input type="text" name="descripcion" placeholder="Ej: Falla reportada" required>
                     </div>
                     <button type="submit" class="btn-enviar" style="background: var(--alerta);">Emitir Alerta Crítica</button>
@@ -274,15 +274,17 @@
             var latInicial = -25.0950;
             var lngInicial = -64.1320;
 
-            // Iniciar mapa y centrar
+            // Iniciar mapa y centrar en las coordenadas iniciales
             var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
 
-            // Capa Satelital
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri'
+            // Capa Satelital Híbrida de Google (Imágenes del lote de alta definición)
+            L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: 'Mapas &copy; Google Satelital'
             }).addTo(map);
 
-            // Crear el marcador dinámico
+            // Crear el marcador dinámico inicial
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal...").openPopup();
 
@@ -299,13 +301,19 @@
                             // 1. Mover el marcador en el mapa al vuelo
                             marcador.setLatLng([nuevaLat, nuevaLng]);
                             
-                            // 2. Modificar los textos del panel dinámicamente
+                            // 2. NUEVO: Mueve la cámara del mapa automáticamente persiguiendo las coordenadas del Heltec
+                            map.panTo([nuevaLat, nuevaLng]);
+                            
+                            // 3. Modificar los textos del panel dinámicamente
                             document.getElementById('val-estado').innerText = data.estado;
                             document.getElementById('val-presion').innerText = data.presion + " Bar";
                             document.getElementById('val-caudal').innerText = data.caudal + " L/h";
                             document.getElementById('val-posicion').innerText = nuevaLat.toFixed(4) + ", " + nuevaLng.toFixed(4);
                             document.getElementById('val-lectura').innerText = data.ultima_lectura;
                             document.getElementById('val-senal').innerText = data.senal;
+
+                            // Actualiza el contenido del cartelito del marcador flotante
+                            marcador.getPopup().setContent("<b>" + data.nombre_corto + "</b><br>Presión: " + data.presion + " Bar").update();
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
@@ -341,7 +349,7 @@
                     x: { grid: { color: '#233554' }, ticks: { color: '#94a3b8' } },
                     y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros', color: '#38bdf8' } },
                     y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha', color: '#10b981' } }
-                },
+                ],
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
