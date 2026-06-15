@@ -54,7 +54,7 @@ def inicializar_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tipo TEXT,
             parte TEXT,
-            amount INTEGER, -- Nota: mapeado internamente a cantidad en tus formularios
+            amount INTEGER,
             cantidad INTEGER,
             destino_origen TEXT,
             responsable TEXT,
@@ -99,7 +99,7 @@ def inicializar_db():
         )
     ''')
     
-    # NUEVA TABLA: Estado de Telemetría en Tiempo Real de las Placas Hardware
+    # Tabla: Estado de Telemetría en Tiempo Real de las Placas Hardware
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS telemetria_equipos (
             equipo_id TEXT PRIMARY KEY,
@@ -111,7 +111,18 @@ def inicializar_db():
         )
     ''')
     
-    # CORRECCIÓN DE UBICACIÓN REAL: Se cargan tus coordenadas en formato decimal para Joaquín V. González
+    # NUEVA TABLA: Monitoreo y Control de Horas / Services de Motores
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS control_services (
+            equipo_id TEXT PRIMARY KEY,
+            motor_modelo TEXT,
+            horas_actuales REAL,
+            ultimo_service REAL,
+            frecuencia_hs INTEGER DEFAULT 300
+        )
+    ''')
+    
+    # CORRECCIÓN DE UBICACIÓN REAL (Joaquín V. González)
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.1794, -63.8632, 2.4, '-98 dBm', 'Nunca')")
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.1750, -63.8500, 3.2, '-85 dBm', 'Nunca')")
 
@@ -135,16 +146,24 @@ def inicializar_db():
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', repuestos_iniciales)
 
+    # Cargar datos extraídos exactamente de tu planilla de Control de Motores
+    motores_planilla = [
+        ("A2", "Iveco T8", 601.1, 351.1, 300),
+        ("B2", "Iveco T8", 1414.8, 1118.0, 300),
+        ("A1", "Iveco T5", 740.1, 490.0, 300),
+        ("B1", "Iveco T5", 720.0, 470.0, 300)
+    ]
+    cursor.executemany('''
+        INSERT OR IGNORE INTO control_services (equipo_id, motor_modelo, horas_actuales, ultimo_service, frecuencia_hs)
+        VALUES (?, ?, ?, ?, ?)
+    ''', motores_planilla)
+
     conn.commit()
     conn.close()
 
 # --- ENTRADA DE DATOS DESDE LA PLACA HELTEC (API GATEWAY) ---
 @app.route('/api/telemetria', methods=['POST'])
 def recibir_telemetria():
-    """
-    Ruta para recibir datos mediante POST HTTP desde el Gateway LoRa.
-    No interfiere con el uso de la web.
-    """
     data = request.get_json()
     if not data or 'equipo_id' not in data:
         return jsonify({"status": "error", "message": "Datos incompletos"}), 400
@@ -159,7 +178,6 @@ def recibir_telemetria():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # Actualizar tabla de telemetría en tiempo real
     cursor.execute('''
         INSERT INTO telemetria_equipos (equipo_id, latitud, longitud, presion_terminal, rssi, ultima_actualizacion)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -171,7 +189,6 @@ def recibir_telemetria():
             ultima_actualizacion=excluded.ultima_actualizacion
     ''', (equipo_id, lat, lng, presion, rssi, fecha_gps))
     
-    # Alerta automática preventiva si la presión baja de 1.5 Bar
     if presion and float(presion) < 1.5:
         cursor.execute("SELECT COUNT(*) FROM alertas_sistema WHERE equipo_id = ? AND tipo_falla = 'Baja Presión Inalámbrica' AND estado = 'ACTIVA'", (equipo_id,))
         if cursor.fetchone()[0] == 0:
@@ -184,31 +201,22 @@ def recibir_telemetria():
     conn.close()
     return jsonify({"status": "ok", "message": "Telemetría integrada correctamente"}), 200
 
-
 # --- SALIDA DE DATOS EN TIEMPO REAL PARA EL MAPA (API STATUS) ---
 @app.route('/api/status', methods=['GET'])
 @login_required
 def obtener_status_tiempo_real():
-    """
-    Ruta que consulta el mapa mediante AJAX para actualizar la posición
-    del marcador y las métricas en pantalla sin recargar la página.
-    """
     equipo_id = request.args.get('equipo')
     if not equipo_id:
         return jsonify({"status": "error", "message": "Falta equipo_id"}), 400
 
     conn = conectar_db()
     cursor = conn.cursor()
-    
-    # Buscamos los datos dinámicos actualizados por el hardware Heltec
     cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (equipo_id,))
     fila = cursor.fetchone()
     conn.close()
 
     if fila:
-        # Estado dinámico según esté o no reportando
         estado_motor = "MARCHA" if fila['ultima_actualizacion'] != "Nunca" else "DESCONECTADO"
-        
         return jsonify({
             "latitud": fila['latitud'],
             "longitud": fila['longitud'],
@@ -218,9 +226,7 @@ def obtener_status_tiempo_real():
             "ultima_lectura": fila['ultima_actualizacion'],
             "senal": fila['rssi']
         }), 200
-    
     return jsonify({"status": "error", "message": "Equipo no encontrado"}), 404
-
 
 # --- PANEL CENTRAL ---
 @app.route('/', methods=['GET', 'POST'])
@@ -251,6 +257,10 @@ def index():
         horas = float(request.form.get('horas_operadas', 0))
         fecha_riego = request.form.get('fecha_riego')
         cursor.execute("INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, fecha) VALUES (?, ?, ?, ?)", (equipo_id, lamina, horas, fecha_riego))
+        
+        # LOGICA AUTOMÁTICA: Sumar horas operadas al motor en la tabla de control de services
+        cursor.execute("UPDATE control_services SET horas_actuales = horas_actuales + ? WHERE equipo_id = ?", (horas, equipo_id))
+        
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
@@ -263,7 +273,6 @@ def index():
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
-    # Estructura de equipos estáticos
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
@@ -280,7 +289,6 @@ def index():
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
     
-    # Cruzar con los datos dinámicos de telemetría de la base de datos
     cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
     tel_db = cursor.fetchone()
     
@@ -435,7 +443,6 @@ def reportes():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # Asegurar que se use el orden correcto de fechas para los reportes
     cursor.execute("SELECT * FROM registro_riego ORDER BY fecha DESC")
     historico_riegos = cursor.fetchall()
     
@@ -445,11 +452,44 @@ def reportes():
     cursor.execute("SELECT equipo_id, SUM(lamina_mm) as mm_totales, SUM(horas_operadas) as hs_totales, COUNT(id) as vueltas FROM registro_riego GROUP BY equipo_id")
     resumen_equipos = cursor.fetchall()
     
+    # NUEVA CONSULTA DIÁMICA: Trae las horas calculando en tiempo real el semáforo y las horas que faltan
+    cursor.execute("SELECT *, (ultimo_service + frecuencia_hs) AS proximo_service, ((ultimo_service + frecuencia_hs) - horas_actuales) AS horas_restantes FROM control_services")
+    motores_crudo = cursor.fetchall()
+    
+    # Procesamos los estados y colores en base a las horas que verdaderamente faltan
+    motores_monitoreo = []
+    for m in motores_crudo:
+        hs_restantes = m['horas_restantes']
+        
+        # Clasificación por criticidad (Lógica del Semáforo)
+        if hs_restantes <= 0:
+            estado_servicio = "VENCIDO"
+            color_clase = "danger"  # Rojo en Bootstrap
+        elif hs_restantes <= 25:
+            estado_servicio = "CRÍTICO (Hacer ya)"
+            color_clase = "warning" # Amarillo/Naranja en Bootstrap
+        else:
+            estado_servicio = "AL DÍA"
+            color_clase = "success" # Verde en Bootstrap
+            
+        motores_monitoreo.append({
+            "equipo_id": m['equipo_id'],
+            "motor_modelo": m['motor_modelo'],
+            "horas_actuales": round(m['horas_actuales'], 1),
+            "ultimo_service": round(m['ultimo_service'], 1),
+            "frecuencia_hs": m['frecuencia_hs'],
+            "proximo_service": round(m['proximo_service'], 1),
+            "horas_restantes": round(hs_restantes, 1),
+            "estado": estado_servicio,
+            "color": color_clase
+        })
+    
     conn.close()
     return render_template('reportes.html', 
                            riegos=historico_riegos, 
                            ots=historico_ots, 
-                           resumen=resumen_equipos, 
+                           resumen=resumen_equipos,
+                           motores=motores_monitoreo,  # <--- Inyectado a la plantilla HTML
                            user=current_user)
 
 @app.route('/login', methods=['GET', 'POST'])
