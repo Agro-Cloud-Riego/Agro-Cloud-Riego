@@ -109,22 +109,22 @@
                 <div class="grid-telemetria">
                     <div class="dato-caja">
                         <label>Estado Motor</label>
-                        <div class="dato-valor marcha">{{ data.estado }}</div>
+                        <div id="val-estado" class="dato-valor marcha">{{ data.estado }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
-                        <div class="dato-valor" style="color: var(--amarillo);">{{ data.presion }}</div>
+                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Caudalímetro</label>
-                        <div class="dato-valor">{{ data.caudal }}</div>
+                        <div id="val-caudal" class="dato-valor">{{ data.caudal }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Posición Geográfica</label>
-                        <div class="dato-valor" style="font-size: 13px; color: #cbd5e1;" title="{{ data.posicion }}">{{ data.posicion }}</div>
+                        <div id="val-posicion" class="dato-valor" style="font-size: 13px; color: #cbd5e1;" title="{{ data.posicion }}">{{ data.posicion }}</div>
                     </div>
                 </div>
-                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">Último reporte LoRa: <strong>{{ data.ultima_lectura }}</strong> | Señal: {{ data.senal }}</p>
+                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">Último reporte LoRa: <strong id="val-lectura">{{ data.ultima_lectura }}</strong> | Señal: <span id="val-senal">{{ data.senal }}</span></p>
             </div>
 
             <div class="tarjeta">
@@ -176,7 +176,7 @@
 
         <div>
             <div class="tarjeta">
-                <div class="tarjeta-titulo">🌊 Registrar Turno / Lámina de Riego</div>
+                <div class="tarjeta-titulo">¼️ Registrar Turno / Lámina de Riego</div>
                 <form method="POST" class="formulario">
                     <input type="hidden" name="form_tipo" value="nuevo_riego">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
@@ -266,25 +266,54 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // CONFIGURACIÓN INTERNA DEL MAPA
         document.addEventListener('DOMContentLoaded', function() {
-            // Ubicación fija de prueba que tira la Heltec
-            var lat = -25.0950;
-            var lng = -64.1320;
+            // ID del equipo actual seleccionado en Flask
+            var equipoId = "{{ data.id }}";
+            
+            // Coordenadas iniciales por defecto de la base de datos
+            var latInicial = -25.0950;
+            var lngInicial = -64.1320;
 
-            // Iniciar mapa
-            var map = L.map('mapa-pivot').setView([lat, lng], 14);
+            // Iniciar mapa y centrar
+            var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
 
-            // Capa Satelital ESRI (Exactamente la que usabas antes)
+            // Capa Satelital
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles &copy; Esri'
             }).addTo(map);
 
-            // Marcador flotante con etiqueta
-            var marcador = L.marker([lat, lng]).addTo(map);
-            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Monitoreo Activo").openPopup();
+            // Crear el marcador dinámico
+            var marcador = L.marker([latInicial, lngInicial]).addTo(map);
+            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal...").openPopup();
 
-            // Corrección de visualización para Render
+            // FUNCIÓN DE CONSULTA EN TIEMPO REAL (Actualiza sin recargar la página)
+            function actualizarTelemetria() {
+                // Consulta directo a la API de tu servidor pasándole el ID del equipo
+                fetch('/api/status?equipo=' + equipoId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.latitud && data.longitud) {
+                            var nuevaLat = parseFloat(data.latitud);
+                            var nuevaLng = parseFloat(data.longitud);
+                            
+                            // 1. Mover el marcador en el mapa al vuelo
+                            marcador.setLatLng([nuevaLat, nuevaLng]);
+                            
+                            // 2. Modificar los textos del panel dinámicamente
+                            document.getElementById('val-estado').innerText = data.estado;
+                            document.getElementById('val-presion').innerText = data.presion + " Bar";
+                            document.getElementById('val-caudal').innerText = data.caudal + " L/h";
+                            document.getElementById('val-posicion').innerText = nuevaLat.toFixed(4) + ", " + nuevaLng.toFixed(4);
+                            document.getElementById('val-lectura').innerText = data.ultima_lectura;
+                            document.getElementById('val-senal').innerText = data.senal;
+                        }
+                    })
+                    .catch(err => console.log("Buscando actualización de señal LoRa..."));
+            }
+
+            // Consultar datos nuevos automáticamente cada 4 segundos
+            setInterval(actualizarTelemetria, 4000);
+
             setTimeout(function() {
                 map.invalidateSize();
             }, 400);
