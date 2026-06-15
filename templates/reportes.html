@@ -32,6 +32,22 @@
         .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 20px; }
         .caja-resumen { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--borde); }
 
+        /* Estilos específicos para las tarjetas de motores */
+        .grid-motores { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        .tarjeta-motor { border-radius: 8px; border: 1px solid var(--borde); overflow: hidden; background: #0f172a; }
+        .motor-header { padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .motor-body { padding: 15px; font-size: 13px; }
+        
+        /* Clases dinámicas de colores para el semáforo */
+        .bg-success { background-color: rgba(16, 185, 129, 0.2); border-left: 4px solid var(--verde); }
+        .bg-warning { background-color: rgba(245, 158, 11, 0.2); border-left: 4px solid var(--amarillo); }
+        .bg-danger { background-color: rgba(239, 68, 68, 0.2); border-left: 4px solid var(--alerta); }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .badge-success { background-color: var(--verde); color: #fff; }
+        .badge-warning { background-color: var(--amarillo); color: #000; }
+        .badge-danger { background-color: var(--alerta); color: #fff; }
+
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: left; }
         th { background-color: #0f172a; color: #94a3b8; padding: 12px; border-bottom: 2px solid var(--borde); text-transform: uppercase; font-size: 11px; }
         td { padding: 12px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
@@ -42,7 +58,10 @@
             .nav-principal, .btn-print, header { display: none !important; }
             .tarjeta { background: white; border: none; padding: 0; margin-bottom: 40px; }
             .tarjeta-titulo { color: black; font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 5px; }
-            .caja-resumen { background: white; border: 1px solid #000; color: black; }
+            .caja-resumen, .tarjeta-motor { background: white; border: 1px solid #000; color: black; }
+            .motor-header { background: #e2e8f0 !important; color: black !important; border-bottom: 1px solid #000; }
+            .bg-success, .bg-warning, .bg-danger { background: white !important; border-left: none !important; }
+            .badge { border: 1px solid #000; color: black !important; background: transparent !important; }
             th { background: #e2e8f0; color: black; border-bottom: 2px solid #000; }
             td { color: black; border-bottom: 1px solid #cbd5e1; }
             code { background: none !important; border: none !important; padding: 0 !important; color: black !important; }
@@ -62,7 +81,6 @@
         <a href="{{ url_for('reportes') }}" class="nav-link active">Reportes e Históricos</a>
     </div>
 
-    <!-- RESUMEN ACUMULADO -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">
             <span>📊 Acumulados de Campaña por Equipo</span>
@@ -83,7 +101,36 @@
         </div>
     </div>
 
-    <!-- HISTORIAL DE RIEGOS -->
+    <div class="tarjeta">
+        <div class="tarjeta-titulo">⚙️ Estado de Mantenimiento Preventivo (Frecuencia: 300 hs)</div>
+        <div class="grid-motores">
+            {% for motor in motores %}
+                <div class="tarjeta-motor bg-{{ motor.color }}">
+                    <div class="motor-header" style="border-bottom: 1px solid var(--borde);">
+                        <span>Equipo: {{ motor.equipo_id }}</span>
+                        <span class="badge badge-{{ motor.color }}">{{ motor.estado }}</span>
+                    </div>
+                    <div class="motor-body">
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #fff;">{{ motor.motor_modelo }}</p>
+                        <p style="margin: 4px 0;"><strong>Horas Actuales:</strong> <span style="color: var(--texto-ok); font-weight: bold;">{{ motor.horas_actuales }} hs</span></p>
+                        <p style="margin: 4px 0;"><strong>Último Service:</strong> {{ motor.ultimo_service }} hs</p>
+                        <p style="margin: 4px 0;"><strong>Próximo Mantenimiento:</strong> {{ motor.proximo_service }} hs</p>
+                        <hr style="border: 0; border-top: 1px solid var(--borde); margin: 10px 0;">
+                        <p style="margin: 0; font-size: 13px;">
+                            <strong>Horas Disponibles:</strong> 
+                            <span style="font-weight: bold; color: {% if motor.color == 'danger' or motor.color == 'warning' %}var(--alerta){% else %}var(--verde){% endif %};">
+                                {{ motor.horas_restantes }} hs
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            {% endfor %}
+            {% if not motores %}
+                <div style="color: #64748b; font-size: 13px;">No hay motores registrados en el sistema de monitoreo.</div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="tarjeta">
         <div class="tarjeta-titulo">🌊 Libro de Campo - Todos los Riegos Ejecutados</div>
         <table>
@@ -111,7 +158,6 @@
         </table>
     </div>
 
-    <!-- HISTORIAL DE OTS CERRADAS -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">🛠️ Historial de Mantenimiento - Órdenes de Trabajo Cumplidas</div>
         <table>
