@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroRiego Pro - Monitoreo Avanzado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --bg-principal: #0b0f19;
@@ -55,7 +56,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
-        .btn-accion { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
+        .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -98,6 +99,11 @@
 
     <div class="grid-dashboard">
         <div>
+            <div class="tarjeta" style="padding: 0; overflow: hidden;">
+                <div class="tarjeta-titulo" style="padding: 20px 20px 10px 20px; margin: 0;">🗺️ Mapa Satelital: {{ data.nombre_corto }} ({{ data.lote }})</div>
+                <div id="mapa-pivot" style="height: 320px; width: 100%; background: #0f172a;"></div>
+            </div>
+
             <div class="tarjeta">
                 <div class="tarjeta-titulo">📡 Datos Dinámicos: {{ data.nombre_corto }} ({{ data.lote }})</div>
                 <div class="grid-telemetria">
@@ -157,7 +163,7 @@
                                     <span style="color: #64748b;">Ninguno</span>
                                 {% endif %}
                             </td>
-                            <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accion">✓ Despachar</a></td>
+                            <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accon">✓ Despachar</a></td>
                         </tr>
                         {% endfor %}
                         {% if not ot %}
@@ -257,6 +263,33 @@
             </div>
         </div>
     </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // CONFIGURACIÓN INTERNA DEL MAPA
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ubicación fija de prueba que tira la Heltec
+            var lat = -25.0950;
+            var lng = -64.1320;
+
+            // Iniciar mapa
+            var map = L.map('mapa-pivot').setView([lat, lng], 14);
+
+            // Capa Satelital ESRI (Exactamente la que usabas antes)
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri'
+            }).addTo(map);
+
+            // Marcador flotante con etiqueta
+            var marcador = L.marker([lat, lng]).addTo(map);
+            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Monitoreo Activo").openPopup();
+
+            // Corrección de visualización para Render
+            setTimeout(function() {
+                map.invalidateSize();
+            }, 400);
+        });
+    </script>
 
     <script>
         const ctx = document.getElementById('graficoRiego').getContext('2d');
