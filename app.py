@@ -111,9 +111,9 @@ def inicializar_db():
         )
     ''')
     
-    # Insertar valores iniciales por defecto para telemetría si no existen
-    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.0950, -64.1320, 2.4, '-98 dBm', 'Nunca')")
-    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.0833, -64.1167, 3.2, '-85 dBm', 'Nunca')")
+    # CORRECCIÓN DE UBICACIÓN REAL: Se cargan tus coordenadas en formato decimal para Joaquín V. González
+    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.1794, -63.8632, 2.4, '-98 dBm', 'Nunca')")
+    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.1750, -63.8500, 3.2, '-85 dBm', 'Nunca')")
 
     # Cargar repuestos base
     repuestos_iniciales = [
@@ -435,6 +435,7 @@ def reportes():
     conn = conectar_db()
     cursor = conn.cursor()
     
+    # Asegurar que se use el orden correcto de fechas para los reportes
     cursor.execute("SELECT * FROM registro_riego ORDER BY fecha DESC")
     historico_riegos = cursor.fetchall()
     
