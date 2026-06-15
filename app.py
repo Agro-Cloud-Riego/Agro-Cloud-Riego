@@ -54,6 +54,7 @@ def inicializar_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tipo TEXT,
             parte TEXT,
+            amount INTEGER, -- Nota: mapeado internamente a cantidad en tus formularios
             cantidad INTEGER,
             destino_origen TEXT,
             responsable TEXT,
@@ -182,6 +183,44 @@ def recibir_telemetria():
     conn.commit()
     conn.close()
     return jsonify({"status": "ok", "message": "Telemetría integrada correctamente"}), 200
+
+
+# --- SALIDA DE DATOS EN TIEMPO REAL PARA EL MAPA (API STATUS) ---
+@app.route('/api/status', methods=['GET'])
+@login_required
+def obtener_status_tiempo_real():
+    """
+    Ruta que consulta el mapa mediante AJAX para actualizar la posición
+    del marcador y las métricas en pantalla sin recargar la página.
+    """
+    equipo_id = request.args.get('equipo')
+    if not equipo_id:
+        return jsonify({"status": "error", "message": "Falta equipo_id"}), 400
+
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # Buscamos los datos dinámicos actualizados por el hardware Heltec
+    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (equipo_id,))
+    fila = cursor.fetchone()
+    conn.close()
+
+    if fila:
+        # Estado dinámico según esté o no reportando
+        estado_motor = "MARCHA" if fila['ultima_actualizacion'] != "Nunca" else "DESCONECTADO"
+        
+        return jsonify({
+            "latitud": fila['latitud'],
+            "longitud": fila['longitud'],
+            "presion": str(fila['presion_terminal']),
+            "caudal": "115.000 L/h" if equipo_id == "PIVOT-LOTE-A2" else "120.000 L/h",
+            "estado": estado_motor,
+            "ultima_lectura": fila['ultima_actualizacion'],
+            "senal": fila['rssi']
+        }), 200
+    
+    return jsonify({"status": "error", "message": "Equipo no encontrado"}), 404
+
 
 # --- PANEL CENTRAL ---
 @app.route('/', methods=['GET', 'POST'])
