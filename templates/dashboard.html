@@ -288,6 +288,9 @@
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal...").openPopup();
 
+            // NUEVO: Variable global para el círculo de cobertura en Leaflet
+            var circuloPivot = null;
+
             // FUNCIÓN DE CONSULTA EN TIEMPO REAL (Actualiza sin recargar la página)
             function actualizarTelemetria() {
                 // Consulta directo a la API de tu servidor pasándole el ID del equipo
@@ -301,12 +304,37 @@
                             // 1. Mover el marcador en el mapa al vuelo
                             marcador.setLatLng([nuevaLat, nuevaLng]);
                             
-                            // 2. NUEVO: Mueve la cámara del mapa automáticamente persiguiendo las coordenadas del Heltec
+                            // 2. Mueve la cámara del mapa automáticamente persiguiendo las coordenadas del Heltec
                             map.panTo([nuevaLat, nuevaLng]);
+
+                            // 3. NUEVO: Dibujar o mover el círculo de cobertura real (670 metros de radio)
+                            if (circuloPivot) {
+                                circuloPivot.setLatLng([nuevaLat, nuevaLng]);
+                            } else {
+                                circuloPivot = L.circle([nuevaLat, nuevaLng], {
+                                    color: '#38bdf8',       // Color del borde (azul claro)
+                                    fillColor: '#38bdf8',   // Color de fondo
+                                    fillOpacity: 0.15,      // Opacidad transparente para ver el lote satelital abajo
+                                    radius: 670             // Radio exacto en metros según la carta de aspersión
+                                }).addTo(map);
+                            }
                             
-                            // 3. Modificar los textos del panel dinámicamente
+                            // 4. Modificar los textos del panel dinámicamente
                             document.getElementById('val-estado').innerText = data.estado;
-                            document.getElementById('val-presion').innerText = data.presion + " Bar";
+                            
+                            // NUEVO: Gestión visual inteligente de alertas de presión en la interfaz
+                            var presionValor = parseFloat(data.presion);
+                            var divPresion = document.getElementById('val-presion');
+                            divPresion.innerText = data.presion + " Bar";
+                            
+                            if (presionValor < 1.3) {
+                                divPresion.style.color = 'var(--alerta)'; // Texto Rojo si está en peligro
+                            } else if (presionValor < 1.6) {
+                                divPresion.style.color = 'var(--amarillo)'; // Texto Amarillo si está al límite
+                            } else {
+                                divPresion.style.color = 'var(--verde)'; // Texto Verde si está óptimo
+                            }
+
                             document.getElementById('val-caudal').innerText = data.caudal + " L/h";
                             document.getElementById('val-posicion').innerText = nuevaLat.toFixed(4) + ", " + nuevaLng.toFixed(4);
                             document.getElementById('val-lectura').innerText = data.ultima_lectura;
