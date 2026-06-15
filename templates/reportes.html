@@ -39,9 +39,9 @@
         .motor-body { padding: 15px; font-size: 13px; }
         
         /* Clases dinámicas de colores para el semáforo */
-        .bg-success { background-color: rgba(16, 185, 129, 0.2); border-left: 4px solid var(--verde); }
-        .bg-warning { background-color: rgba(245, 158, 11, 0.2); border-left: 4px solid var(--amarillo); }
-        .bg-danger { background-color: rgba(239, 68, 68, 0.2); border-left: 4px solid var(--alerta); }
+        .bg-success { border-left: 4px solid var(--verde); }
+        .bg-warning { border-left: 4px solid var(--amarillo); }
+        .bg-danger { border-left: 4px solid var(--alerta); }
         
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .badge-success { background-color: var(--verde); color: #fff; }
@@ -102,7 +102,7 @@
     </div>
 
     <div class="tarjeta">
-        <div class="tarjeta-titulo">⚙️ Estado de Mantenimiento Preventivo (Frecuencia: 300 hs)</div>
+        <div class="tarjeta-titulo">⚙️ Estado de Motores y Alerta de Próximo Service (Frecuencia: 300 hs)</div>
         <div class="grid-motores">
             {% for motor in motores %}
                 <div class="tarjeta-motor bg-{{ motor.color }}">
@@ -112,12 +112,12 @@
                     </div>
                     <div class="motor-body">
                         <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #fff;">{{ motor.motor_modelo }}</p>
-                        <p style="margin: 4px 0;"><strong>Horas Actuales:</strong> <span style="color: var(--texto-ok); font-weight: bold;">{{ motor.horas_actuales }} hs</span></p>
-                        <p style="margin: 4px 0;"><strong>Último Service:</strong> {{ motor.ultimo_service }} hs</p>
-                        <p style="margin: 4px 0;"><strong>Próximo Mantenimiento:</strong> {{ motor.proximo_service }} hs</p>
+                        <p style="margin: 4px 0;"><strong>Horas del Motor Actual:</strong> <span style="color: var(--texto-ok); font-weight: bold;">{{ motor.horas_actuales }} hs</span></p>
+                        <p style="margin: 4px 0;"><strong>Último Service Registrado:</strong> {{ motor.ultimo_service }} hs</p>
+                        <p style="margin: 4px 0;"><strong>Próximo Service Técnico:</strong> {{ motor.proximo_service }} hs</p>
                         <hr style="border: 0; border-top: 1px solid var(--borde); margin: 10px 0;">
                         <p style="margin: 0; font-size: 13px;">
-                            <strong>Horas Disponibles:</strong> 
+                            <strong>Horas Restantes para Parada:</strong> 
                             <span style="font-weight: bold; color: {% if motor.color == 'danger' or motor.color == 'warning' %}var(--alerta){% else %}var(--verde){% endif %};">
                                 {{ motor.horas_restantes }} hs
                             </span>
@@ -159,13 +159,14 @@
     </div>
 
     <div class="tarjeta">
-        <div class="tarjeta-titulo">🛠️ Historial de Mantenimiento - Órdenes de Trabajo Cumplidas</div>
+        <div class="tarjeta-titulo">🛠️ Historial de Mantenimiento - Órdenes de Trabajo Cumplidas y Services</div>
         <table>
             <thead>
                 <tr>
                     <th>Fecha Cierre</th>
                     <th>Equipo / Pivot</th>
-                    <th>Acción Técnica Realizada</th>
+                    <th>Horas del Equipo</th>
+                    <th>Acción Técnica Realizada / Service</th>
                     <th>Responsable</th>
                     <th>Insumo Utilizado</th>
                 </tr>
@@ -175,6 +176,13 @@
                 <tr>
                     <td>{{ o.fecha }}</td>
                     <td><strong>{{ o.equipo_id }}</strong></td>
+                    <td>
+                        {% if o.horas_registro %}
+                            <span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span>
+                        {% else %}
+                            <span style="color: #64748b;">-</span>
+                        {% endif %}
+                    </td>
                     <td>{{ o.tarea }}</td>
                     <td style="color: var(--amarillo);">{{ o.responsable }}</td>
                     <td>
@@ -187,7 +195,7 @@
                 </tr>
                 {% endfor %}
                 {% if not ots %}
-                <tr><td colspan="5" style="text-align: center; color: #64748b;">No hay órdenes de trabajo completadas en el historial.</td></tr>
+                <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay órdenes de trabajo completadas en el historial.</td></tr>
                 {% endif %}
             </tbody>
         </table>
