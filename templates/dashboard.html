@@ -182,38 +182,69 @@
 
         <div>
             <div class="tarjeta">
-                <div class="tarjeta-titulo">📝 Registrar Turno / Lámina de Riego</div>
-                <form method="POST" class="formulario">
+                <div class="tarjeta-titulo">📝 Registro Turno / Lámina de Riego</div>
+                
+                <form method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <input type="hidden" name="form_tipo" value="nuevo_riego">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
-                    <div class="grupo-campo">
-                        <label>Fecha de Operación</label>
-                        <input type="date" name="fecha_riego" required value="2026-06-16">
+                    <div style="display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--borde); padding-right: 12px;">
+                        <div class="grupo-campo">
+                            <label>Lote</label>
+                            <input type="text" value="{{ data.lote }}" readonly style="background: rgba(35, 53, 84, 0.3); color: #94a3b8; font-weight: bold;">
+                        </div>
+                        
+                        <div class="grupo-campo">
+                            <label>Lámina Obj/Prog mm</label>
+                            <input type="text" value="{{ data.riego_objetivo if data.riego_objetivo else '40.0' }} mm" readonly style="background: rgba(35, 53, 84, 0.3); color: var(--amarillo); font-weight: bold;">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label>Lámina acumulada Pivot</label>
+                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.1); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label>Horas Panel (Histórico)</label>
+                            <input type="text" value="{{ data.horas_totales if data.horas_totales else '0.0' }} hs" readonly style="background: rgba(35, 53, 84, 0.3); color: #cbd5e1;">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label>Fecha de Operación</label>
+                            <input type="date" name="fecha_riego" required value="2026-06-16" style="border-color: var(--borde);">
+                        </div>
                     </div>
-                    <div class="grupo-campo">
-                        <label>Lámina Aplicada (mm)</label>
-                        <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 20.0" required>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px; justify-content: flex-start;">
+                        <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--texto-ok); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
+                            Ingreso Datos de Turno
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label style="color: #fff; font-weight: bold;">Lámina Aplicada (mm)</label>
+                            <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 20.0" required style="border-color: var(--texto-ok); font-size: 15px;">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label style="color: #fff; font-weight: bold;">Horas Motor</label>
+                            <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 14.5" required style="border-color: var(--texto-ok); font-size: 15px;">
+                        </div>
+
+                        <div class="grupo-campo" style="margin-top: auto; padding-top: 10px;">
+                            <label>Fecha Registro</label>
+                            <input type="text" value="2026-06-16" readonly style="background: transparent; border: none; color: #64748b; padding: 0; font-size: 11px;">
+                        </div>
+
+                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 10px; margin-top: 5px; width: 100%;">
+                            💾 Guardar en Libro Hídrico
+                        </button>
                     </div>
-                    <div class="grupo-campo">
-                        <label>Lámina Obj/Prog (mm)</label>
-                        <input type="number" step="0.1" name="lamina_programada" placeholder="Riego Objetivo (Planilla)">
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Horas de Marcha</label>
-                        <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 14.5" required>
-                    </div>
-                    
-                    <button type="submit" class="btn-enviar">Guardar en Libro Hídrico</button>
                 </form>
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--borde); font-size: 14px;">
-                    Lámina Acumulada del Pivot: <strong style="color: var(--verde);">{{ total_acumulado_mm }} mm</strong>
-                </div>
             </div>
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">👨‍🔧 Levantar Orden de Trabajo (OT)</div>
-                <form method="POST" class="formulario">
+                <form method="POST" class="formulario" style="grid-template-columns: 1fr 1fr;">
                     <input type="hidden" name="form_tipo" value="nueva_ot">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
@@ -251,7 +282,7 @@
 
             <div class="tarjeta" style="border-color: rgba(239, 68, 68, 0.4);">
                 <div class="tarjeta-titulo" style="color: var(--alerta);">⚠️ Reportar Rotura o Detención</div>
-                <form method="POST" class="formulario">
+                <form method="POST" class="formulario" style="grid-template-columns: 1fr 1fr;">
                     <input type="hidden" name="form_tipo" value="nueva_alerta">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
