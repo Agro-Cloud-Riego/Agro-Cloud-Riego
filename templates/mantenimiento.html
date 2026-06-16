@@ -17,7 +17,7 @@
         header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
@@ -69,7 +69,6 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN SELECCIÓN DE MOTOR -->
             <div class="grupo-form" style="margin-top: 10px;">
                 <label for="motor_id">Seleccionar Motor Registrado (Por Número Identificador)</label>
                 <select id="motor_id" name="motor_id" onchange="evaluarNuevoMotor(this.value)">
@@ -81,7 +80,6 @@
                 </select>
             </div>
 
-            <!-- CAMPOS DINÁMICOS SI EL MOTOR ES NUEVO -->
             <div id="seccion_nuevo_motor" class="bloque-nuevo" style="display: none;">
                 <div class="grid-2">
                     <div class="grupo-form">
@@ -115,7 +113,6 @@
                         </optgroup>
                     </select>
                     
-                    <!-- CAMPO DINÁMICO PARA EQUIPO MANUAL -->
                     <div id="seccion_equipo_manual" class="bloque-nuevo" style="display: none; margin-top: 5px;">
                         <label for="nuevo_equipo_manual" style="color: var(--texto-ok); font-size: 12px;">Nombre del Equipo Manual</label>
                         <input type="text" id="nuevo_equipo_manual" name="nuevo_equipo_manual" placeholder="Ej: Frontal F24 / Pivot C1">
@@ -128,7 +125,6 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN: REPARACIONES MECÁNICAS EXTRA -->
             <div class="tarjeta-titulo" style="font-size: 14px; margin: 20px 0 10px 0; color: var(--texto-ok);">⚙️ Reparaciones de Transmisión y Embrague</div>
             <div class="caja-opciones">
                 <label class="checkbox-item">
@@ -163,7 +159,6 @@
                 </div>
             </div>
 
-            <!-- OBSERVACIONES / NOVEDADES TÉCNICAS -->
             <div class="grupo-form" style="margin-top: 15px;">
                 <label for="observaciones">Observaciones / Novedades Técnicas</label>
                 <textarea id="observaciones" name="observaciones" rows="4" placeholder="Detallar cualquier anomalía encontrada o trabajo extra realizado..."></textarea>
