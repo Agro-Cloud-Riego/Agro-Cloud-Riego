@@ -98,7 +98,7 @@
             <div class="grid-2">
                 <div class="grupo-form">
                     <label for="equipo_asignado">Equipo / Ubicación Actual</label>
-                    <select id="equipo_asignado" name="equipo_asignado" required>
+                    <select id="equipo_asignado" name="equipo_asignado" onchange="evaluarEquipoManual(this.value)" required>
                         <option value="">Seleccionar Destino...</option>
                         <optgroup label="Pivots Centrales">
                             <option value="Pivot A1">Pivot A1</option>
@@ -110,8 +110,18 @@
                             <option value="Frontal F22">Frontal F22</option>
                             <option value="Frontal F23">Frontal F23</option>
                         </optgroup>
+                        <optgroup label="Opciones Especiales">
+                            <option value="MANUAL">+ Ingresar Equipo Nuevo Manualmente</option>
+                        </optgroup>
                     </select>
+                    
+                    <!-- CAMPO DINÁMICO PARA EQUIPO MANUAL -->
+                    <div id="seccion_equipo_manual" class="bloque-nuevo" style="display: none; margin-top: 5px;">
+                        <label for="nuevo_equipo_manual" style="color: var(--texto-ok); font-size: 12px;">Nombre del Equipo Manual</label>
+                        <input type="text" id="nuevo_equipo_manual" name="nuevo_equipo_manual" placeholder="Ej: Frontal F24 / Pivot C1">
+                    </div>
                 </div>
+
                 <div class="grupo-form">
                     <label for="horas">Horas Actuales del Motor (Horómetro)</label>
                     <input type="number" step="0.1" id="horas" name="horas" placeholder="Ej: 740.1" required>
@@ -156,7 +166,7 @@
             <!-- OBSERVACIONES / NOVEDADES TÉCNICAS -->
             <div class="grupo-form" style="margin-top: 15px;">
                 <label for="observaciones">Observaciones / Novedades Técnicas</label>
-                <textarea id="observaciones" name="observaciones" rows="4" placeholder="Detallar cualquier anomalía encontrada o trabajo extra realizado en el equipo..."></textarea>
+                <textarea id="observaciones" name="observaciones" rows="4" placeholder="Detallar cualquier anomalía encontrada o trabajo extra realizado..."></textarea>
             </div>
 
             <button type="submit" class="btn-guardar">💾 Guardar Registro de Mantenimiento</button>
@@ -179,6 +189,19 @@
                 divNuevo.style.display = 'none';
                 reqId.required = false;
                 reqMod.required = false;
+            }
+        }
+
+        function evaluarEquipoManual(valor) {
+            var divEquipo = document.getElementById('seccion_equipo_manual');
+            var inputEquipo = document.getElementById('nuevo_equipo_manual');
+            
+            if(valor === 'MANUAL') {
+                divEquipo.style.display = 'block';
+                inputEquipo.required = true;
+            } else {
+                divEquipo.style.display = 'none';
+                inputEquipo.required = false;
             }
         }
     </script>
