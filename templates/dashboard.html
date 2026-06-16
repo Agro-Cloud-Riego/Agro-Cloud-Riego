@@ -25,7 +25,7 @@
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
 
-        .selector-equipos { display: flex; gap: 10px; margin-bottom: 20px; }
+        .selector-equipos { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
         .btn-equipo { background: var(--bg-tarjeta); border: 1px solid var(--borde); color: #94a3b8; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; }
         .btn-equipo.activo { border-color: var(--texto-ok); color: #fff; background: rgba(56, 189, 248, 0.1); }
         
@@ -43,7 +43,7 @@
         .dato-caja { background: #0f172a; border: 1px solid var(--borde); padding: 12px; border-radius: 8px; text-align: center; }
         .dato-valor { font-size: 18px; font-weight: bold; margin-top: 5px; color: var(--texto-ok); overflow: hidden; text-overflow: ellipsis; }
         .dato-valor.marcha { color: var(--verde); }
-        .dato-valor.desconectado { color: var(--alerta); }
+        .dato-valor.desconectado, .dato-valor.parado { color: var(--alerta); }
         
         .formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media(max-width: 600px) { .formulario { grid-template-columns: 1fr; } }
@@ -53,7 +53,8 @@
         .btn-enviar { background: var(--verde); border: none; color: white; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
         .btn-enviar:hover { background: #059669; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        .table-responsive { overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
         .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
@@ -66,7 +67,7 @@
     <header>
         <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
         <div style="font-size: 14px; color: #94a3b8;">
-            Usuario: <strong>{{ user.id }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
+            Usuario: <strong>{{ user_id if user_id else 'Operador' }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
         </div>
     </header>
 
@@ -79,7 +80,7 @@
 
     <div class="selector-equipos">
         {% for eq_id, eq_info in todos_equipos.items() %}
-            <a href="?equipo={{ eq_id }}" class="btn-equipo {% if eq_id == data.id %}activo{% endif %}">
+            <a href="?equipo={{ eq_id }}" class="btn-equipo {% if eq_id|string == data.id|string %}activo{% endif %}">
                 🛰️ {{ eq_info.nombre_corto }}
             </a>
         {% endfor %}
@@ -112,15 +113,15 @@
                 <div class="grid-telemetria">
                     <div class="dato-caja">
                         <label>Estado Motor</label>
-                        <div id="val-estado" class="dato-valor marcha">{{ data.estado }}</div>
+                        <div id="val-estado" class="dato-valor {% if 'archa' in data.estado|string %}marcha{% else %}parado{% endif %}">{{ data.estado }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
-                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }}</div>
+                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }} Bar</div>
                     </div>
                     <div class="dato-caja">
                         <label>Caudalímetro</label>
-                        <div id="val-caudal" class="dato-valor">{{ data.caudal }}</div>
+                        <div id="val-caudal" class="dato-valor">{{ data.caudal }} L/h</div>
                     </div>
                     <div class="dato-caja">
                         <label>Posición Geográfica</label>
@@ -139,41 +140,43 @@
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">🛠️ Órdenes de Trabajo Pendientes</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nro</th>
-                            <th>Fecha</th>
-                            <th>Tarea a Realizar</th>
-                            <th>Responsable Técnico</th>
-                            <th>Prioridad</th>
-                            <th>Insumo Comprometido</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for o in ot %}
-                        <tr>
-                            <td>#{{ o.id }}</td>
-                            <td>{{ o.fecha }}</td>
-                            <td><strong>{{ o.tarea }}</strong></td>
-                            <td>{{ o.responsable }}</td>
-                            <td><span style="color: {% if o.prioridad == 'CRITICA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">{{ o.prioridad }}</span></td>
-                            <td>
-                                {% if o.repuesto_asociado %}
-                                    <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 2px 4px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
-                                {% else %}
-                                    <span style="color: #64748b;">Ninguno</span>
-                                {% endif %}
-                            </td>
-                            <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accon">✓ Despachar</a></td>
-                        </tr>
-                        {% endfor %}
-                        {% if not ot %}
-                        <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este pivot.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nro</th>
+                                <th>Fecha</th>
+                                <th>Tarea a Realizar</th>
+                                <th>Responsable Técnico</th>
+                                <th>Prioridad</th>
+                                <th>Insumo Comprometido</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for o in ot %}
+                            <tr>
+                                <td>#{{ o.id }}</td>
+                                <td>{{ o.fecha }}</td>
+                                <td><strong>{{ o.tarea }}</strong></td>
+                                <td>{{ o.responsable }}</td>
+                                <td><span style="color: {% if o.prioridad == 'CRITICA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">{{ o.prioridad }}</span></td>
+                                <td>
+                                    {% if o.repuesto_asociado %}
+                                        <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 2px 4px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
+                                    {% else %}
+                                        <span style="color: #64748b;">Ninguno</span>
+                                    {% endif %}
+                                </td>
+                                <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accon">✓ Despachar</a></td>
+                            </tr>
+                            {% endfor %}
+                            {% if not ot %}
+                            <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este pivot.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -275,6 +278,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var equipoId = "{{ data.id }}";
+            // Ubicación base por defecto si la telemetría inicial tarda
             var latInicial = -25.1794;
             var lngInicial = -63.8632;
 
@@ -287,7 +291,7 @@
             }).addTo(map);
 
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
-            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal...").openPopup();
+            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
 
             var circuloPivot = null;
 
@@ -302,6 +306,7 @@
                             marcador.setLatLng([nuevaLat, nuevaLng]);
                             map.panTo([nuevaLat, nuevaLng]);
 
+                            // Ajuste dinámico de cobertura del Pivot (ej: radio estimado 670 metros)
                             if (circuloPivot) {
                                 circuloPivot.setLatLng([nuevaLat, nuevaLng]);
                             } else {
@@ -313,12 +318,20 @@
                                 }).addTo(map);
                             }
                             
-                            document.getElementById('val-estado').innerText = data.estado;
+                            // Actualizar contenedor de estados de motor
+                            var divEstado = document.getElementById('val-estado');
+                            divEstado.innerText = data.estado;
+                            if(data.estado.toLowerCase().includes('archa')) {
+                                divEstado.className = "dato-valor marcha";
+                            } else {
+                                divEstado.className = "dato-valor parado";
+                            }
                             
                             var presionValor = parseFloat(data.presion);
                             var divPresion = document.getElementById('val-presion');
-                            divPresion.innerText = data.presion + " Bar";
+                            divPresion.innerText = presionValor.toFixed(1) + " Bar";
                             
+                            // Umbrales críticos de presión hidráulica de tubería
                             if (presionValor < 1.3) {
                                 divPresion.style.color = 'var(--alerta)';
                             } else if (presionValor < 1.6) {
@@ -332,14 +345,16 @@
                             document.getElementById('val-lectura').innerText = data.ultima_lectura;
                             document.getElementById('val-senal').innerText = data.senal;
 
-                            marcador.getPopup().setContent("<b>" + data.nombre_corto + "</b><br>Presión: " + data.presion + " Bar").update();
+                            marcador.getPopup().setContent("<b>" + data.nombre_corto + "</b><br>Presión Extremo: " + presionValor.toFixed(1) + " Bar").update();
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
+            // Polling cada 4 segundos
             setInterval(actualizarTelemetria, 4000);
 
+            // Corrige fallos de renderizado de Leaflet dentro de contenedores Grid ocultos o asíncronos
             setTimeout(function() {
                 map.invalidateSize();
             }, 400);
@@ -348,9 +363,9 @@
 
     <script>
         const ctx = document.getElementById('graficoRiego').getContext('2d');
-        const fechas = {{ fechas_riego | tojson }};
-        const laminas = {{ laminas_riego | tojson }};
-        const horas = {{ horas_riego | tojson }};
+        const fechas = {{ fechas_riego | tojson | safe }};
+        const laminas = {{ laminas_riego | tojson | safe }};
+        const horas = {{ horas_riego | tojson | safe }};
         
         new Chart(ctx, {
             type: 'bar',
