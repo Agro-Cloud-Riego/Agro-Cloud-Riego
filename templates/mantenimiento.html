@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroRiego Pro - Parte de Mantenimiento</title>
+    <style>
+        :root { 
+            --bg-principal: #0b0f19; 
+            --bg-tarjeta: #131c2e; 
+            --borde: #233554; 
+            --texto-ok: #38bdf8; 
+            --verde: #10b981; 
+            --amarillo: #f59e0b;
+        }
+        body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
+        header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
+        h1 { margin: 0; font-size: 24px; color: #fff; }
+        
+        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
+        .nav-link.active { color: #fff; background: var(--verde); }
+
+        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 25px; max-width: 600px; margin: 0 auto; }
+        .tarjeta-titulo { font-size: 18px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+
+        .grupo-form { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 14px; color: #94a3b8; font-weight: bold; }
+        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; font-family: sans-serif; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--texto-ok); }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
+        .btn-guardar { background: var(--verde); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 10px; width: 100%; }
+        .btn-guardar:hover { background: #059669; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>AgroRiego Pro - Sistema de Taller</h1>
+    </header>
+
+    <div class="nav-principal">
+        <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
+        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
+        <a href="{{ url_for('mantenimiento') }}" class="nav-link active">Parte de Mantenimiento</a>
+        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
+    </div>
+
+    <div class="tarjeta">
+        <div class="tarjeta-titulo">📝 Registro de Service de Motor (Preventivo)</div>
+        
+        <form action="{{ url_for('guardar_mantenimiento') }}" method="POST">
+            
+            <div class="grid-2">
+                <div class="grupo-form">
+                    <label for="fecha">Fecha del Service</label>
+                    <input type="date" id="fecha" name="fecha" required>
+                </div>
+                <div class="grupo-form">
+                    <label for="equipo">Equipo / Pivot</label>
+                    <select id="equipo" name="equipo" required>
+                        <option value="">Seleccionar Equipo...</option>
+                        <option value="A1">Pivot A1 (Iveco T5)</option>
+                        <option value="A2">Pivot A2 (Iveco T8)</option>
+                        <option value="B1">Pivot B1 (Iveco T5)</option>
+                        <option value="B2">Pivot B2 (Iveco T8)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="grupo-form">
+                    <label for="horas">Horas del Motor (Horómetro)</label>
+                    <input type="number" step="0.1" id="horas" name="horas" placeholder="Ej: 740.1" required>
+                </div>
+                <div class="grupo-form">
+                    <label for="responsable">Técnico Responsable</label>
+                    <input type="text" id="responsable" name="responsable" placeholder="Nombre del mecánico" required>
+                </div>
+            </div>
+
+            <div class="tarjeta-titulo" style="font-size: 14px; margin: 20px 0 10px 0; color: var(--texto-ok);">🛠️ Insumos y Filtros Reemplazados</div>
+
+            <div class="grupo-form">
+                <label for="filtro_aceite">Filtro de Aceite (Código)</label>
+                <input type="text" id="filtro_aceite" name="filtro_aceite" placeholder="Ej: Cod. 2992242">
+            </div>
+
+            <div class="grupo-form">
+                <label for="filtro_combustible">Filtros de Combustible (Gasoil / Trampa)</label>
+                <input type="text" id="filtro_combustible" name="filtro_combustible" placeholder="Ej: Cod. 2992241 / Cod. 2992662">
+            </div>
+
+            <div class="grupo-form">
+                <label for="filtro_aire">Filtros de Aire (Primario / Seguridad)</label>
+                <input type="text" id="filtro_aire" name="filtro_aire" placeholder="Ej: Cod. 8041419">
+            </div>
+
+            <div class="grid-2">
+                <div class="grupo-form">
+                    <label for="aceite_motor">Aceite de Motor (Tipo y Litros)</label>
+                    <input type="text" id="aceite_motor" name="aceite_motor" placeholder="Ej: 15W40 - 14 Litros">
+                </div>
+                <div class="grupo-form">
+                    <label for="aceite_hidraulico">Aceite Hidráulico / Módulo</label>
+                    <input type="text" id="aceite_hidraulico" name="aceite_hidraulico" placeholder="Ej: No corresponde / - ">
+                </div>
+            </div>
+
+            <div class="grupo-form" style="margin-top: 10px;">
+                <label for="observaciones">Observaciones / Novedades técnicas</label>
+                <textarea id="observaciones" name="observaciones" rows="3" placeholder="Ej: Tanque Combustible con agua. Se purificó combustible..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-guardar">💾 Guardar Parte y Actualizar Horas</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('fecha').valueAsDate = new Date();
+    </script>
+</body>
+</html>
