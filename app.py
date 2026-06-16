@@ -349,7 +349,7 @@ def index():
     registros_db = cursor.fetchall()
     
     eje_x_fechas = [r['fecha'] for r in registros_db]
-    datos_y_horas = [r['horas_operadas'] for r in registros_db]  # Variable faltante extraída
+    datos_y_horas = [r['horas_operadas'] for r in registros_db]
     datos_y_presion = [r['presion_bar'] for r in registros_db]
     datos_y_posicion = [r['posicion_grados'] for r in registros_db]
     datos_y_lamina = [r['lamina_mm'] for r in registros_db]
@@ -371,7 +371,7 @@ def index():
                            ot=ot_reales, 
                            user=current_user,
                            fechas_riego=eje_x_fechas,
-                           horas_riego=datos_y_horas, # <--- Corregido: Se añade la variable al contexto de Jinja2
+                           horas_riego=datos_y_horas,
                            presiones_linea=datos_y_presion,
                            posiciones_linea=datos_y_posicion,
                            laminas_riego=datos_y_lamina,
@@ -435,7 +435,7 @@ def stock():
             actual = int(request.form.get('actual', 0))
             if parte and item:
                 cursor.execute('''
-                    INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
+                    INSERT OR IGNORE INTO inventario (parte, motor, category, item, ubicacion, minimo, actual)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (parte, motor_equipo, categoria, item, ubicacion, minimo, actual))
                 conn.commit()
