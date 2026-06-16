@@ -79,7 +79,7 @@ def inicializar_db():
         )
     ''')
 
-    # Tabla Histórica de Riego (Extendida para registrar las líneas del gráfico)
+    # Tabla Histórica de Riego
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS registro_riego (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,16 +134,16 @@ def inicializar_db():
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.1794, -63.8632, 2.4, 340, '-98 dBm', 'Nunca')")
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.1750, -63.8500, 3.2, 180, '-85 dBm', 'Nunca')")
 
-    # Inyección de datos simulados de curva de presión para ver los gráficos de entrada
+    # Inyección de datos simulados
     cursor.execute("SELECT COUNT(*) FROM registro_riego")
     if cursor.fetchone()[0] == 0:
         datos_demo = [
             ('PIVOT-LOTE-A2', 10.5, 4.0,  2.4, 310, 'MARCHA',    '2026-06-15 08:00'),
             ('PIVOT-LOTE-A2', 12.0, 8.5,  2.3, 325, 'MARCHA',    '2026-06-15 14:00'),
             ('PIVOT-LOTE-A2', 12.5, 12.0, 2.4, 340, 'MARCHA',    '2026-06-15 20:00'),
-            ('PIVOT-LOTE-A2', 11.0, 16.5, 1.8, 355, 'MARCHA',    '2026-06-16 02:00'), # Cae presión
-            ('PIVOT-LOTE-A2', 0.0,  2.5,  0.0, 355, 'FALLA',     '2026-06-16 04:30'), # Falla por baja presión
-            ('PIVOT-LOTE-A2', 0.0,  6.0,  0.0, 355, 'PARADO',    '2026-06-16 10:30'), # Parada técnica
+            ('PIVOT-LOTE-A2', 11.0, 16.5, 1.8, 355, 'MARCHA',    '2026-06-16 02:00'),
+            ('PIVOT-LOTE-A2', 0.0,  2.5,  0.0, 355, 'FALLA',     '2026-06-16 04:30'),
+            ('PIVOT-LOTE-A2', 0.0,  6.0,  0.0, 355, 'PARADO',    '2026-06-16 10:30'),
         ]
         cursor.executemany('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha)
@@ -175,9 +175,9 @@ def inicializar_db():
         ("INV-005", "Deutz 1013", "Frontal F22", 120.0, 0.0, 300)
     ]
     cursor.executemany('''
-        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
+        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_assigned, horas_actuales, ultimo_service, frecuencia_hs)
         VALUES (?, ?, ?, ?, ?, ?)
-    ''', motores_iniciales)
+    '''.replace("equipo_assigned", "equipo_asignado"), motores_iniciales)
 
     conn.commit()
     conn.close()
@@ -186,7 +186,6 @@ def inicializar_db():
 @app.route('/descargar-datos-ciclo/<equipo_id>')
 @login_required
 def descargar_datos_ciclo(equipo_id):
-    """Genera una salida limpia descargable al pulsar sobre los registros del panel."""
     conn = conectar_db()
     cursor = conn.cursor()
     cursor.execute('''
@@ -201,7 +200,6 @@ def descargar_datos_ciclo(equipo_id):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Formato bien adaptado al campo de riego
     writer.writerow(['Fecha / Timeline', 'Horas Parciales (hs)', 'Presion en Barra (Bar)', 'Posicion Angular (°)', 'Lamina Aplicada (mm)', 'Estado de Operacion'])
     for f in filas:
         writer.writerow([f['fecha'], f['horas_operadas'], f['presion_bar'], f['posicion_grados'], f['lamina_mm'], f['estado_operacion']])
@@ -261,7 +259,8 @@ def index():
     cursor = conn.cursor()
 
     id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    if id_solicitado not in ['PIVOT-LOTE-A2', 'FRONTAL-F22']: id_solicitado = "PIVOT-LOTE-A2"
+    if id_solicitado not in ['PIVOT-LOTE-A2', 'FRONTAL-F22']: 
+        id_solicitado = "PIVOT-LOTE-A2"
     
     # Manejo de Formularios
     if request.method == 'POST' and request.form.get('form_tipo') == 'nuevo_riego':
@@ -296,14 +295,20 @@ def index():
         posicion_calculada = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
         angulo_actual = f"{tel_db['posicion_actual']}°"
         lectura_texto = tel_db['ultima_actualizacion']
+        rssi_val = tel_db['rssi'] if tel_db['rssi'] else "0 dBm"
+        lat_val = tel_db['latitud'] if tel_db['latitud'] else -25.1794
+        lng_val = tel_db['longitud'] if tel_db['longitud'] else -63.8632
     else:
         estado_calculado = "DESCONECTADO"
         presion_calculada = "0.0 Bar"
         posicion_calculada = "Sin Coordenadas GPS"
         angulo_actual = "0°"
         lectura_texto = "Nunca (Hardware no enlazado)"
+        rssi_val = "0 dBm"
+        lat_val = -25.1794 if id_solicitado == "PIVOT-LOTE-A2" else -25.1750
+        lng_val = -63.8632 if id_solicitado == "PIVOT-LOTE-A2" else -63.8500
 
-    # CÁLCULOS SUMATORIOS DE LAS TARJETAS (KPI INTERACTIVOS DESDE LA DB)
+    # CÁLCULOS SUMATORIOS DE LAS TARJETAS (KPIs)
     cursor.execute("SELECT SUM(horas_operadas) as hs_r FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'MARCHA'", (id_solicitado,))
     calc_riego = cursor.fetchone()['hs_r'] or 0.0
     
@@ -315,27 +320,31 @@ def index():
 
     cursor.execute("SELECT SUM(horas_operadas) as hs_p FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'PARADO'", (id_solicitado,))
     calc_parado = cursor.fetchone()['hs_p'] or 0.0
+    
+    # Calcular Lámina Acumulada
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (id_solicitado,))
+    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
 
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
             "posicion": posicion_calculada, "caudal": "115.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
-            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": tel_db["rssi"] if tel_db else "0 dBm",
-            "ultima_lectura": lectura_texto, "lat": tel_db["latitud"] if tel_db else -25.1794, "lng": tel_db["longitud"] if tel_db else -63.8632,
+            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": rssi_val,
+            "ultima_lectura": lectura_texto, "lat": lat_val, "lng": lng_val,
             "hs_riego": round(calc_riego, 1), "hs_falla": round(calc_falla, 1), "hs_movimiento": round(calc_mov, 1), "hs_parado": round(calc_parado, 1)
         },
         "FRONTAL-F22": {
             "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
             "posicion": posicion_calculada, "caudal": "120.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
-            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": tel_db["rssi"] if tel_db else "0 dBm",
-            "ultima_lectura": lectura_texto, "lat": tel_db["latitud"] if tel_db else -25.1750, "lng": tel_db["longitud"] if tel_db else -63.8500,
+            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": rssi_val,
+            "ultima_lectura": lectura_texto, "lat": lat_val, "lng": lng_val,
             "hs_riego": round(calc_riego, 1), "hs_falla": round(calc_falla, 1), "hs_movimiento": round(calc_mov, 1), "hs_parado": round(calc_parado, 1)
         }
     }
     
     data_render = equipos_riego[id_solicitado]
 
-    # RECUPERAR LÍNEAS COMPLETAS PARA PASAR AL GRAFICO DE LINEAS
+    # RECUPERAR LÍNEAS COMPLETAS PARA PASAR AL GRAFICO
     cursor.execute("SELECT fecha, presion_bar, posicion_grados, lamina_mm FROM registro_riego WHERE equipo_id = ? ORDER BY fecha ASC LIMIT 15", (id_solicitado,))
     registros_db = cursor.fetchall()
     
@@ -354,6 +363,7 @@ def index():
     repuestos_taller = cursor.fetchall()
 
     conn.close()
+    
     return render_template('dashboard.html', 
                            data=data_render, 
                            todos_equipos=equipos_riego, 
@@ -364,9 +374,10 @@ def index():
                            posiciones_linea=datos_y_posicion,
                            laminas_riego=datos_y_lamina,
                            alertas=alertas_activas,
-                           repuestos=repuestos_taller)
+                           repuestos=repuestos_taller,
+                           total_acumulado_mm=round(total_acumulado_mm, 1))
 
-# --- FIN DEL CONTENIDO DE LA APP (RESTO DE ENLACES SE MANTIENEN IGUALES) ---
+# --- FIN DEL CONTENIDO DE LA APP ---
 @app.route('/finalizar-ot/<int:ot_id>')
 @login_required
 def finalizar_ot(ot_id):
@@ -613,4 +624,5 @@ def logout():
 if __name__ == '__main__':
     inicializar_db()
     puerto = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=puerto)
+    # Iniciamos con debug=True para capturar todo el rastro técnico en la consola
+    app.run(host='0.0.0.0', port=puerto, debug=True)
