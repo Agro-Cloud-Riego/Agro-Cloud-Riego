@@ -20,7 +20,7 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
@@ -71,6 +71,7 @@
     <div class="nav-principal">
         <a href="{{ url_for('index') }}" class="nav-link active">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
+        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
     </div>
 
@@ -267,33 +268,24 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // ID del equipo actual seleccionado en Flask
             var equipoId = "{{ data.id }}";
-            
-            // Coordenadas iniciales por defecto de la base de datos
             var latInicial = -25.1794;
             var lngInicial = -63.8632;
 
-            // Iniciar mapa y centrar en las coordenadas iniciales
             var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
 
-            // Capa Satelital Híbrida de Google (Imágenes del lote de alta definición)
             L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
                 maxZoom: 20,
                 subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
                 attribution: 'Mapas &copy; Google Satelital'
             }).addTo(map);
 
-            // Crear el marcador dinámico inicial
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal...").openPopup();
 
-            // NUEVO: Variable global para el círculo de cobertura en Leaflet
             var circuloPivot = null;
 
-            // FUNCIÓN DE CONSULTA EN TIEMPO REAL (Actualiza sin recargar la página)
             function actualizarTelemetria() {
-                // Consulta directo a la API de tu servidor pasándole el ID del equipo
                 fetch('/api/status?equipo=' + equipoId)
                     .then(response => response.json())
                     .then(data => {
@@ -301,38 +293,32 @@
                             var nuevaLat = parseFloat(data.latitud);
                             var nuevaLng = parseFloat(data.longitud);
                             
-                            // 1. Mover el marcador en el mapa al vuelo
                             marcador.setLatLng([nuevaLat, nuevaLng]);
-                            
-                            // 2. Mueve la cámara del mapa automáticamente persiguiendo las coordenadas del Heltec
                             map.panTo([nuevaLat, nuevaLng]);
 
-                            // 3. NUEVO: Dibujar o mover el círculo de cobertura real (670 metros de radio)
                             if (circuloPivot) {
                                 circuloPivot.setLatLng([nuevaLat, nuevaLng]);
                             } else {
                                 circuloPivot = L.circle([nuevaLat, nuevaLng], {
-                                    color: '#38bdf8',       // Color del borde (azul claro)
-                                    fillColor: '#38bdf8',   // Color de fondo
-                                    fillOpacity: 0.15,      // Opacidad transparente para ver el lote satelital abajo
-                                    radius: 670             // Radio exacto en metros según la carta de aspersión
+                                    color: '#38bdf8',
+                                    fillColor: '#38bdf8',
+                                    fillOpacity: 0.15,
+                                    radius: 670
                                 }).addTo(map);
                             }
                             
-                            // 4. Modificar los textos del panel dinámicamente
                             document.getElementById('val-estado').innerText = data.estado;
                             
-                            // NUEVO: Gestión visual inteligente de alertas de presión en la interfaz
                             var presionValor = parseFloat(data.presion);
                             var divPresion = document.getElementById('val-presion');
                             divPresion.innerText = data.presion + " Bar";
                             
                             if (presionValor < 1.3) {
-                                divPresion.style.color = 'var(--alerta)'; // Texto Rojo si está en peligro
+                                divPresion.style.color = 'var(--alerta)';
                             } else if (presionValor < 1.6) {
-                                divPresion.style.color = 'var(--amarillo)'; // Texto Amarillo si está al límite
+                                divPresion.style.color = 'var(--amarillo)';
                             } else {
-                                divPresion.style.color = 'var(--verde)'; // Texto Verde si está óptimo
+                                divPresion.style.color = 'var(--verde)';
                             }
 
                             document.getElementById('val-caudal').innerText = data.caudal + " L/h";
@@ -340,14 +326,12 @@
                             document.getElementById('val-lectura').innerText = data.ultima_lectura;
                             document.getElementById('val-senal').innerText = data.senal;
 
-                            // Actualiza el contenido del cartelito del marcador flotante
                             marcador.getPopup().setContent("<b>" + data.nombre_corto + "</b><br>Presión: " + data.presion + " Bar").update();
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
-            // Consultar datos nuevos automáticamente cada 4 segundos
             setInterval(actualizarTelemetria, 4000);
 
             setTimeout(function() {
