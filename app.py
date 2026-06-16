@@ -218,10 +218,13 @@ def obtener_status_tiempo_real():
 
     if fila:
         estado_motor = "MARCHA" if fila['ultima_actualizacion'] != "Nunca" else "DESCONECTADO"
+        # Ajustamos la lectura en caliente de la API bajo la misma regla dinámica
+        presion_dinamica = f"{fila['presion_terminal']} Bar" if estado_motor == "MARCHA" else "0.0 Bar"
+        
         return jsonify({
             "latitud": fila['latitud'],
             "longitud": fila['longitud'],
-            "presion": str(fila['presion_terminal']),
+            "presion": presion_dinamica,
             "caudal": "115.000 L/h" if equipo_id == "PIVOT-LOTE-A2" else "120.000 L/h",
             "estado": estado_motor,
             "ultima_lectura": fila['ultima_actualizacion'],
@@ -283,14 +286,15 @@ def index():
     cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
     tel_db = cursor.fetchone()
 
-    # --- LÓGICA DE DETECCIÓN DINÁMICA DE ESTADO (TIMEOUT RESTRICCION GPS) ---
-    if tel_db and tel_db['ultima_actualizacion'] != 'Nunca':
+    # --- LÓGICA DE DETECCIÓN DINÁMICA DE ESTADO (FILTRO DE PRESIÓN RESTRINGIDO A MARCHA) ---
+    if tel_db and tel_db['ultima_actualizacion'] != 'Never' and tel_db['ultima_actualizacion'] != 'Nunca':
         estado_calculado = "MARCHA"
-        presion_calculada = f"{tel_db['presion_terminal']} Bar"
+        # Cambiado para que refleje la presión real únicamente con bomba activa tirando agua
+        presion_calculada = f"{tel_db['presion_terminal']} Bar" if tel_db['presion_terminal'] else "0.0 Bar"
         posicion_calculada = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
         lectura_texto = tel_db['ultima_actualizacion']
     else:
-        # Si dice "Nunca", forzamos el apagado seguro en interfaz para evitar datos falsos
+        # Caída segura de telemetría por desconexión o motor apagado
         estado_calculado = "DESCONECTADO"
         presion_calculada = "0.0 Bar"
         posicion_calculada = "Sin Coordenadas GPS"
@@ -465,12 +469,10 @@ def guardar_mantenimiento():
     fecha = request.form.get('fecha')
     responsable = request.form.get('responsable')
     
-    # Manejo del Motor (Existente o Carga de Nuevo)
     motor_seleccionado = request.form.get('motor_id')
     nuevo_motor_id = request.form.get('nuevo_motor_id', '').strip()
     nuevo_motor_modelo = request.form.get('nuevo_motor_modelo', '').strip()
     
-    # Manejo del Equipo (Existente o Manual)
     equipo_seleccionado = request.form.get('equipo_asignado')
     nuevo_equipo_manual = request.form.get('nuevo_equipo_manual', '').strip()
     
@@ -541,7 +543,6 @@ def guardar_mantenimiento():
             if inv_fila and inv_fila['actual'] > 0:
                 nuevo_stock = inv_fila['actual'] - 1
                 cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, parte_id))
-                # Corregido de 'quantity' a 'cantidad' para coincidir con la estructura de tu DB
                 cursor.execute('''
                     INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
                     VALUES ('salida', ?, 1, ?, ?, ?)
@@ -614,7 +615,8 @@ def login():
             user = User(usuario)
             login_user(user)
             return redirect(url_for('index'))
-        else: error = "Usuario o contraseña incorrectos."
+        else:
+            error = "Usuario o contraseña incorrectos."
     return render_template('login.html', error=error)
 
 @app.route('/logout')
@@ -624,6 +626,5 @@ def logout():
 
 if __name__ == '__main__':
     inicializar_db()
-    # Se añade la detección del puerto dinámico para Render o local alternativo
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=puerto)
