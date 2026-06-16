@@ -72,7 +72,8 @@ def inicializar_db():
             equipo_id TEXT,
             estado TEXT,
             fecha TEXT,
-            repuesto_asociado TEXT DEFAULT NULL
+            repuesto_asociado TEXT DEFAULT NULL,
+            horas_registro REAL DEFAULT NULL
         )
     ''')
 
@@ -436,6 +437,70 @@ def stock():
     conn.close()
     return render_template('stock.html', stock=lista_inventario, entradas=entradas, salidas=salidas, user=current_user)
 
+# --- RUTAS DE MANTENIMIENTO (SISTEMA DE TALLER) ---
+@app.route('/mantenimiento')
+@login_required
+def mantenimiento():
+    return render_template('mantenimiento.html')
+
+@app.route('/guardar_mantenimiento', methods=['POST'])
+@login_required
+def guardar_mantenimiento():
+    fecha = request.form.get('fecha')
+    equipo_id = request.form.get('equipo')
+    horas_registro = float(request.form.get('horas', 0))
+    responsable = request.form.get('responsable')
+    
+    filtro_aceite = request.form.get('filtro_aceite', '').strip()
+    filtro_combustible = request.form.get('filtro_combustible', '').strip()
+    filtro_aire = request.form.get('filtro_aire', '').strip()
+    aceite_motor = request.form.get('aceite_motor', '').strip()
+    observaciones = request.form.get('observaciones', '').strip()
+    
+    repuestos_detallados = f"F.Aceite: {filtro_aceite} | F.Comb: {filtro_combustible} | Aceite: {aceite_motor}"
+    tarea_desc = f"Service Preventivo Integral. Obs: {observaciones}"
+    
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # 1. Asentar directamente la Orden de Trabajo Cerrada en el historial
+    cursor.execute('''
+        INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado, horas_registro)
+        VALUES (?, ?, 'MEDIA', ?, 'COMPLETADA', ?, ?, ?)
+    ''', (tarea_desc, responsable, equipo_id, fecha, repuestos_detallados, horas_registro))
+    
+    # 2. Descontar stock de forma automática de detectarse los códigos ingresados
+    repuestos_a_descontar = [filtro_aceite, filtro_aire]
+    if " / " in filtro_combustible:
+        repuestos_a_descontar.extend(filtro_combustible.split(" / "))
+    else:
+        repuestos_a_descontar.append(filtro_combustible)
+        
+    for parte_id in repuestos_a_descontar:
+        parte_id = parte_id.replace("Cod.", "").strip()
+        if parte_id:
+            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (parte_id,))
+            inv_fila = cursor.fetchone()
+            if inv_fila and inv_fila['actual'] > 0:
+                nuevo_stock = inv_fila['actual'] - 1
+                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, parte_id))
+                cursor.execute('''
+                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
+                    VALUES ('salida', ?, 1, ?, ?, ?)
+                ''', (parte_id, f"Service Automático ({equipo_id})", responsable, fecha + " 00:00:00"))
+
+    # 3. Resetear el Semáforo de Control de Servicios de Motor
+    cursor.execute('''
+        UPDATE control_services 
+        SET horas_actuales = ?, ultimo_service = ? 
+        WHERE equipo_id = ?
+    ''', (horas_registro, horas_registro, equipo_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('reportes'))
+
 # --- REPORTE GENERAL ---
 @app.route('/reportes')
 @login_required
@@ -489,7 +554,7 @@ def reportes():
                            riegos=historico_riegos, 
                            ots=historico_ots, 
                            resumen=resumen_equipos,
-                           motores=motores_monitoreo,  # <--- Inyectado a la plantilla HTML
+                           motores=motores_monitoreo,
                            user=current_user)
 
 @app.route('/login', methods=['GET', 'POST'])
