@@ -18,7 +18,7 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
@@ -34,6 +34,7 @@
         label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
         input, select, textarea { background: #0f172a; border: 1px solid var(--borde); padding: 8px; color: white; border-radius: 6px; font-size: 14px; }
         .btn-enviar { background: var(--verde); border: none; color: white; padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
+        .btn-enviar:hover { background: #059669; }
 
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
@@ -56,11 +57,11 @@
     <div class="nav-principal">
         <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link active">Stock e Insumos Operativos</a>
+        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
     </div>
 
     <div class="grid-stock">
-        <!-- SECCIÓN IZQUIERDA: TABLA GLOBAL DE INVENTARIO -->
         <div class="tarjeta">
             <div class="tarjeta-titulo">📦 Inventario de Repuestos y Componentes en Pañol</div>
             <table style="width: 100%;">
@@ -99,9 +100,7 @@
             </table>
         </div>
 
-        <!-- SECCIÓN DERECHA: AJUSTES RÁPIDOS Y ALTA -->
         <div>
-            <!-- FORMULARIO: REGISTRAR ENTRADA/SALIDA DIRECTA -->
             <div class="tarjeta">
                 <div class="tarjeta-titulo">🔄 Movimiento de Stock Directo (Físico)</div>
                 <form method="POST" class="formulario">
@@ -138,7 +137,6 @@
                 </form>
             </div>
 
-            <!-- FORMULARIO: ALTA DE NUEVO ARTÍCULO -->
             <div class="tarjeta">
                 <div class="tarjeta-titulo">➕ Dar de Alta Nuevo Repuesto Flex</div>
                 <form method="POST" class="formulario">
@@ -182,7 +180,6 @@
                 </form>
             </div>
 
-            <!-- BITÁCORAS DE AUDITORÍA RÁPIDA -->
             <div class="tarjeta">
                 <div class="tarjeta-titulo" style="font-size:14px; color:var(--verde);">📥 Últimos Ingresos de Material</div>
                 <ul class="historial-lista">
