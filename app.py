@@ -138,10 +138,10 @@ def inicializar_db():
     cursor.execute("SELECT COUNT(*) FROM registro_riego")
     if cursor.fetchone()[0] == 0:
         datos_demo = [
-            ('PIVOT-LOTE-A2', 10.5, 4.0,  2.4, 310, 'MARCHA',    '2026-06-15 08:00'),
-            ('PIVOT-LOTE-A2', 12.0, 8.5,  2.3, 325, 'MARCHA',    '2026-06-15 14:00'),
-            ('PIVOT-LOTE-A2', 12.5, 12.0, 2.4, 340, 'MARCHA',    '2026-06-15 20:00'),
-            ('PIVOT-LOTE-A2', 11.0, 16.5, 1.8, 355, 'MARCHA',    '2026-06-16 02:00'),
+            ('PIVOT-LOTE-A2', 10.5, 4.0,  2.4, 310, 'MARCHA',   '2026-06-15 08:00'),
+            ('PIVOT-LOTE-A2', 12.0, 8.5,  2.3, 325, 'MARCHA',   '2026-06-15 14:00'),
+            ('PIVOT-LOTE-A2', 12.5, 12.0, 2.4, 340, 'MARCHA',   '2026-06-15 20:00'),
+            ('PIVOT-LOTE-A2', 11.0, 16.5, 1.8, 355, 'MARCHA',   '2026-06-16 02:00'),
             ('PIVOT-LOTE-A2', 0.0,  2.5,  0.0, 355, 'FALLA',     '2026-06-16 04:30'),
             ('PIVOT-LOTE-A2', 0.0,  6.0,  0.0, 355, 'PARADO',    '2026-06-16 10:30'),
         ]
@@ -175,9 +175,9 @@ def inicializar_db():
         ("INV-005", "Deutz 1013", "Frontal F22", 120.0, 0.0, 300)
     ]
     cursor.executemany('''
-        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_assigned, horas_actuales, ultimo_service, frecuencia_hs)
+        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
         VALUES (?, ?, ?, ?, ?, ?)
-    '''.replace("equipo_assigned", "equipo_asignado"), motores_iniciales)
+    ''', motores_iniciales)
 
     conn.commit()
     conn.close()
@@ -345,10 +345,11 @@ def index():
     data_render = equipos_riego[id_solicitado]
 
     # RECUPERAR LÍNEAS COMPLETAS PARA PASAR AL GRAFICO
-    cursor.execute("SELECT fecha, presion_bar, posicion_grados, lamina_mm FROM registro_riego WHERE equipo_id = ? ORDER BY fecha ASC LIMIT 15", (id_solicitado,))
+    cursor.execute("SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm FROM registro_riego WHERE equipo_id = ? ORDER BY fecha ASC LIMIT 15", (id_solicitado,))
     registros_db = cursor.fetchall()
     
     eje_x_fechas = [r['fecha'] for r in registros_db]
+    datos_y_horas = [r['horas_operadas'] for r in registros_db]  # Variable faltante extraída
     datos_y_presion = [r['presion_bar'] for r in registros_db]
     datos_y_posicion = [r['posicion_grados'] for r in registros_db]
     datos_y_lamina = [r['lamina_mm'] for r in registros_db]
@@ -370,6 +371,7 @@ def index():
                            ot=ot_reales, 
                            user=current_user,
                            fechas_riego=eje_x_fechas,
+                           horas_riego=datos_y_horas, # <--- Corregido: Se añade la variable al contexto de Jinja2
                            presiones_linea=datos_y_presion,
                            posiciones_linea=datos_y_posicion,
                            laminas_riego=datos_y_lamina,
@@ -624,5 +626,4 @@ def logout():
 if __name__ == '__main__':
     inicializar_db()
     puerto = int(os.environ.get("PORT", 5000))
-    # Iniciamos con debug=True para capturar todo el rastro técnico en la consola
-    app.run(host='0.0.0.0', port=puerto, debug=True)
+    app.run(host='0.0.0.0', port=puerto)
