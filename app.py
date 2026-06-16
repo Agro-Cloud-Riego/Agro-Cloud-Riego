@@ -355,15 +355,24 @@ def index():
     
     data_render = equipos_riego[id_solicitado]
 
-    # RECUPERAR LÍNEAS COMPLETAS PARA PASAR AL GRAFICO
-    cursor.execute("SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm FROM registro_riego WHERE equipo_id = ? ORDER BY fecha ASC LIMIT 15", (id_solicitado,))
+    # =====================================================================
+    # SECCIÓN INTEGRADA Y CORREGIDA: SE SELECCIONA EL ESTADO DE OPERACIÓN
+    # =====================================================================
+    cursor.execute("""
+        SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm, estado_operacion 
+        FROM registro_riego 
+        WHERE equipo_id = ? 
+        ORDER BY fecha ASC 
+        LIMIT 15
+    """, (id_solicitado,))
     registros_db = cursor.fetchall()
     
-    eje_x_fechas = [r['fecha'] for r in registros_db]
+    eje_x_fechas = [r['fecha'].strftime('%d/%m') if hasattr(r['fecha'], 'strftime') else str(r['fecha']) for r in registros_db]
     datos_y_horas = [r['horas_operadas'] for r in registros_db]
     datos_y_presion = [r['presion_bar'] for r in registros_db]
     datos_y_posicion = [r['posicion_grados'] for r in registros_db]
     datos_y_lamina = [r['lamina_mm'] for r in registros_db]
+    datos_y_estados = [r['estado_operacion'] for r in registros_db]  # <-- NUEVA LISTA ENVIADA AL FRONT
 
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
     ot_reales = cursor.fetchall()
@@ -386,6 +395,7 @@ def index():
                            presiones_linea=datos_y_presion,
                            posiciones_linea=datos_y_posicion,
                            laminas_riego=datos_y_lamina,
+                           estados_riego=datos_y_estados,  # <-- VARIABLE ENLAZADA
                            alertas=alertas_activas,
                            repuestos=repuestos_taller,
                            total_acumulado_mm=round(total_acumulado_mm, 1))
