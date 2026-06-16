@@ -32,13 +32,11 @@
         .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 20px; }
         .caja-resumen { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid var(--borde); }
 
-        /* Estilos específicos para las tarjetas de motores */
-        .grid-motores { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        .grid-motores { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
         .tarjeta-motor { border-radius: 8px; border: 1px solid var(--borde); overflow: hidden; background: #0f172a; }
         .motor-header { padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
         .motor-body { padding: 15px; font-size: 13px; }
         
-        /* Clases dinámicas de colores para el semáforo */
         .bg-success { border-left: 4px solid var(--verde); }
         .bg-warning { border-left: 4px solid var(--amarillo); }
         .bg-danger { border-left: 4px solid var(--alerta); }
@@ -52,7 +50,6 @@
         th { background-color: #0f172a; color: #94a3b8; padding: 12px; border-bottom: 2px solid var(--borde); text-transform: uppercase; font-size: 11px; }
         td { padding: 12px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
 
-        /* REGLAS ESPECIALES PARA IMPRESIÓN EN PDF/PAPEL */
         @media print {
             body { background: white; color: black; padding: 0; }
             .nav-principal, .btn-print, header { display: none !important; }
@@ -78,10 +75,11 @@
     <div class="nav-principal">
         <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Parte de Mantenimiento</a>
+        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link active">Reportes e Históricos</a>
     </div>
 
+    <!-- RESUMEN ACUMULADO -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">
             <span>📊 Acumulados de Campaña por Equipo</span>
@@ -102,23 +100,26 @@
         </div>
     </div>
 
+    <!-- CONTROL DE MOTORES Y SEMÁFORO POR ENUMERACIÓN -->
     <div class="tarjeta">
-        <div class="tarjeta-titulo">⚙️ Estado de Motores y Alerta de Próximo Service (Frecuencia: 300 hs)</div>
+        <div class="tarjeta-titulo">⚙️ Estado de Motores Físicos y Alerta de Próximo Service (Frecuencia: 300 hs)</div>
         <div class="grid-motores">
             {% for motor in motores %}
                 <div class="tarjeta-motor bg-{{ motor.color }}">
                     <div class="motor-header" style="border-bottom: 1px solid var(--borde);">
-                        <span>Equipo: {{ motor.equipo_id }}</span>
+                        <span>Nº Motor: <strong>{{ motor.motor_id }}</strong></span>
                         <span class="badge badge-{{ motor.color }}">{{ motor.estado }}</span>
                     </div>
                     <div class="motor-body">
-                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #fff;">{{ motor.motor_modelo }}</p>
-                        <p style="margin: 4px 0;"><strong>Horas del Motor Actual:</strong> <span style="color: var(--texto-ok); font-weight: bold;">{{ motor.horas_actuales }} hs</span></p>
+                        <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: bold; color: #fff;">{{ motor.motor_modelo }}</p>
+                        <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--texto-ok);">Ubicación Actual: <strong>{{ motor.equipo_asignado }}</strong></p>
+                        
+                        <p style="margin: 4px 0;"><strong>Horas del Motor Actual:</strong> {{ motor.horas_actuales }} hs</p>
                         <p style="margin: 4px 0;"><strong>Último Service Registrado:</strong> {{ motor.ultimo_service }} hs</p>
                         <p style="margin: 4px 0;"><strong>Próximo Service Técnico:</strong> {{ motor.proximo_service }} hs</p>
                         <hr style="border: 0; border-top: 1px solid var(--borde); margin: 10px 0;">
                         <p style="margin: 0; font-size: 13px;">
-                            <strong>Horas Restantes para Parada:</strong> 
+                            <strong>Horas Restantes:</strong> 
                             <span style="font-weight: bold; color: {% if motor.color == 'danger' or motor.color == 'warning' %}var(--alerta){% else %}var(--verde){% endif %};">
                                 {{ motor.horas_restantes }} hs
                             </span>
@@ -126,19 +127,17 @@
                     </div>
                 </div>
             {% endfor %}
-            {% if not motores %}
-                <div style="color: #64748b; font-size: 13px;">No hay motores registrados en el sistema de monitoreo.</div>
-            {% endif %}
         </div>
     </div>
 
+    <!-- HISTORIAL DE RIEGOS -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">🌊 Libro de Campo - Todos los Riegos Ejecutados</div>
         <table>
             <thead>
                 <tr>
                     <th>Fecha Registro</th>
-                    <th>Equipo / Pivot</th>
+                    <th>Equipo / Ubicación</th>
                     <th>Lámina Aplicada</th>
                     <th>Horas Operadas Real</th>
                 </tr>
@@ -152,24 +151,22 @@
                     <td>{{ rg.horas_operadas }} hs</td>
                 </tr>
                 {% endfor %}
-                {% if not riegos %}
-                <tr><td colspan="4" style="text-align: center; color: #64748b;">No hay registros de riego en el historial.</td></tr>
-                {% endif %}
             </tbody>
         </table>
     </div>
 
+    <!-- HISTORIAL DE OTS CERRADAS Y SERVICES DE MOTOR -->
     <div class="tarjeta">
-        <div class="tarjeta-titulo">🛠️ Historial de Mantenimiento - Órdenes de Trabajo Cumplidas y Services</div>
+        <div class="tarjeta-titulo">🛠️ Libro Histórico de Mantenimiento y Taller (Órdenes Cumplidas)</div>
         <table>
             <thead>
                 <tr>
-                    <th>Fecha Cierre</th>
-                    <th>Equipo / Pivot</th>
-                    <th>Horas del Equipo</th>
-                    <th>Acción Técnica Realizada / Service</th>
+                    <th>Fecha</th>
+                    <th>Equipo / Destino</th>
+                    <th>Horas Motor</th>
+                    <th>Detalles del Trabajo / Tarea Técnica Realizada</th>
                     <th>Responsable</th>
-                    <th>Insumo Utilizado</th>
+                    <th>Repuestos Utilizados</th>
                 </tr>
             </thead>
             <tbody>
@@ -177,17 +174,11 @@
                 <tr>
                     <td>{{ o.fecha }}</td>
                     <td><strong>{{ o.equipo_id }}</strong></td>
-                    <td>
-                        {% if o.horas_registro %}
-                            <span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span>
-                        {% else %}
-                            <span style="color: #64748b;">-</span>
-                        {% endif %}
-                    </td>
+                    <td><span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span></td>
                     <td>{{ o.tarea }}</td>
                     <td style="color: var(--amarillo);">{{ o.responsable }}</td>
                     <td>
-                        {% if o.repuesto_asociado %}
+                        {% if o.repuesto_asociado and 'None' not in o.repuesto_asociado %}
                             <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 4px 6px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
                         {% else %}
                             <span style="color: #64748b; font-size: 12px;">Sin repuestos de stock</span>
@@ -195,9 +186,6 @@
                     </td>
                 </tr>
                 {% endfor %}
-                {% if not ots %}
-                <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay órdenes de trabajo completadas en el historial.</td></tr>
-                {% endif %}
             </tbody>
         </table>
     </div>
