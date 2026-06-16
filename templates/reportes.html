@@ -100,13 +100,13 @@
         </div>
     </div>
 
-    <!-- CONTROL DE MOTORES Y SEMÁFORO POR ENUMERACIÓN -->
+    <!-- CONTROL DE MOTORES Y SEMÁFORO -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">⚙️ Estado de Motores Físicos y Alerta de Próximo Service (Frecuencia: 300 hs)</div>
         <div class="grid-motores">
             {% for motor in motores %}
                 <div class="tarjeta-motor bg-{{ motor.color }}">
-                    <div class="motor-header" style="border-bottom: 1px solid var(--borde);">
+                    <div class="motor-header">
                         <span>Nº Motor: <strong>{{ motor.motor_id }}</strong></span>
                         <span class="badge badge-{{ motor.color }}">{{ motor.estado }}</span>
                     </div>
@@ -155,7 +155,7 @@
         </table>
     </div>
 
-    <!-- HISTORIAL DE OTS CERRADAS Y SERVICES DE MOTOR -->
+    <!-- HISTORIAL DE OTS CERRADAS -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">🛠️ Libro Histórico de Mantenimiento y Taller (Órdenes Cumplidas)</div>
         <table>
@@ -189,6 +189,5 @@
             </tbody>
         </table>
     </div>
-
 </body>
 </html>
