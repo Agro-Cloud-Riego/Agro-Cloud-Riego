@@ -57,6 +57,8 @@
         th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
         .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
+        
+        footer { border-top: 1px solid var(--borde); padding-top: 15px; margin-top: 30px; text-align: center; font-size: 12px; color: #64748b; }
     </style>
 </head>
 <body>
@@ -184,7 +186,7 @@
                     
                     <div class="grupo-campo">
                         <label>Fecha de Operación</label>
-                        <input type="date" name="fecha_riego" required value="2026-06-14">
+                        <input type="date" name="fecha_riego" required value="2026-06-16">
                     </div>
                     <div class="grupo-campo">
                         <label>Lámina Aplicada (mm)</label>
@@ -256,14 +258,18 @@
                         </select>
                     </div>
                     <div class="grupo-campo">
-                        <label>Detail Adicional</label>
-                        <input type="text" name="descripcion" placeholder="Ej: Falla reportada" required>
+                        <label>Detalle Adicional</label>
+                        <input type="text" name="descripcion" placeholder="Ej: Falla en bomba principal" required>
                     </div>
                     <button type="submit" class="btn-enviar" style="background: var(--alerta);">Emitir Alerta Crítica</button>
                 </form>
             </div>
         </div>
     </div>
+
+    <footer>
+        AgroRiego Pro v2.4 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
+    </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
