@@ -62,7 +62,7 @@ def inicializar_db():
         )
     ''')
 
-    # Tabla de Órdenes de Trabajo
+    # Tabla de Órdenes de Trabajo (Soporta horas de registro y motor específico)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ordenes_trabajo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +73,8 @@ def inicializar_db():
             estado TEXT,
             fecha TEXT,
             repuesto_asociado TEXT DEFAULT NULL,
-            horas_registro REAL DEFAULT NULL
+            horas_registro REAL DEFAULT NULL,
+            motor_id TEXT DEFAULT NULL
         )
     ''')
 
@@ -112,18 +113,19 @@ def inicializar_db():
         )
     ''')
     
-    # NUEVA TABLA: Monitoreo y Control de Horas / Services de Motores
+    # TABLA MEJORADA: El motor tiene su propia numeración/ID y rastrea en qué equipo está puesto
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS control_services (
-            equipo_id TEXT PRIMARY KEY,
+            motor_id TEXT PRIMARY KEY,
             motor_modelo TEXT,
+            equipo_asignado TEXT,
             horas_actuales REAL,
             ultimo_service REAL,
             frecuencia_hs INTEGER DEFAULT 300
         )
     ''')
     
-    # CORRECCIÓN DE UBICACIÓN REAL (Joaquín V. González)
+    # Ubicaciones de Telemetría iniciales
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.1794, -63.8632, 2.4, '-98 dBm', 'Nunca')")
     cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.1750, -63.8500, 3.2, '-85 dBm', 'Nunca')")
 
@@ -147,16 +149,17 @@ def inicializar_db():
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', repuestos_iniciales)
 
-    # Cargar datos extraídos exactamente de tu planilla de Control de Motores
+    # Carga de Motores con su Numeración/ID único y su equipo asignado actual (Pivots o Frontales)
     motores_planilla = [
-        ("A2", "Iveco T8", 601.1, 351.1, 300),
-        ("B2", "Iveco T8", 1414.8, 1118.0, 300),
-        ("A1", "Iveco T5", 740.1, 490.0, 300),
-        ("B1", "Iveco T5", 720.0, 470.0, 300)
+        ("INV-001", "Iveco T8", "Pivot A2", 601.1, 351.1, 300),
+        ("INV-002", "Iveco T8", "Pivot B2", 1414.8, 1118.0, 300),
+        ("INV-003", "Iveco T5", "Pivot A1", 740.1, 490.0, 300),
+        ("INV-004", "Iveco T5", "Pivot B1", 720.0, 470.0, 300),
+        ("INV-005", "Deutz 1013", "Frontal F22", 120.0, 0.0, 300)
     ]
     cursor.executemany('''
-        INSERT OR IGNORE INTO control_services (equipo_id, motor_modelo, horas_actuales, ultimo_service, frecuencia_hs)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
+        VALUES (?, ?, ?, ?, ?, ?)
     ''', motores_planilla)
 
     conn.commit()
@@ -259,8 +262,12 @@ def index():
         fecha_riego = request.form.get('fecha_riego')
         cursor.execute("INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, fecha) VALUES (?, ?, ?, ?)", (equipo_id, lamina, horas, fecha_riego))
         
-        # LOGICA AUTOMÁTICA: Sumar horas operadas al motor en la tabla de control de services
-        cursor.execute("UPDATE control_services SET horas_actuales = horas_actuales + ? WHERE equipo_id = ?", (horas, equipo_id))
+        # Mapeo simple de ID de equipo de telemetría a nombres de asignación de motor
+        mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
+        nombre_asignado = mapa_equipos.get(equipo_id, "")
+        
+        if nombre_asignado:
+            cursor.execute("UPDATE control_services SET horas_actuales = horas_actuales + ? WHERE equipo_assigned = ?", (horas, nombre_asignado))
         
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
@@ -435,41 +442,84 @@ def stock():
     cursor.execute("SELECT m.*, i.item, i.motor FROM movimientos m JOIN inventario i ON m.parte = i.parte WHERE m.tipo = 'salida' ORDER BY m.id DESC LIMIT 10")
     salidas = cursor.fetchall()
     conn.close()
-    return render_template('stock.html', stock=lista_inventario, entradas=entradas, salidas=salidas, user=current_user)
+    return render_template('stock.html', stock=lista_inventario, entries=entradas, exits=salidas, user=current_user)
 
-# --- RUTAS DE MANTENIMIENTO (SISTEMA DE TALLER) ---
+# --- RUTAS DE MANTENIMIENTO DINÁMICO ---
 @app.route('/mantenimiento')
 @login_required
 def mantenimiento():
-    return render_template('mantenimiento.html')
+    conn = conectar_db()
+    cursor = conn.cursor()
+    # Trae todos los motores cargados dinámicamente para el selector
+    cursor.execute("SELECT motor_id, motor_modelo, equipo_asignado FROM control_services ORDER BY motor_id ASC")
+    motores_disponibles = cursor.fetchall()
+    conn.close()
+    return render_template('mantenimiento.html', motores=motores_disponibles)
 
 @app.route('/guardar_mantenimiento', methods=['POST'])
 @login_required
 def guardar_mantenimiento():
     fecha = request.form.get('fecha')
-    equipo_id = request.form.get('equipo')
-    horas_registro = float(request.form.get('horas', 0))
     responsable = request.form.get('responsable')
+    
+    # Manejo del Motor (Existente o Nuevo)
+    motor_seleccionado = request.form.get('motor_id')
+    nuevo_motor_id = request.form.get('nuevo_motor_id', '').strip()
+    nuevo_motor_modelo = request.form.get('nuevo_motor_modelo', '').strip()
+    
+    equipo_asignado = request.form.get('equipo_asignado')
+    horas_registro = float(request.form.get('horas', 0))
     
     filtro_aceite = request.form.get('filtro_aceite', '').strip()
     filtro_combustible = request.form.get('filtro_combustible', '').strip()
     filtro_aire = request.form.get('filtro_aire', '').strip()
     aceite_motor = request.form.get('aceite_motor', '').strip()
-    observaciones = request.form.get('observaciones', '').strip()
     
-    repuestos_detallados = f"F.Aceite: {filtro_aceite} | F.Comb: {filtro_combustible} | Aceite: {aceite_motor}"
-    tarea_desc = f"Service Preventivo Integral. Obs: {observaciones}"
+    # Tipos de labor adicionales (Embrague, Ferodo, etc.)
+    reparacion_embrague = "SÍ" if request.form.get('embrague') else "NO"
+    reparacion_ferodo = "SÍ" if request.form.get('ferodo') else "NO"
+    observaciones = request.form.get('observaciones', '').strip()
     
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # 1. Asentar directamente la Orden de Trabajo Cerrada en el historial
-    cursor.execute('''
-        INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado, horas_registro)
-        VALUES (?, ?, 'MEDIA', ?, 'COMPLETADA', ?, ?, ?)
-    ''', (tarea_desc, responsable, equipo_id, fecha, repuestos_detallados, horas_registro))
+    # Si el usuario escribió un motor nuevo completo, lo insertamos sobre la marcha en la base de datos
+    if nuevo_motor_id and nuevo_motor_modelo:
+        cursor.execute('''
+            INSERT OR REPLACE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
+            VALUES (?, ?, ?, ?, ?, 300)
+        ''', (nuevo_motor_id, nuevo_motor_modelo, equipo_asignado, horas_registro, horas_registro))
+        motor_final_id = nuevo_motor_id
+        motor_final_modelo = nuevo_motor_modelo
+    else:
+        # Si seleccionó uno existente, buscamos su modelo y actualizamos a qué equipo está asignado ahora
+        cursor.execute("SELECT motor_modelo FROM control_services WHERE motor_id = ?", (motor_seleccionado,))
+        res_m = cursor.fetchone()
+        motor_final_id = motor_seleccionado
+        motor_final_modelo = res_m['motor_modelo'] if res_m else "Desconocido"
+        
+        cursor.execute('''
+            UPDATE control_services 
+            SET equipo_asignado = ?, horas_actuales = ?, ultimo_service = ? 
+            WHERE motor_id = ?
+        ''', (equipo_asignado, horas_registro, horas_registro, motor_final_id))
+
+    # Construcción detallada de la novedad técnica para los históricos
+    detalles_reparacion = []
+    if reparacion_embrague == "SÍ": detalles_reparacion.append("Reparación de Embrague")
+    if reparacion_ferodo == "SÍ": detalles_reparacion.append("Recambio de Ferodo")
     
-    # 2. Descontar stock de forma automática de detectarse los códigos ingresados
+    str_reparaciones = ", ".join(detalles_reparacion) if detalles_reparacion else "Mantenimiento Preventivo Regular"
+    tarea_desc = f"Motor: {motor_final_modelo} ({motor_final_id}) en {equipo_asignado}. Labor: {str_reparaciones}. Novedades: {observaciones}"
+    repuestos_detallados = f"F.Aceite: {filtro_aceite} | F.Comb: {filtro_combustible} | Aceite: {aceite_motor}"
+    
+    # 1. Registrar en el libro histórico de Órdenes de Trabajo Terminadas
+    cursor.execute('''
+        INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado, horas_registro, motor_id)
+        VALUES (?, ?, 'ALTA', ?, 'COMPLETADA', ?, ?, ?, ?)
+    ''', (tarea_desc, responsable, equipo_asignado, fecha, repuestos_detallados, horas_registro, motor_final_id))
+    
+    # 2. Descontar stock automático de insumos cargados
     repuestos_a_descontar = [filtro_aceite, filtro_aire]
     if " / " in filtro_combustible:
         repuestos_a_descontar.extend(filtro_combustible.split(" / "))
@@ -487,15 +537,8 @@ def guardar_mantenimiento():
                 cursor.execute('''
                     INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
                     VALUES ('salida', ?, 1, ?, ?, ?)
-                ''', (parte_id, f"Service Automático ({equipo_id})", responsable, fecha + " 00:00:00"))
+                ''', (parte_id, f"Service Motor {motor_final_id}", responsable, fecha + " 00:00:00"))
 
-    # 3. Resetear el Semáforo de Control de Servicios de Motor
-    cursor.execute('''
-        UPDATE control_services 
-        SET horas_actuales = ?, ultimo_service = ? 
-        WHERE equipo_id = ?
-    ''', (horas_registro, horas_registro, equipo_id))
-    
     conn.commit()
     conn.close()
     
@@ -517,29 +560,28 @@ def reportes():
     cursor.execute("SELECT equipo_id, SUM(lamina_mm) as mm_totales, SUM(horas_operadas) as hs_totales, COUNT(id) as vueltas FROM registro_riego GROUP BY equipo_id")
     resumen_equipos = cursor.fetchall()
     
-    # NUEVA CONSULTA DIÁMICA: Trae las horas calculando en tiempo real el semáforo y las horas que faltan
+    # Trae motores y calcula alertas basándose en la numeración física del motor
     cursor.execute("SELECT *, (ultimo_service + frecuencia_hs) AS proximo_service, ((ultimo_service + frecuencia_hs) - horas_actuales) AS horas_restantes FROM control_services")
     motores_crudo = cursor.fetchall()
     
-    # Procesamos los estados y colores en base a las horas que verdaderamente faltan
     motores_monitoreo = []
     for m in motores_crudo:
         hs_restantes = m['horas_restantes']
         
-        # Clasificación por criticidad (Lógica del Semáforo)
         if hs_restantes <= 0:
             estado_servicio = "VENCIDO"
-            color_clase = "danger"  # Rojo en Bootstrap
+            color_clase = "danger"
         elif hs_restantes <= 25:
-            estado_servicio = "CRÍTICO (Hacer ya)"
-            color_clase = "warning" # Amarillo/Naranja en Bootstrap
+            estado_servicio = "CRÍTICO"
+            color_clase = "warning"
         else:
             estado_servicio = "AL DÍA"
-            color_clase = "success" # Verde en Bootstrap
+            color_clase = "success"
             
         motores_monitoreo.append({
-            "equipo_id": m['equipo_id'],
+            "motor_id": m['motor_id'],
             "motor_modelo": m['motor_modelo'],
+            "equipo_asignado": m['equipo_asignado'],
             "horas_actuales": round(m['horas_actuales'], 1),
             "ultimo_service": round(m['ultimo_service'], 1),
             "frecuencia_hs": m['frecuencia_hs'],
