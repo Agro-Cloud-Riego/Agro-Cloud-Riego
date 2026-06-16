@@ -54,7 +54,6 @@ def inicializar_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tipo TEXT,
             parte TEXT,
-            amount INTEGER,
             cantidad INTEGER,
             destino_origen TEXT,
             responsable TEXT,
@@ -218,7 +217,7 @@ def obtener_status_tiempo_real():
     conn.close()
 
     if fila:
-        estado_motor = "MARCHA" if fila['ultima_actualizacion'] != "Never" else "DESCONECTADO"
+        estado_motor = "MARCHA" if fila['ultima_actualizacion'] != "Nunca" else "DESCONECTADO"
         return jsonify({
             "latitud": fila['latitud'],
             "longitud": fila['longitud'],
@@ -277,33 +276,44 @@ def index():
         conn.commit()
         return redirect(url_for('index', equipo=equipo_id))
 
+    id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
+    if id_solicitado not in ['PIVOT-LOTE-A2', 'FRONTAL-F22']: id_solicitado = "PIVOT-LOTE-A2"
+    
+    # CONSULTA DE TELEMETRÍA REAL DESDE DB
+    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
+    tel_db = cursor.fetchone()
+
+    # --- LÓGICA DE DETECCIÓN DINÁMICA DE ESTADO (TIMEOUT RESTRICCION GPS) ---
+    if tel_db and tel_db['ultima_actualizacion'] != 'Nunca':
+        estado_calculado = "MARCHA"
+        presion_calculada = f"{tel_db['presion_terminal']} Bar"
+        posicion_calculada = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
+        lectura_texto = tel_db['ultima_actualizacion']
+    else:
+        # Si dice "Nunca", forzamos el apagado seguro en interfaz para evitar datos falsos
+        estado_calculado = "DESCONECTADO"
+        presion_calculada = "0.0 Bar"
+        posicion_calculada = "Sin Coordenadas GPS"
+        lectura_texto = "Nunca (Hardware no enlazado)"
+
     equipos_riego = {
         "PIVOT-LOTE-A2": {
             "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
-            "posicion": "Calculando...", "caudal": "115.000 L/h", "estado": "MARCHA",
+            "posicion": posicion_calculada, "caudal": "115.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
+            "estado": estado_calculado, "presion": presion_calculada, "senal": tel_db["rssi"] if tel_db else "0 dBm",
+            "ultima_lectura": lectura_texto, "lat": tel_db["latitud"] if tel_db else -25.1794, "lng": tel_db["longitud"] if tel_db else -63.8632,
             "hs_riego": 47.7, "hs_falla": 0.0, "hs_movimiento": 0.0, "hs_parado": 14.6
         },
         "FRONTAL-F22": {
             "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
-            "posicion": "Tramo Fijo", "caudal": "120.000 L/h", "estado": "MARCHA",
+            "posicion": posicion_calculada, "caudal": "120.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
+            "estado": estado_calculado, "presion": presion_calculada, "senal": tel_db["rssi"] if tel_db else "0 dBm",
+            "ultima_lectura": lectura_texto, "lat": tel_db["latitud"] if tel_db else -25.1750, "lng": tel_db["longitud"] if tel_db else -63.8500,
             "hs_riego": 72.3, "hs_falla": 1.1, "hs_movimiento": 5.4, "hs_parado": 8.2
         }
     }
     
-    id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    if id_solicitado not in equipos_riego: id_solicitado = "PIVOT-LOTE-A2"
-    
-    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
-    tel_db = cursor.fetchone()
-    
     data_render = equipos_riego[id_solicitado]
-    if tel_db:
-        data_render["presion"] = f"{tel_db['presion_terminal']} Bar"
-        data_render["senal"] = tel_db["rssi"]
-        data_render["lat"] = tel_db["latitud"]
-        data_render["lng"] = tel_db["longitud"]
-        data_render["ultima_lectura"] = tel_db["ultima_actualizacion"]
-        data_render["posicion"] = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
 
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
     ot_reales = cursor.fetchall()
@@ -531,8 +541,9 @@ def guardar_mantenimiento():
             if inv_fila and inv_fila['actual'] > 0:
                 nuevo_stock = inv_fila['actual'] - 1
                 cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, parte_id))
+                # Corregido de 'quantity' a 'cantidad' para coincidir con la estructura de tu DB
                 cursor.execute('''
-                    INSERT INTO movimientos (tipo, parte, quantity, destino_origen, responsable, fecha)
+                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
                     VALUES ('salida', ?, 1, ?, ?, ?)
                 ''', (parte_id, f"Service Motor {motor_final_id}", responsable, fecha + " 00:00:00"))
 
@@ -613,4 +624,6 @@ def logout():
 
 if __name__ == '__main__':
     inicializar_db()
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    # Se añade la detección del puerto dinámico para Render o local alternativo
+    puerto = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=puerto)
