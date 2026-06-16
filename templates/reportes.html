@@ -18,7 +18,8 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        .nav-principal { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
+        /* Caja contenedora para alinear los 4 botones arriba */
+        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
@@ -72,7 +73,7 @@
         <span style="color: #94a3b8; font-size: 14px;">Generado por: <strong>{{ user.id }}</strong></span>
     </header>
 
-    <!-- BARRA DE NAVEGACIÓN CORREGIDA -->
+    <!-- BARRA CON LOS 4 BOTONES UNIFICADOS ARRIBA -->
     <div class="nav-principal">
         <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
