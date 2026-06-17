@@ -29,7 +29,7 @@ def load_user(user_id):
 
 # --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA CON TIMEOUT ---
 def conectar_db():
-    # El timeout de 30 segundos previene bloqueos 'database is locked' en la nube
+    # El timeout de 30 segundos previene bloqueos 'database is locked' en Render
     conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
@@ -230,7 +230,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- VISTA INDEPENDIENTE: REGISTRO DE RIEGO (LIBRO HÍDRICO) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (UNIFICADO AL MENÚ) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -273,9 +273,9 @@ def registrar_riego():
         ''', (equipo_id,))
         
         conn.commit()
-        conn.close() # Cierre inmediato y liberación forzada
+        conn.close() 
         
-        flash(f"Registro hídrico guardado e impactado en el sistema.", "success")
+        flash(f"Registro de riego guardado e impactado en el sistema.", "success")
         return redirect(url_for('index', equipo=equipo_id))
 
     # --- PROCEDIMIENTO GET ---
@@ -288,8 +288,7 @@ def registrar_riego():
     }
     data_equipo = equipos_mapa.get(equipo_id, equipos_mapa["PIVOT-LOTE-A2"])
     
-    conn.close() # Cerramos conexión antes de mandar al template html
-    
+    conn.close() 
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     
     return render_template('registrar_riego.html', 
@@ -395,7 +394,7 @@ def mantenimiento():
         prox = horas_act + freq
         
         cursor.execute('''
-            INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea)
+            INSERT INTO control_services (equipo_asignado, hours_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea)
             VALUES (?, ?, ?, ?, ?)
         ''', (equipo, horas_act, prox, freq, desc))
         conn.commit()
@@ -495,3 +494,8 @@ def descargar_datos_ciclo(equipo_id):
     response = Response(generar_csv(), mimetype='text/csv')
     response.headers.set("Content-Disposition", f"attachment; filename=historial_riego_{equipo_id}.csv")
     return response
+
+# --- ADAPTADOR DE PUERTOS PARA PRODUCCIÓN EN LA NUBE ---
+if __name__ == '__main__':
+    puerto = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=puerto, debug=True)
