@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -33,7 +32,7 @@
         .formulario { display: flex; flex-direction: column; gap: 15px; }
         .grupo-campo { display: flex; flex-direction: column; }
         label { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
-        input, select { background: #0f172a; border: 1px solid var(--borde); padding: 10px; color: white; border-radius: 6px; font-size: 14px; }
+        input { background: #0f172a; border: 1px solid var(--borde); padding: 10px; color: white; border-radius: 6px; font-size: 14px; }
         .btn-enviar { background: var(--texto-ok); border: none; color: #0b0f19; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 5px; }
         .btn-enviar:hover { background: #0284c7; color: white; }
         
@@ -81,12 +80,7 @@
                 
                 <div class="grupo-campo">
                     <label>Lote / Cobertura Asignada</label>
-                    <select name="equipo_id" required>
-                        <option value="PIVOT-LOTE-A2">Pivot Lote A2 (156 ha)</option>
-                        <option value="PIVOT-LOTE-A3">Pivot Lote A3</option>
-                        <option value="PIVOT-LOTE-B1">Pivot Lote B1</option>
-                        <option value="PIVOT-LOTE-B2">Pivot Lote B2</option>
-                    </select>
+                    <input type="text" name="equipo_id" placeholder="Escribí acá el Lote (Ej: Pivot Lote A2, Sector Sur...)" required autocomplete="off">
                 </div>
 
                 <div class="grupo-campo">
