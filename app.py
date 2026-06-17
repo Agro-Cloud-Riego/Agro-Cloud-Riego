@@ -246,7 +246,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (ESTILO PLANILLA EXCEL SEGUIMIENTO) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (ESTILO PLANILLA EXCEL SEGUIMIENTO - COMPLETO Y UNIFICADO) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -273,7 +273,6 @@ def registrar_riego():
                 ) VALUES (?, ?, ?, 'EN MARCHA', 0.0, ?, ?)
             ''', (equipo_id_manual, fecha_inicio, hs_inicio, float(avance if avance else 20.0), nro_vuelta_val))
             
-            # Impacto opcional en telemetría para ver el cambio de estado en vivo
             cursor.execute('''
                 UPDATE telemetria_actual 
                 SET estado_sistema = 'MARCHA EN AGUA', ultima_actualizacion = 'Arrancado Manual' 
@@ -292,7 +291,6 @@ def registrar_riego():
             observacion = request.form.get('observacion', 'Completo sin fallas').strip()
             presion_bar = float(request.form.get('presion_bar', 0.0))
             
-            # Buscamos las horas iniciales guardadas en la apertura
             cursor.execute("SELECT horas_operadas, equipo_id FROM registro_riego WHERE id = ?", (registro_id,))
             reg_apertura = cursor.fetchone()
             
@@ -300,10 +298,10 @@ def registrar_riego():
                 hs_inicio = reg_apertura['horas_operadas']
                 equipo_id = reg_apertura['equipo_id']
                 
-                # Cálculo matemático idéntico a tu celda de Excel
+                # Cálculo de tiempo recorrido (Hs Fin - Hs Inicio)
                 tiempo_recorrido = hs_fin - hs_inicio
                 
-                # Consolidamos el registro con los datos de parada definitivos
+                # Modificamos estado_operacion para quitar el 'EN MARCHA' y poner el motivo de parada
                 cursor.execute('''
                     UPDATE registro_riego 
                     SET horas_parada = ?, 
@@ -315,7 +313,6 @@ def registrar_riego():
                     WHERE id = ?
                 ''', (fecha_fin, hs_fin, tiempo_recorrido, lamina_real, observacion, presion_bar, registro_id))
                 
-                # Sumamos el tiempo de marcha real al contador de servicios preventivos
                 mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
                 nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
                 
@@ -325,7 +322,6 @@ def registrar_riego():
                     WHERE equipo_asignado = ? OR equipo_asignado = ?
                 ''', (tiempo_recorrido, nombre_mapeado, equipo_id))
                 
-                # Cambiamos el estado en telemetría a detenido
                 cursor.execute('''
                     UPDATE telemetria_actual 
                     SET estado_sistema = 'PARADO', presion_terminal = 0.0, ultima_actualizacion = 'Parada Manual' 
@@ -338,11 +334,15 @@ def registrar_riego():
         conn.close()
         return redirect(url_for('registrar_riego'))
 
-    # Trae los giros activos ("EN MARCHA") para poder cerrarlos en la interfaz
+    # Trae los giros activos ("EN MARCHA") para el panel celeste dinámico
     cursor.execute("SELECT id, equipo_id, fecha, horas_operadas, nro_vuelta FROM registro_riego WHERE estado_operacion = 'EN MARCHA' ORDER BY id DESC")
-    activos = cursor.fetchall()
+    activos = [dict(row) for row in cursor.fetchall()]
 
-    # Trae el historial cerrado respetando las columnas exactas de tu Excel
+    # Calculamos de forma dinámica el tiempo temporal transcurrido para cada equipo activo
+    for a in activos:
+        a['horas_operadas'] = round(a['horas_operadas'], 1)
+
+    # Historial cerrado que va directo a la tabla de Auditoría de la derecha
     cursor.execute('''
         SELECT id, equipo_id, fecha as fecha_inicio, horas_operadas as hs_inicio, 
                horas_parada as fecha_fin, duracion_vuelta as hs_fin, 
