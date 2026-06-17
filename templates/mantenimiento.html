@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Mantenimiento</title>
+    <title>AgroRiego Pro - Gestión de Mantenimiento</title>
     <style>
         :root { 
             --bg-principal: #0b0f19; 
@@ -12,9 +12,10 @@
             --texto-ok: #38bdf8; 
             --verde: #10b981; 
             --amarillo: #f59e0b;
+            --alerta: #ef4444;
         }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
+        header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
         .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
@@ -22,156 +23,131 @@
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
         .nav-link.active { color: #fff; background: var(--verde); }
 
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 25px; max-width: 650px; margin: 0 auto; }
-        .tarjeta-titulo { font-size: 18px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
-
-        .grupo-form { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 14px; color: #94a3b8; font-weight: bold; }
-        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; font-family: sans-serif; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--texto-ok); }
+        .contenedor-manto { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 25px; max-width: 750px; margin: 0 auto; }
+        .seccion-titulo { font-size: 18px; font-weight: bold; color: #fff; border-bottom: 1px solid var(--borde); padding-bottom: 8px; margin-bottom: 20px; }
         
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .caja-opciones { background: #0f172a; border: 1px solid var(--borde); padding: 12px; border-radius: 6px; margin-bottom: 15px; }
-        .checkbox-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 14px; cursor: pointer; }
-        .checkbox-item input { width: 18px; height: 18px; cursor: pointer; }
-
-        .btn-guardar { background: var(--verde); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 10px; width: 100%; }
-        .btn-guardar:hover { background: #059669; }
-        .bloque-nuevo { border-left: 3px solid var(--texto-ok); padding-left: 15px; margin-top: 5px; }
+        .formulario-manto { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 600px) { .formulario-manto { grid-template-columns: 1fr; } }
+        
+        .grupo-input { display: flex; flex-direction: column; }
+        .col-completa { grid-column: 1 / -1; }
+        
+        label { font-size: 13px; color: #94a3b8; margin-bottom: 6px; font-weight: 500; }
+        input, select, textarea { background-color: #0f172a; border: 1px solid var(--borde); border-radius: 6px; padding: 10px; color: #fff; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { border-color: var(--texto-ok); outline: none; }
+        
+        .btn-guardar { background-color: var(--verde); border: none; color: white; padding: 14px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
+        .btn-guardar:hover { background-color: #059669; }
+        
+        .caja-dinamica { background: #1e293b; padding: 12px; border-radius: 6px; border: 1px dashed var(--borde); margin-top: 8px; display: none; }
+        
+        .alerta-notif { background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; border-radius: 4px; margin-bottom: 20px; color: #fff; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <header>
         <h1>AgroRiego Pro - Gestión de Mantenimiento</h1>
+        <div style="font-size: 14px; color: #94a3b8;">Jefe Técnico: <strong>Marcelo Daniel</strong></div>
     </header>
 
-    <div class="nav-principal" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid #233554; padding-bottom: 10px;">
-    <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Panel de Monitoreo</a>
-    <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Registro de Riego</a>
-    <a href="{{ url_for('stock') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Stock e Insumos Operativos</a>
-    <a href="{{ url_for('mantenimiento') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Mantenimiento</a>
-    <a href="{{ url_for('reportes') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Reportes e Históricos</a>
-</div>
+    <div class="nav-principal">
+        <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
+        <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Registro de Riego</a>
+        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
+        <a href="{{ url_for('mantenimiento') }}" class="nav-link active">Mantenimiento</a>
+        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
+    </div>
 
-    <div class="tarjeta">
-        <div class="tarjeta-titulo">📝 Registro de Trabajos y Taller (Pivots y Frontales)</div>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alerta-notif">✓ {{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="contenedor-manto">
+        <div class="seccion-titulo">🔧 Reporte de Servicio Técnico y Tareas Preventivas</div>
         
-        <form action="{{ url_for('mantenimiento') }}" method="POST" class="formulario">
+        <form class="formulario-manto" method="POST" action="{{ url_for('mantenimiento') }}">
             
-            <div class="grid-2">
-                <div class="grupo-form">
-                    <label for="fecha">Fecha del Trabajo</label>
-                    <input type="date" id="fecha" name="fecha" required>
-                </div>
-                <div class="grupo-form">
-                    <label for="responsable">Técnico Responsable</label>
-                    <input type="text" id="responsable" name="responsable" placeholder="Ej: Marcelo Daniel" required>
+            <div class="grupo-input">
+                <label>Infraestructura / Unidad Asignada</label>
+                <select name="equipo_asignado" id="equipo_asignado" onchange="evaluarEquipoManual(this.value)" required>
+                    <option value="Pivot A2">Pivot Lote A2 (156 Ha)</option>
+                    <option value="Frontal F22">Frontal frontal F22 (22 Tramos)</option>
+                    <option value="MANUAL">-- Ingresar Maquinaria Manual --</option>
+                </select>
+                
+                <div id="seccion_equipo_manual" class="caja-dinamica">
+                    <label>Escriba el Nombre del Equipo/Infraestructura:</label>
+                    <input type="text" id="nuevo_equipo_manual" name="equipo_manual_texto" placeholder="Ej: Equipo Rebombeo Norte">
                 </div>
             </div>
 
-            <div class="grupo-form" style="margin-top: 10px;">
-                <label for="motor_id">Seleccionar Motor Registrado (Por Número Identificador)</label>
-                <select id="motor_id" name="motor_id" onchange="evaluarNuevoMotor(this.value)">
-                    <option value="">-- Seleccionar Motor Existente --</option>
-                    {% for m in motores %}
-                        <option value="{{ m.motor_id }}">{{ m.motor_id }} - {{ m.motor_modelo }} (Asignado a: {{ m.equipo_asignado }})</option>
-                    {% endfor %}
-                    <option value="NUEVO">+ Registrar e Ingresar un Motor Nuevo</option>
+            <div class="grupo-input">
+                <label>Horas de Operación Actuales (Hómetro Físico)</label>
+                <input type="number" step="0.1" name="horas_actuales" placeholder="Ej: 480.0" required>
+            </div>
+
+            <div class="grupo-input">
+                <label>Componente Crítico / Motorización</label>
+                <select name="motor_marca" id="motor_marca" onchange="evaluarNuevoMotor(this.value)" required>
+                    <option value="Deutz A6L913">Deutz A6L913 (Inyección Directa)</option>
+                    <option value="Caterpillar 3406">Caterpillar 3406 (Estacionario)</option>
+                    <option value="Iveco Nef 6">Iveco Nef 6 (Turbodiésel)</option>
+                    <option value="Cornell Pump 6HH">Bomba Centrífuga Cornell 6HH</option>
+                    <option value="NUEVO">-- Registrar Nueva Motorización --</option>
+                </select>
+                
+                <div id="seccion_nuevo_motor" class="caja-dinamica">
+                    <label>ID / Tag de Motor:</label>
+                    <input type="text" id="nuevo_motor_id" name="nuevo_motor_id" placeholder="Ej: MT-DEUTZ-04" style="margin-bottom:8px;">
+                    <label>Modelo / Especificación:</label>
+                    <input type="text" id="nuevo_motor_modelo" name="nuevo_motor_modelo" placeholder="Ej: F6L913 Turbo">
+                </div>
+            </div>
+
+            <div class="grupo-input">
+                <label>Frecuencia del Ciclo Preventivo (hs)</label>
+                <select name="frecuencia_horas" required>
+                    <option value="250">Cada 250 horas (Filtros y Aceite de Motor)</option>
+                    <option value="500">Cada 500 horas (Revisión General y Cardanes)</option>
+                    <option value="1000">Cada 1000 horas (Aceite Cajas Reductoras / Torres)</option>
                 </select>
             </div>
 
-            <div id="seccion_nuevo_motor" class="bloque-nuevo" style="display: none;">
-                <div class="grid-2">
-                    <div class="grupo-form">
-                        <label for="nuevo_motor_id">Número / Enumeración del Motor Nuevo</label>
-                        <input type="text" id="nuevo_motor_id" name="nuevo_motor_id" placeholder="Ej: INV-006">
-                    </div>
-                    <div class="grupo-form">
-                        <label for="nuevo_motor_modelo">Modelo de Motor</label>
-                        <input type="text" id="nuevo_motor_modelo" name="nuevo_motor_modelo" placeholder="Ej: Iveco T8 / Deutz 1013">
-                    </div>
-                </div>
+            <div class="grupo-input">
+                <label>Lubricante de Motor Empleado</label>
+                <select name="lubricante_tipo">
+                    <option value="15W40 CI-4">Aceite 15W40 CI-4 (Alto Rendimiento Diésel)</option>
+                    <option value="SAE 85W140">Aceite SAE 85W140 (Para Engranajes/Reductores de Pivots)</option>
+                    <option value="Grasa Litio EP2">Grasa de Litio EP2 (Rodamientos y Cardanes)</option>
+                    <option value="Ninguno">No requiere lubricante en esta tarea</option>
+                </select>
             </div>
 
-            <div class="grid-2">
-                <div class="grupo-form">
-                    <label for="equipo_asignado">Equipo / Ubicación Actual</label>
-                    <select id="equipo_asignado" name="equipo_asignado" onchange="evaluarEquipoManual(this.value)" required>
-                        <option value="">Seleccionar Destino...</option>
-                        <optgroup label="Pivots Centrales">
-                            <option value="Pivot A1">Pivot A1</option>
-                            <option value="Pivot A2">Pivot A2 (156 Ha)</option>
-                            <option value="Pivot B1">Pivot B1</option>
-                            <option value="Pivot B2">Pivot B2</option>
-                        </optgroup>
-                        <optgroup label="Sistemas Frontales Lineales">
-                            <option value="Frontal F22">Frontal F22</option>
-                            <option value="Frontal F23">Frontal F23</option>
-                        </optgroup>
-                        <optgroup label="Opciones Especiales">
-                            <option value="MANUAL">+ Ingresar Equipo Nuevo Manualmente</option>
-                        </optgroup>
-                    </select>
-                    
-                    <div id="seccion_equipo_manual" class="bloque-nuevo" style="display: none; margin-top: 5px;">
-                        <label for="nuevo_equipo_manual" style="color: var(--texto-ok); font-size: 12px;">Nombre del Equipo Manual</label>
-                        <input type="text" id="nuevo_equipo_manual" name="nuevo_equipo_manual" placeholder="Ej: Frontal F24 / Pivot C1">
-                    </div>
-                </div>
-
-                <div class="grupo-form">
-                    <label for="horas">Horas Actuales del Motor (Horómetro)</label>
-                    <input type="number" step="0.1" id="horas" name="horas" placeholder="Ej: 740.1" required>
-                </div>
+            <div class="grupo-input">
+                <label>Kit de Filtros Sustituidos</label>
+                <select name="filtros_tipo">
+                    <option value="Filtros Combustible y Aceite">Kit Completo (Aceite + Elementos Combustible)</option>
+                    <option value="Filtro de Aire Primario">Filtro de Aire Primario / Secundario</option>
+                    <option value="Ninguno">Sin cambio de filtros</option>
+                </select>
             </div>
 
-            <div class="tarjeta-titulo" style="font-size: 14px; margin: 20px 0 10px 0; color: var(--texto-ok);">⚙️ Reparaciones de Transmisión y Embrague</div>
-            <div class="caja-opciones">
-                <label class="checkbox-item">
-                    <input type="checkbox" id="embrague" name="embrague" value="SI">
-                    <span>Reparación de Embrague / Placa y Disco</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="ferodo" name="ferodo" value="SI">
-                    <span>Reparación / Recambio de Ferodo</span>
-                </label>
+            <div class="grupo-input col-completa">
+                <label>Descripción del Trabajo Realizado y Registro de Desgaste</label>
+                <textarea name="descripcion_tarea" rows="4" placeholder="Detallar tareas realizadas (Ej: Se completó engrase en juntas cardánicas, control de alineación del cable guía y torque de bulones en torre central)..." required></textarea>
             </div>
 
-            <div class="tarjeta-titulo" style="font-size: 14px; margin: 15px 0 10px 0; color: var(--texto-ok);">🛢️ Filtros y Fluidos Reemplazados (Opcional)</div>
-            <div class="grid-2">
-                <div class="grupo-form">
-                    <label for="filtro_aceite">Filtro de Aceite (Código)</label>
-                    <input type="text" id="filtro_aceite" name="filtro_aceite" placeholder="Ej: 504074043">
-                </div>
-                <div class="grupo-form">
-                    <label for="filtro_combustible">Filtros de Gasoil / Trampa</label>
-                    <input type="text" id="filtro_combustible" name="filtro_combustible" placeholder="Ej: 504107584">
-                </div>
-            </div>
-            <div class="grid-2">
-                <div class="grupo-form">
-                    <label for="filtro_aire">Filtro de Aire</label>
-                    <input type="text" id="filtro_aire" name="filtro_aire" placeholder="Ej: 106-3969">
-                </div>
-                <div class="grupo-form">
-                    <label for="aceite_motor">Aceite de Motor (Litros)</label>
-                    <input type="text" id="aceite_motor" name="aceite_motor" placeholder="Ej: 15W40 - 14L">
-                </div>
-            </div>
-
-            <div class="grupo-form" style="margin-top: 15px;">
-                <label for="observaciones">Observaciones / Novedades Técnicas</label>
-                <textarea id="observaciones" name="observaciones" rows="4" placeholder="Detallar cualquier anomalía encontrada o trabajo extra realizado..."></textarea>
-            </div>
-
-            <button type="submit" class="btn-guardar">💾 Guardar Registro de Mantenimiento</button>
+            <button type="submit" class="btn-guardar col-completa">💾 Guardar Registro de Mantenimiento</button>
         </form>
     </div>
 
     <script>
-        document.getElementById('fecha').valueAsDate = new Date();
-
+        // Seteo automático del campo de texto manual si es requerido
         function evaluarNuevoMotor(valor) {
             var divNuevo = document.getElementById('seccion_nuevo_motor');
             var reqId = document.getElementById('nuevo_motor_id');
