@@ -55,8 +55,10 @@
         <div style="font-size: 14px; color: #94a3b8;">Encargado: <strong>Marcelo Daniel</strong></div>
     </header>
 
+    <!-- MENÚ UNIFICADO (Se agregó Registro de Riego para evitar saltos) -->
     <div class="nav-principal">
         <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
+        <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Registro de Riego</a>
         <a href="{{ url_for('stock') }}" class="nav-link active">Stock e Insumos Operativos</a>
         <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
@@ -81,35 +83,31 @@
                         <tr>
                             <th>Nro Parte / Código</th>
                             <th>Descripción Item</th>
-                            <th>Categoría</th>
                             <th>Compatibilidad Motor</th>
                             <th>Ubicación Física</th>
-                            <th>Mínimo Requerido</th>
                             <th>Stock Actual</th>
                             <th>Estado Alerta</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in stock %}
+                        {% for item in inventario %}
                         <tr>
                             <td><code>{{ item.parte }}</code></td>
                             <td><strong>{{ item.item }}</strong></td>
-                            <td>{{ item.categoria }}</td>
-                            <td style="color: var(--texto-ok);">{{ item.motor }}</td>
-                            <td>{{ item.ubicacion }}</td>
-                            <td style="text-align: center;">{{ item.minimo }}</td>
-                            <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ item.actual }}</td>
+                            <td style="color: var(--texto-ok);">{{ item.motor if item.motor else '-' }}</td>
+                            <td><span style="color: var(--amarillo);">Pasillo: {{ item.pasillo if item.pasillo else '-' }} / Estante: {{ item.estante if item.estante else '-' }}</span></td>
+                            <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ item.cantidad }} u.</td>
                             <td>
-                                {% if item.actual|int <= item.minimo|int %}
-                                    <span class="badge-critico">⚠️ RECOMPRA CRÍTICA</span>
+                                {% if item.cantidad|int <= 1 %}
+                                    <span class="badge-critico">⚠️ STOCK BAJO</span>
                                 {% else %}
                                     <span class="badge-ok">✓ DISPONIBLE</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
-                        {% if not stock %}
-                            <tr><td colspan="8" style="text-align: center; color: #64748b;">No hay repuestos registrados en el catálogo.</td></tr>
+                        {% if not inventario %}
+                            <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay repuestos registrados en el catálogo.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -117,111 +115,46 @@
         </div>
 
         <div>
+            <!-- FORMULARIO DE ALTA Y EDICIÓN UNIFICADO CON LA BASE DE DATOS -->
             <div class="tarjeta">
-                <div class="tarjeta-titulo">🔄 Movimiento de Stock Directo (Físico)</div>
+                <div class="tarjeta-titulo">➕ Dar de Alta / Modificar Repuesto</div>
                 <form action="{{ url_for('stock') }}" method="POST" class="formulario">
-                    <input type="hidden" name="form_origen" value="movimiento_stock">
                     
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Seleccionar Componente</label>
-                        <select name="part" required>
-                            {% for item in stock %}
-                                <option value="{{ item.parte }}">{{ item.item }} (Código: {{ item.parte }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Tipo Movimiento</label>
-                        <select name="accion">
-                            <option value="entrada">📥 Entrada (+ Compra)</option>
-                            <option value="salida">📤 Salida (Ajuste/Descarte)</option>
-                        </select>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Cantidad de Unidades</label>
-                        <input type="number" name="quantity" min="1" placeholder="Ej: 2" required>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Responsable</label>
-                        <input type="text" name="responsable" value="Marcelo Daniel" required>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Justificación / Destino</label>
-                        <input type="text" name="destino_origen" placeholder="Ej: Compra proveedor" required>
-                    </div>
-                    <button type="submit" class="btn-enviar" style="background: var(--texto-ok); color: #0b0f19;">Ejecutar Movimiento</button>
-                </form>
-            </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">➕ Dar de Alta Nuevo Repuesto Flex</div>
-                <form action="{{ url_for('stock') }}" method="POST" class="formulario">
-                    <input type="hidden" name="form_origen" value="alta_articulo">
-                    
-                    <div class="grupo-campo">
                         <label>Número de Parte / Código Único</label>
                         <input type="text" name="parte" placeholder="Ej: RE-4589" required style="text-transform: uppercase;">
                     </div>
-                    <div class="grupo-campo">
+                    <div class="grupo-campo" style="grid-column: 1 / -1;">
                         <label>Nombre del Item</label>
                         <input type="text" name="item" placeholder="Ej: Retén Caja Reductora" required>
                     </div>
-                    <div class="grupo-campo">
-                        <label>Categoría</label>
-                        <select name="categoria">
-                            <option value="Filtros">Filtros</option>
-                            <option value="Correas">Correas</option>
-                            <option value="Bombas">Bombas / Sellos</option>
-                            <option value="Repuestos">Repuestos Generales</option>
-                            <option value="Electricidad">Componentes Eléctricos</option>
-                        </select>
-                    </div>
-                    <div class="grupo-campo">
+                    <div class="grupo-campo" style="grid-column: 1 / -1;">
                         <label>Asociación de Motor / Equipo</label>
-                        <input type="text" name="motor_equipo" placeholder="Ej: Pivot Lindsay / Tr. Central" required>
+                        <input type="text" name="motor" placeholder="Ej: Pivot Lindsay / Tr. Central" required>
                     </div>
                     <div class="grupo-campo">
-                        <label>Ubicación Estante/Caja</label>
-                        <input type="text" name="ubicacion" placeholder="Ej: Estante D2" required>
+                        <label>Ubicación Pasillo</label>
+                        <input type="text" name="pasillo" placeholder="Ej: A" required>
                     </div>
                     <div class="grupo-campo">
-                        <label>Mínimo Crítico de Seguridad</label>
-                        <input type="number" name="minimo" value="2" min="0" required>
+                        <label>Ubicación Estante</label>
+                        <input type="text" name="estante" placeholder="Ej: 3" required>
                     </div>
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Cantidad Inicial Disponible</label>
-                        <input type="number" name="actual" value="0" min="0" required>
+                        <label>Cantidad Inicial / Unidades a Sumar</label>
+                        <input type="number" name="cantidad" value="1" min="0" required>
                     </div>
+                    
                     <button type="submit" class="btn-enviar">Registrar en Catálogo</button>
                 </form>
             </div>
 
+            <!-- TABLERO DE ACCESOS RÁPIDOS PARA INTEGRIDAD DEL DISEÑO -->
             <div class="tarjeta">
-                <div class="tarjeta-titulo" style="font-size:14px; color:var(--verde);">📥 Últimos Ingresos de Material</div>
-                <ul class="historial-lista">
-                    {% for e in entradas %}
-                        <li class="historial-item">
-                            <span style="color: var(--verde); font-weight: bold;">+{{ e.cantidad }} u.</span> de <strong>{{ e.item }}</strong> - <small>{{ e.destino_origen }} ({{ e.fecha }})</small>
-                        </li>
-                    {% endfor %}
-                    {% if not entradas %}
-                        <li style="color: #64748b; font-size: 12px;">No hay ingresos recientes.</li>
-                    {% endif %}
-                </ul>
-            </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo" style="font-size:14px; color:var(--alerta);">📤 Últimos Egresos de Material</div>
-                <ul class="historial-lista">
-                    {% for s in salidas %}
-                        <li class="historial-item">
-                            <span style="color: var(--alerta); font-weight: bold;">-{{ s.cantidad }} u.</span> de <strong>{{ s.item }}</strong> - <small>{{ s.destino_origen }} ({{ s.fecha }})</small>
-                        </li>
-                    {% endfor %}
-                    {% if not salidas %}
-                        <li style="color: #64748b; font-size: 12px;">No hay egresos recientes.</li>
-                    {% endif %}
-                </ul>
+                <div class="tarjeta-titulo" style="font-size:14px; color:var(--texto-ok);">ℹ️ Notas de Consumo</div>
+                <p style="font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.5;">
+                    Recuerda que las bajas en el inventario también se descuentan de forma automática una vez que marcas una <strong>Orden de Trabajo (OT)</strong> como <span style="color: var(--verde);">Despachada</span> en el Panel de Monitoreo.
+                </p>
             </div>
         </div>
     </div>
