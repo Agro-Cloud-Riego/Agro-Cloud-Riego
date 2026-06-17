@@ -247,7 +247,8 @@ def index():
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
-    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7")
+    # SOLUCIÓN DEL ERROR AQUÍ: Agregada la tupla (equipo_seleccionado,) al final de la consulta
+    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
     registros_grafico = cursor.fetchall()[::-1]
     
     fechas_riego = [r['fecha'] for r in registros_grafico]
@@ -267,7 +268,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (MODIFICADO CON SEGUIMIENTO DE VUELTAS Y TIEMPOS) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (SEGUIMIENTO DE VUELTAS Y TIEMPOS) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
