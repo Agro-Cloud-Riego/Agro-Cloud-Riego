@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Monitoreo Avanzado</title>
+    <title>AgroRiego Pro - Telemetría y Operaciones</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -182,31 +182,35 @@
 
         <div>
             <div class="tarjeta">
-                <div class="tarjeta-titulo">📝 Registro Turno / Lámina de Riego</div>
+                <div class="tarjeta-titulo">📝 Registro de Riego por Turno / Vuelta</div>
                 
-                <form method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <form method="POST" action="{{ url_for('guardar_riego') }}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <input type="hidden" name="form_tipo" value="nuevo_riego">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
                     <div style="display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--borde); padding-right: 12px;">
+                        <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--amarillo); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
+                            Datos Base (Editables)
+                        </div>
+
                         <div class="grupo-campo">
-                            <label>Lote</label>
-                            <input type="text" value="{{ data.lote }}" readonly style="background: rgba(35, 53, 84, 0.3); color: #94a3b8; font-weight: bold;">
+                            <label>Lote / Nomenclatura</label>
+                            <input type="text" name="lote" value="{{ data.lote }}" style="border-color: var(--borde); color: #fff;">
                         </div>
                         
                         <div class="grupo-campo">
-                            <label>Lámina Obj/Prog mm</label>
-                            <input type="text" value="{{ data.riego_objetivo if data.riego_objetivo else '40.0' }} mm" readonly style="background: rgba(35, 53, 84, 0.3); color: var(--amarillo); font-weight: bold;">
+                            <label>Lámina Obj / Prog (mm)</label>
+                            <input type="number" step="0.1" name="riego_objetivo" value="{{ data.riego_objetivo if data.riego_objetivo else '40.0' }}" style="border-color: var(--borde); color: var(--amarillo);">
                         </div>
 
                         <div class="grupo-campo">
-                            <label>Lámina acumulada Pivot</label>
-                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.1); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
+                            <label>Lámina Acumulada Previa</label>
+                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.05); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
                         </div>
 
                         <div class="grupo-campo">
-                            <label>Horas Panel (Histórico)</label>
-                            <input type="text" value="{{ data.horas_totales if data.horas_totales else '0.0' }} hs" readonly style="background: rgba(35, 53, 84, 0.3); color: #cbd5e1;">
+                            <label>Horas Panel (Tablero)</label>
+                            <input type="number" step="0.1" name="horas_panel" value="{{ data.horas_totales if data.horas_totales else '0.0' }}" style="border-color: var(--borde); color: #cbd5e1;">
                         </div>
 
                         <div class="grupo-campo">
@@ -217,26 +221,31 @@
 
                     <div style="display: flex; flex-direction: column; gap: 10px; justify-content: flex-start;">
                         <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--texto-ok); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
-                            Ingreso Datos de Turno
+                            Carga de Vuelta (Timer)
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: #fff; font-weight: bold;">Lámina Aplicada (mm)</label>
-                            <input type="number" step="0.1" name="lamina_mm" placeholder="Ej: 20.0" required style="border-color: var(--texto-ok); font-size: 15px;">
+                            <label style="color: #94a3b8;">Lámina al 100% Vel. (mm)</label>
+                            <input type="number" id="lamina_100" step="0.1" value="5.0" style="border-color: var(--borde); color: #94a3b8;" title="Milímetros que tira el equipo si avanza a máxima velocidad (Timer al 100%)">
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: #fff; font-weight: bold;">Horas Motor</label>
+                            <label style="color: #fff; font-weight: bold;">% Timer en Tablero</label>
+                            <input type="number" id="timer_porcentaje" name="timer_porcentaje" min="1" max="100" placeholder="Ej: 50" required style="border-color: var(--texto-ok); font-size: 15px; font-weight: bold; color: #fff;">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label style="color: var(--verde); font-weight: bold;">Lámina Aplicada (mm)</label>
+                            <input type="number" id="lamina_mm" step="0.1" name="lamina_mm" placeholder="Se calcula sola..." required style="border-color: var(--verde); font-size: 16px; font-weight: bold; color: var(--verde); background: rgba(16, 185, 129, 0.05);">
+                        </div>
+
+                        <div class="grupo-campo">
+                            <label style="color: #fff; font-weight: bold;">Horas Motor (en la vuelta)</label>
                             <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 14.5" required style="border-color: var(--texto-ok); font-size: 15px;">
                         </div>
 
-                        <div class="grupo-campo" style="margin-top: auto; padding-top: 10px;">
-                            <label>Fecha Registro</label>
-                            <input type="text" value="2026-06-16" readonly style="background: transparent; border: none; color: #64748b; padding: 0; font-size: 11px;">
-                        </div>
-
-                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 10px; margin-top: 5px; width: 100%;">
-                            💾 Guardar en Libro Hídrico
+                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 12px; margin-top: 10px; width: 100%; font-size: 14px;">
+                            💾 Guardar Riego en {{ data.nombre_corto }}
                         </button>
                     </div>
                 </form>
@@ -306,7 +315,7 @@
     </div>
 
     <footer>
-        AgroRiego Pro v2.4 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
+        AgroRiego Pro v2.5 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -387,6 +396,31 @@
             setTimeout(function() {
                 map.invalidateSize();
             }, 400);
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputTimer = document.getElementById('timer_porcentaje');
+            const inputLamina100 = document.getElementById('lamina_100');
+            const inputLaminaCalculada = document.getElementById('lamina_mm');
+
+            function calcularLaminaPorVuelta() {
+                const timer = parseFloat(inputTimer.value);
+                const laminaBase = parseFloat(inputLamina100.value);
+
+                if (!isNaN(timer) && !isNaN(laminaBase) && timer > 0) {
+                    // REGLA DE TRES INVERSA: A menor porcentaje del timer, el equipo va más lento y aplica MÁS lámina.
+                    // Fórmula física: Lámina = Lámina_al_100% * (100 / %_Timer)
+                    const resultado = laminaBase * (100 / timer);
+                    inputLaminaCalculada.value = resultado.toFixed(1);
+                } else {
+                    inputLaminaCalculada.value = '';
+                }
+            }
+
+            inputTimer.addEventListener('input', calcularLaminaPorVuelta);
+            inputLamina100.addEventListener('input', calcularLaminaPorVuelta);
         });
     </script>
 
