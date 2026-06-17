@@ -268,7 +268,7 @@ def index():
     if id_solicitado not in ['PIVOT-LOTE-A2', 'FRONTAL-F22']: 
         id_solicitado = "PIVOT-LOTE-A2"
     
-    # Manejo de Formularios
+    # Manejo de Formularios (Guardar vuelta del panel)
     if request.method == 'POST' and request.form.get('form_tipo') == 'nuevo_riego':
         equipo_id = request.form.get('equipo_id')
         lamina = float(request.form.get('lamina_mm', 0))
@@ -278,11 +278,10 @@ def index():
         estado_ingresado = request.form.get('estado_operacion', 'MARCHA')
         fecha_riego = request.form.get('fecha_riego')
         
-        # Guardar Lámina Programada del Formulario Operativo
         lamina_prog = request.form.get('lamina_programada')
         lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
         
-        # Inserción con el nuevo parámetro de lámina objetivo/programada
+        # Guardar en la base de datos
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -355,9 +354,7 @@ def index():
     
     data_render = equipos_riego[id_solicitado]
 
-    # =====================================================================
-    # SECCIÓN INTEGRADA Y CORREGIDA: SE SELECCIONA EL ESTADO DE OPERACIÓN
-    # =====================================================================
+    # SECCIÓN HISTÓRICO PARA EL GRÁFICO
     cursor.execute("""
         SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm, estado_operacion 
         FROM registro_riego 
@@ -372,7 +369,7 @@ def index():
     datos_y_presion = [r['presion_bar'] for r in registros_db]
     datos_y_posicion = [r['posicion_grados'] for r in registros_db]
     datos_y_lamina = [r['lamina_mm'] for r in registros_db]
-    datos_y_estados = [r['estado_operacion'] for r in registros_db]  # <-- NUEVA LISTA ENVIADA AL FRONT
+    datos_y_estados = [r['estado_operacion'] for r in registros_db]
 
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
     ot_reales = cursor.fetchall()
@@ -395,12 +392,11 @@ def index():
                            presiones_linea=datos_y_presion,
                            posiciones_linea=datos_y_posicion,
                            laminas_riego=datos_y_lamina,
-                           estados_riego=datos_y_estados,  # <-- VARIABLE ENLAZADA
+                           estados_riego=datos_y_estados,
                            alertas=alertas_activas,
                            repuestos=repuestos_taller,
                            total_acumulado_mm=round(total_acumulado_mm, 1))
 
-# --- FIN DEL CONTENIDO DE LA APP ---
 @app.route('/finalizar-ot/<int:ot_id>')
 @login_required
 def finalizar_ot(ot_id):
@@ -456,7 +452,7 @@ def stock():
             actual = int(request.form.get('actual', 0))
             if parte and item:
                 cursor.execute('''
-                    INSERT OR IGNORE INTO inventario (parte, motor, category, item, ubicacion, minimo, actual)
+                    INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (parte, motor_equipo, categoria, item, ubicacion, minimo, actual))
                 conn.commit()
@@ -468,13 +464,15 @@ def stock():
                     ''', (parte, actual, fecha_local))
                     conn.commit()
             return redirect(url_for('stock'))
+            
         elif form_origen == 'movimiento_stock':
             tipo_accion = request.form.get('accion') 
-            nro_parte = request.form.get('part')
+            nro_parte = request.form.get('parte') if request.form.get('parte') else request.form.get('part')
             amount = int(request.form.get('quantity', 0))
             responsable = request.form.get('responsable')
             destino_origen = request.form.get('destino_origen')
             fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
+            
             cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
             fila = cursor.fetchone()
             if fila and amount > 0:
@@ -624,6 +622,64 @@ def reportes():
         })
     conn.close()
     return render_template('reportes.html', riegos=historico_riegos, ots=historico_ots, resumen=resum_equipos, motores=motores_monitoreo, user=current_user)
+
+@app.route('/crear-ot', methods=['POST'])
+@login_required
+def crear_ot():
+    tarea = request.form.get('tarea', '').strip()
+    responsable = request.form.get('responsable', '').strip()
+    prioridad = request.form.get('prioridad', 'MEDIA')
+    equipo_id = request.form.get('equipo_id')
+    repuesto_asociado = request.form.get('repuesto_asociado', None)
+    
+    if repuesto_asociado == "" or repuesto_asociado == "Ninguno":
+        repuesto_asociado = None
+
+    fecha_actual = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
+
+    if tarea and responsable:
+        conn = conectar_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado)
+            VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)
+        ''', (tarea, responsable, prioridad, equipo_id, fecha_actual, repuesto_asociado))
+        conn.commit()
+        conn.close()
+        flash("Orden de Trabajo generada con éxito.", "success")
+    else:
+        flash("Error: Completá la tarea y el responsable.", "danger")
+        
+    return redirect(url_for('index', equipo=equipo_id))
+
+@app.route('/api/status')
+@login_required
+def api_status():
+    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (equipo_id,))
+    fila = cursor.fetchone()
+    conn.close()
+    
+    if fila:
+        return jsonify({
+            "equipo_id": fila['equipo_id'],
+            "latitud": fila['latitud'],
+            "longitud": fila['longitud'],
+            "presion": f"{fila['presion_terminal']} Bar",
+            "posicion_angular": f"{fila['posicion_actual']}°",
+            "rssi": fila['rssi'],
+            "actualizacion": fila['ultima_actualizacion']
+        }), 200
+    else:
+        lat_def = -25.1794 if equipo_id == "PIVOT-LOTE-A2" else -25.1750
+        lng_def = -63.8632 if equipo_id == "PIVOT-LOTE-A2" else -63.8500
+        return jsonify({
+            "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
+            "presion": "0.0 Bar", "posicion_angular": "0°", "rssi": "0 dBm",
+            "actualizacion": "Sin hardware configurado"
+        }), 200
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
