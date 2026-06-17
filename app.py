@@ -41,630 +41,285 @@ def inicializar_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS inventario (
             parte TEXT PRIMARY KEY,
+            item TEXT NOT NULL,
             motor TEXT,
-            categoria TEXT,
-            item TEXT,
-            ubicacion TEXT,
-            minimo INTEGER,
-            actual INTEGER
+            cantidad INTEGER DEFAULT 0,
+            pasillo TEXT,
+            estante TEXT
         )
     ''')
     
-    # Tabla de Historial de Movimientos de Repuestos
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS movimientos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tipo TEXT,
-            parte TEXT,
-            cantidad INTEGER,
-            destino_origen TEXT,
-            responsable TEXT,
-            fecha TEXT
-        )
-    ''')
-
-    # Tabla de Órdenes de Trabajo
+    # Tabla de Órdenes de Trabajo (OT)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ordenes_trabajo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarea TEXT,
-            responsable TEXT,
-            prioridad TEXT,
-            equipo_id TEXT,
-            estado TEXT,
-            fecha TEXT,
-            repuesto_asociado TEXT DEFAULT NULL,
-            horas_registro REAL DEFAULT NULL,
-            motor_id TEXT DEFAULT NULL
-        )
-    ''')
-
-    # Tabla Histórica de Riego (Estructura base)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS registro_riego (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            equipo_id TEXT,
-            lamina_mm REAL,
-            horas_operadas REAL,
-            presion_bar REAL DEFAULT 0.0,
-            posicion_grados INTEGER DEFAULT 0,
-            estado_operacion TEXT DEFAULT 'MARCHA',
-            fecha TEXT
-        )
-    ''')
-
-    # --- CONTROL DE EVOLUCIÓN: Agregar columna lamina_programada si no existe ---
-    cursor.execute("PRAGMA table_info(registro_riego)")
-    columnas = [info['name'] for info in cursor.fetchall()]
-    if 'lamina_programada' not in columnas:
-        cursor.execute("ALTER TABLE registro_riego ADD COLUMN lamina_programada REAL DEFAULT 0.0")
-
-    # Tabla de Alertas de Falla del Sistema
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS alertas_sistema (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            equipo_id TEXT,
-            tipo_falla TEXT,
-            descripcion TEXT,
-            estado TEXT,
-            fecha_hora TEXT
+            equipo_id TEXT NOT NULL,
+            tarea TEXT NOT NULL,
+            responsable TEXT NOT NULL,
+            prioridad TEXT NOT NULL,
+            repuesto_asociado TEXT,
+            fecha TEXT NOT NULL,
+            estado TEXT DEFAULT 'PENDIENTE'
         )
     ''')
     
-    # Tabla: Estado de Telemetría en Tiempo Real de las Placas Hardware
+    # Tabla de Historial Hidrológico / Libro de Riego
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS telemetria_equipos (
+        CREATE TABLE IF NOT EXISTS registro_riego (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipo_id TEXT NOT NULL,
+            lamina_mm REAL NOT NULL,
+            horas_operadas REAL NOT NULL,
+            presion_bar REAL,
+            posicion_grados INTEGER,
+            estado_operacion TEXT,
+            fecha TEXT NOT NULL,
+            lamina_programada REAL DEFAULT 0.0
+        )
+    ''')
+    
+    # Tabla de Historial de Alertas Críticas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alertas_criticas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipo_id TEXT NOT NULL,
+            tipo_falla TEXT NOT NULL,
+            descripcion TEXT,
+            fecha_hora TEXT NOT NULL,
+            activa INTEGER DEFAULT 1
+        )
+    ''')
+    
+    # Tabla de Control de Horas Físicas y Servicios
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS control_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipo_asignado TEXT NOT NULL,
+            horas_actuales REAL DEFAULT 0.0,
+            horas_proximo_service REAL NOT NULL,
+            frecuencia_horas REAL NOT NULL,
+            descripcion_tarea TEXT NOT NULL
+        )
+    ''')
+    
+    # Tabla de Telemetría Dinámica Real (Hardware LoRa / Simulación)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS telemetria_actual (
             equipo_id TEXT PRIMARY KEY,
             latitud REAL,
             longitud REAL,
             presion_terminal REAL,
-            posicion_actual INTEGER DEFAULT 0,
+            posicion_actual INTEGER,
+            estado_sistema TEXT,
             rssi TEXT,
             ultima_actualizacion TEXT
         )
     ''')
     
-    # Tabla de Monitoreo de Motores Físicos
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS control_services (
-            motor_id TEXT PRIMARY KEY,
-            motor_modelo TEXT,
-            equipo_asignado TEXT,
-            horas_actuales REAL,
-            ultimo_service REAL,
-            frecuencia_hs INTEGER DEFAULT 300
-        )
-    ''')
-    
-    # Ubicaciones iniciales (Joaquín V. González)
-    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('PIVOT-LOTE-A2', -25.1794, -63.8632, 2.4, 340, '-98 dBm', 'Nunca')")
-    cursor.execute("INSERT OR IGNORE INTO telemetria_equipos VALUES ('FRONTAL-F22', -25.1750, -63.8500, 3.2, 180, '-85 dBm', 'Nunca')")
-
-    # Inyección de datos simulados
-    cursor.execute("SELECT COUNT(*) FROM registro_riego")
+    # Datos semilla de telemetría si no existen
+    cursor.execute("SELECT COUNT(*) FROM telemetria_actual")
     if cursor.fetchone()[0] == 0:
-        datos_demo = [
-            ('PIVOT-LOTE-A2', 10.5, 4.0,  2.4, 310, 'MARCHA',   '2026-06-15 08:00', 10.5),
-            ('PIVOT-LOTE-A2', 12.0, 8.5,  2.3, 325, 'MARCHA',   '2026-06-15 14:00', 12.0),
-            ('PIVOT-LOTE-A2', 12.5, 12.0, 2.4, 340, 'MARCHA',   '2026-06-15 20:00', 12.5),
-            ('PIVOT-LOTE-A2', 11.0, 16.5, 1.8, 355, 'MARCHA',   '2026-06-16 02:00', 12.0),
-            ('PIVOT-LOTE-A2', 0.0,  2.5,  0.0, 355, 'FALLA',    '2026-06-16 04:30', 0.0),
-            ('PIVOT-LOTE-A2', 0.0,  6.0,  0.0, 355, 'PARADO',   '2026-06-16 10:30', 0.0),
-        ]
-        cursor.executemany('''
-            INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', datos_demo)
-
-    # Cargar repuestos base
-    repuestos_iniciales = [
-        ("1R-0739", "Caterpillar", "Filtros", "Filtro de Aceite", "Estante A1", 2, 5),
-        ("1R-0770", "Caterpillar", "Filtros", "Filtro Combustible / Trampa Agua", "Estante A1", 2, 1),
-        ("106-3969", "Caterpillar", "Filtros", "Filtro Aire Primario", "Estante A2", 1, 2),
-        ("504074043", "Iveco T5/T8", "Filtros", "Filtro de Aceite", "Estante B1", 3, 4),
-        ("504107584", "Iveco T5/T8", "Filtros", "Filtro de Combustible", "Estante B1", 2, 2),
-        ("504013423", "Iveco T5/T8", "Correas", "Correa Poly-V", "Estante B2", 2, 1),
-        ("1174416", "Deutz 1013", "Filtros", "Filtro de Aceite", "Estante C1", 4, 6),
-        ("1174423", "Deutz 1013", "Filtros", "Filtro de Combustible", "Estante C1", 3, 3),
-        ("4272819", "Deutz 1013", "Repuestos", "Bomba de Pre-alimentación", "Caja Herramientas", 1, 0),
-        ("Poliuretano", "Varios", "Bombas", "Goma de Acoplamiento", "Estante D1", 2, 3),
-        ("Carburo Silicio", "Varios", "Bombas", "Sello Mecánico Cornell", "Estante D1", 2, 1)
-    ]
-    cursor.executemany('''
-        INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', repuestos_iniciales)
-
-    motores_iniciales = [
-        ("INV-001", "Iveco T8", "Pivot A2", 601.1, 351.1, 300),
-        ("INV-002", "Iveco T8", "Pivot B2", 1414.8, 1118.0, 300),
-        ("INV-005", "Deutz 1013", "Frontal F22", 120.0, 0.0, 300)
-    ]
-    cursor.executemany('''
-        INSERT OR IGNORE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', motores_iniciales)
-
-    conn.commit()
-    conn.close()
-
-# --- ENLACE DIRECTO DESCARGA EXCEL/CSV DEL CICLO DE TRABAJO ---
-@app.route('/descargar-datos-ciclo/<equipo_id>')
-@login_required
-def descargar_datos_ciclo(equipo_id):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm, lamina_programada, estado_operacion 
-        FROM registro_riego 
-        WHERE equipo_id = ? 
-        ORDER BY fecha ASC
-    ''', (equipo_id,))
-    filas = cursor.fetchall()
-    conn.close()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    writer.writerow(['Fecha / Timeline', 'Horas Parciales (hs)', 'Presion en Barra (Bar)', 'Posicion Angular (°)', 'Lamina Aplicada (mm)', 'Lamina Programada (mm)', 'Estado de Operacion'])
-    for f in filas:
-        writer.writerow([f['fecha'], f['horas_operadas'], f['presion_bar'], f['posicion_grados'], f['lamina_mm'], f['lamina_programada'], f['estado_operacion']])
-    
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-disposition": f"attachment; filename=Historico_Ciclo_{equipo_id}_{datetime.now().strftime('%Y%m%d')}.csv"}
-    )
-
-@app.route('/api/telemetria', methods=['POST'])
-def recibir_telemetria():
-    data = request.get_json()
-    if not data or 'equipo_id' not in data:
-        return jsonify({"status": "error", "message": "Datos incompletos"}), 400
+        cursor.execute("INSERT INTO telemetria_actual VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       ("PIVOT-LOTE-A2", -25.1794, -63.8632, 1.8, 145, "MARCHA EN AGUA", "-88 dBm", "Hace 2 min"))
+        cursor.execute("INSERT INTO telemetria_actual VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       ("FRONTAL-F22", -25.1750, -63.8500, 0.0, 0, "PARADO FALTA PRESION", "-94 dBm", "Hace 14 min"))
         
-    equipo_id = data.get('equipo_id')
-    lat = data.get('latitud')
-    lng = data.get('longitud')
-    presion = data.get('presion_terminal')
-    posicion = data.get('posicion_actual', 0)
-    rssi = data.get('rssi', '-90 dBm')
-    fecha_gps = (datetime.utcnow() - timedelta(hours=3)).strftime('%d/%m/%Y a las %I:%M %p')
-    
-    conn = conectar_db()
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        INSERT INTO telemetria_equipos (equipo_id, latitud, longitud, presion_terminal, posicion_actual, rssi, ultima_actualizacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(equipo_id) DO UPDATE SET
-            latitud=excluded.latitud,
-            longitud=excluded.longitud,
-            presion_terminal=excluded.presion_terminal,
-            posicion_actual=excluded.posicion_actual,
-            rssi=excluded.rssi,
-            ultima_actualizacion=excluded.ultima_actualizacion
-    ''', (equipo_id, lat, lng, presion, posicion, rssi, fecha_gps))
-    
-    if presion and float(presion) < 1.5:
-        cursor.execute("SELECT COUNT(*) FROM alertas_sistema WHERE equipo_id = ? AND tipo_falla = 'Baja Presión Inalámbrica' AND estado = 'ACTIVA'", (equipo_id,))
-        if cursor.fetchone()[0] == 0:
-            cursor.execute('''
-                INSERT INTO alertas_sistema (equipo_id, tipo_falla, descripcion, estado, fecha_hora)
-                VALUES (?, 'Baja Presión Inalámbrica', ?, 'ACTIVA', ?)
-            ''', (equipo_id, f"Presión crítica detectada por hardware LoRa: {presion} Bar", (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')))
-            
+    # Datos semilla de servicios si no existen
+    cursor.execute("SELECT COUNT(*) FROM control_services")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
+                       ("Pivot A2", 214.5, 250.0, 250.0, "Cambio aceite caja reductora central y filtros"))
+        cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
+                       ("Frontal F22", 480.0, 500.0, 500.0, "Engrase general de cardanes y revisión de alineación"))
+        
     conn.commit()
     conn.close()
-    return jsonify({"status": "ok", "message": "Telemetría integrada correctamente"}), 200
 
+# Inicializar Base de Datos al arrancar la app
+inicializar_db()
+
+# --- RUTA PRINCIPAL: DASHBOARD DE MONITOREO LORA ---
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
     conn = conectar_db()
     cursor = conn.cursor()
-
-    id_solicitado = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    if id_solicitado not in ['PIVOT-LOTE-A2', 'FRONTAL-F22']: 
-        id_solicitado = "PIVOT-LOTE-A2"
     
-    # Manejo de Formularios (Guardar vuelta del panel)
-    if request.method == 'POST' and request.form.get('form_tipo') == 'nuevo_riego':
-        equipo_id = request.form.get('equipo_id')
-        lamina = float(request.form.get('lamina_mm', 0))
-        horas = float(request.form.get('horas_operadas', 0))
-        presion_ingresada = float(request.form.get('presion_bar', 2.2))
-        posicion_ingresada = int(request.form.get('posicion_grados', 0))
-        estado_ingresado = request.form.get('estado_operacion', 'MARCHA')
-        fecha_riego = request.form.get('fecha_riego')
-        
-        lamina_prog = request.form.get('lamina_programada')
-        lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
-        
-        # Guardar en la base de datos
-        cursor.execute('''
-            INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (equipo_id, lamina, horas, presion_ingresada, posicion_ingresada, estado_ingresado, fecha_riego, lamina_prog_val))
-        
-        mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
-        nombre_mapeado = mapa_equipos.get(equipo_id, "")
-        if nombre_mapeado and estado_ingresado == 'MARCHA':
-            cursor.execute("UPDATE control_services SET horas_actuales = horas_actuales + ? WHERE equipo_asignado = ?", (horas, nombre_mapeado))
-        
-        conn.commit()
-        return redirect(url_for('index', equipo=equipo_id))
-
-    # CONSULTA TELEMETRÍA REAL
-    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (id_solicitado,))
-    tel_db = cursor.fetchone()
-
-    if tel_db and tel_db['ultima_actualizacion'] != 'Nunca':
-        estado_calculado = "MARCHA"
-        presion_calculada = f"{tel_db['presion_terminal']} Bar" if tel_db['presion_terminal'] else "0.0 Bar"
-        posicion_calculada = f"GPS: {tel_db['latitud']}, {tel_db['longitud']}"
-        angulo_actual = f"{tel_db['posicion_actual']}°"
-        lectura_texto = tel_db['ultima_actualizacion']
-        rssi_val = tel_db['rssi'] if tel_db['rssi'] else "0 dBm"
-        lat_val = tel_db['latitud'] if tel_db['latitud'] else -25.1794
-        lng_val = tel_db['longitud'] if tel_db['longitud'] else -63.8632
-    else:
-        estado_calculado = "DESCONECTADO"
-        presion_calculada = "0.0 Bar"
-        posicion_calculada = "Sin Coordenadas GPS"
-        angulo_actual = "0°"
-        lectura_texto = "Nunca (Hardware no enlazado)"
-        rssi_val = "0 dBm"
-        lat_val = -25.1794 if id_solicitado == "PIVOT-LOTE-A2" else -25.1750
-        lng_val = -63.8632 if id_solicitado == "PIVOT-LOTE-A2" else -63.8500
-
-    # CÁLCULOS SUMATORIOS DE LAS TARJETAS (KPIs)
-    cursor.execute("SELECT SUM(horas_operadas) as hs_r FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'MARCHA'", (id_solicitado,))
-    calc_riego = cursor.fetchone()['hs_r'] or 0.0
+    equipo_seleccionado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
-    cursor.execute("SELECT SUM(horas_operadas) as hs_f FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'FALLA'", (id_solicitado,))
-    calc_falla = cursor.fetchone()['hs_f'] or 0.0
-    
-    cursor.execute("SELECT SUM(horas_operadas) as hs_m FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'MOVIMIENTO'", (id_solicitado,))
-    calc_mov = cursor.fetchone()['hs_m'] or 0.0
+    # Procesar Formularios Secundarios (Alertas) del Index
+    if request.method == 'POST':
+        form_tipo = request.form.get('form_tipo')
+        eq_id = request.form.get('equipo_id')
+        
+        if form_tipo == 'nueva_alerta':
+            tipo_falla = request.form.get('tipo_falla')
+            desc = request.form.get('descripcion')
+            ahora = datetime.now().strftime('%H:%M - %d/%m')
+            
+            cursor.execute('''
+                INSERT INTO alertas_criticas (equipo_id, tipo_falla, descripcion, fecha_hora, activa)
+                VALUES (?, ?, ?, ?, 1)
+            ''', (eq_id, tipo_falla, desc, ahora))
+            
+            cursor.execute('''
+                UPDATE telemetria_actual 
+                SET estado_sistema = ?, ultima_actualizacion = 'Alerta Reportada'
+                WHERE equipo_id = ?
+            ''', (f"FALLA: {tipo_falla}", eq_id))
+            
+            conn.commit()
+            flash("Alerta de rotura emitida al panel técnico.", "danger")
+            
+        return redirect(url_for('index', equipo=equipo_seleccionado))
 
-    cursor.execute("SELECT SUM(horas_operadas) as hs_p FROM registro_riego WHERE equipo_id = ? AND estado_operacion = 'PARADO'", (id_solicitado,))
-    calc_parado = cursor.fetchone()['hs_p'] or 0.0
+    # Lectura de Telemetría Dinámica de la DB
+    cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
+    fila_telemetria = cursor.fetchone()
     
-    # Calcular Lámina Acumulada
-    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (id_solicitado,))
-    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
-
-    equipos_riego = {
-        "PIVOT-LOTE-A2": {
-            "id": "PIVOT-LOTE-A2", "nombre_corto": "Lote A2", "tipo": "Pivot Central", "lote": "Lote A2 (156 Ha)",
-            "posicion": posicion_calculada, "caudal": "115.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
-            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": rssi_val,
-            "ultima_lectura": lectura_texto, "lat": lat_val, "lng": lng_val,
-            "hs_riego": round(calc_riego, 1), "hs_falla": round(calc_falla, 1), "hs_movimiento": round(calc_mov, 1), "hs_parado": round(calc_parado, 1)
-        },
-        "FRONTAL-F22": {
-            "id": "FRONTAL-F22", "nombre_corto": "Frontal F22", "tipo": "Avance Frontal Lineal", "lote": "Cuadro Norte (210 Ha)",
-            "posicion": posicion_calculada, "caudal": "120.000 L/h" if estado_calculado == "MARCHA" else "0 L/h", 
-            "estado": estado_calculado, "presion": presion_calculada, "posicion_tramo": angulo_actual, "senal": rssi_val,
-            "ultima_lectura": lectura_texto, "lat": lat_val, "lng": lng_val,
-            "hs_riego": round(calc_riego, 1), "hs_falla": round(calc_falla, 1), "hs_movimiento": round(calc_mov, 1), "hs_parado": round(calc_parado, 1)
+    if fila_telemetria:
+        data_equipo = {
+            "id": fila_telemetria['equipo_id'],
+            "nombre_corto": "Pivot Lote A2" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Frontal F22",
+            "lote": "Lote A2 - Maíz (156 Ha)" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Cuadro Norte - Soja (210 Ha)",
+            "estado": fila_telemetria['estado_sistema'],
+            "presion": f"{fila_telemetria['presion_terminal']} Bar",
+            "caudal": "185.000" if "MARCHA" in fila_telemetria['estado_sistema'] else "0",
+            "posicion_tramo": f"{fila_telemetria['posicion_actual']}°",
+            "ultima_lectura": fila_telemetria['ultima_actualizacion'],
+            "senal": fila_telemetria['rssi'],
+            "lat": fila_telemetria['latitud'],
+            "lng": fila_telemetria['longitud']
         }
+    else:
+        data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": "0 Bar", "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
+
+    # Carga de selectores de equipos superiores
+    todos_equipos = {
+        "PIVOT-LOTE-A2": {"nombre_corto": "Pivot Lote A2"},
+        "FRONTAL-F22": {"nombre_corto": "Frontal F22"}
     }
     
-    data_render = equipos_riego[id_solicitado]
-
-    # SECCIÓN HISTÓRICO PARA EL GRÁFICO
-    cursor.execute("""
-        SELECT fecha, horas_operadas, presion_bar, posicion_grados, lamina_mm, estado_operacion 
-        FROM registro_riego 
-        WHERE equipo_id = ? 
-        ORDER BY fecha ASC 
-        LIMIT 15
-    """, (id_solicitado,))
-    registros_db = cursor.fetchall()
+    # Órdenes de Trabajo de este equipo
+    cursor.execute("SELECT * FROM ordenes_trabajo WHERE equipo_id = ? AND estado = 'PENDIENTE'", (equipo_seleccionado,))
+    ots = cursor.fetchall()
     
-    eje_x_fechas = [r['fecha'].strftime('%d/%m') if hasattr(r['fecha'], 'strftime') else str(r['fecha']) for r in registros_db]
-    datos_y_horas = [r['horas_operadas'] for r in registros_db]
-    datos_y_presion = [r['presion_bar'] for r in registros_db]
-    datos_y_posicion = [r['posicion_grados'] for r in registros_db]
-    datos_y_lamina = [r['lamina_mm'] for r in registros_db]
-    datos_y_estados = [r['estado_operacion'] for r in registros_db]
-
-    cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'PENDIENTE' AND equipo_id = ? ORDER BY id DESC", (id_solicitado,))
-    ot_reales = cursor.fetchall()
+    # Repuestos para el desplegable de OTs
+    cursor.execute("SELECT parte, item, motor FROM inventario WHERE cantidad > 0")
+    repuestos = cursor.fetchall()
     
-    cursor.execute("SELECT * FROM alertas_sistema WHERE estado = 'ACTIVA' ORDER BY id DESC")
+    # Alertas activas en la barra superior
+    cursor.execute("SELECT * FROM alertas_criticas WHERE activa = 1")
     alertas_activas = cursor.fetchall()
-
-    cursor.execute("SELECT parte, item, motor FROM inventario WHERE actual > 0")
-    repuestos_taller = cursor.fetchall()
-
+    
+    # Cálculo de lámina acumulada
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
+    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
+    
+    # Historial para el gráfico de barras/líneas de Chart.js
+    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
+    registros_grafico = cursor.fetchall()[::-1] # Invertir para orden cronológico izquierdo a derecho
+    
+    fechas_riego = [r['fecha'] for r in registros_grafico]
+    laminas_riego = [r['lamina_mm'] for r in registros_grafico]
+    horas_riego = [r['horas_operadas'] for r in registros_grafico]
+    
     conn.close()
     
     return render_template('dashboard.html', 
-                           data=data_render, 
-                           todos_equipos=equipos_riego, 
-                           ot=ot_reales, 
-                           user=current_user,
-                           fechas_riego=eje_x_fechas,
-                           horas_riego=datos_y_horas,
-                           presiones_linea=datos_y_presion,
-                           posiciones_linea=datos_y_posicion,
-                           laminas_riego=datos_y_lamina,
-                           estados_riego=datos_y_estados,
+                           data=data_equipo, 
+                           todos_equipos=todos_equipos, 
+                           ot=ots, 
+                           repuestos=repuestos, 
                            alertas=alertas_activas,
-                           repuestos=repuestos_taller,
-                           total_acumulado_mm=round(total_acumulado_mm, 1))
+                           total_acumulado_mm=round(total_acumulado_mm, 1),
+                           fechas_riego=fechas_riego,
+                           laminas_riego=laminas_riego,
+                           horas_riego=horas_riego)
 
-@app.route('/finalizar-ot/<int:ot_id>')
+# --- NUEVA RUTA APARTE: SEPARADOR DE REGISTRO DE RIEGO (DOS COLUMNAS) ---
+@app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
-def finalizar_ot(ot_id):
+def registrar_riego():
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT equipo_id, repuesto_asociado, tarea, responsable FROM ordenes_trabajo WHERE id = ?", (ot_id,))
-    ot = cursor.fetchone()
-    if ot:
-        equipo_id = ot['equipo_id']
-        repuesto = ot['repuesto_asociado']
-        if repuesto:
-            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (repuesto,))
-            inv = cursor.fetchone()
-            if inv and inv['actual'] > 0:
-                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (inv['actual'] - 1, repuesto))
-                fecha_mov = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
-                cursor.execute('''
-                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) 
-                    VALUES ('salida', ?, 1, ?, ?, ?)
-                ''', (repuesto, f"Uso en OT #{ot_id} ({equipo_id})", ot['responsable'], fecha_mov))
-        cursor.execute("UPDATE ordenes_trabajo SET estado = 'COMPLETADA' WHERE id = ?", (ot_id,))
-        conn.commit()
-    conn.close()
-    return redirect(url_for('index', equipo=equipo_id if ot else 'PIVOT-LOTE-A2'))
-
-@app.route('/desactivar-alerta/<int:alerta_id>')
-@login_required
-def desactivar_alerta(alerta_id):
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT equipo_id FROM alertas_sistema WHERE id = ?", (alerta_id,))
-    fila = cursor.fetchone()
-    equipo_id = fila['equipo_id'] if fila else 'PIVOT-LOTE-A2'
-    cursor.execute("UPDATE alertas_sistema SET estado = 'SOLUCIONADA' WHERE id = ?", (alerta_id,))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('index', equipo=equipo_id))
-
-@app.route('/stock', methods=['GET', 'POST'])
-@login_required
-def stock():
-    conn = conectar_db()
-    cursor = conn.cursor()
+    
+    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
+    
     if request.method == 'POST':
-        form_origen = request.form.get('form_origen')
-        if form_origen == 'alta_articulo':
-            parte = request.form.get('parte').strip()
-            item = request.form.get('item').strip()
-            categoria = request.form.get('categoria')
-            motor_equipo = request.form.get('motor_equipo').strip()
-            ubicacion = request.form.get('ubicacion').strip()
-            minimo = int(request.form.get('minimo', 0))
-            actual = int(request.form.get('actual', 0))
-            if parte and item:
-                cursor.execute('''
-                    INSERT OR IGNORE INTO inventario (parte, motor, categoria, item, ubicacion, minimo, actual)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (parte, motor_equipo, categoria, item, ubicacion, minimo, actual))
-                conn.commit()
-                if actual > 0:
-                    fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
-                    cursor.execute('''
-                        INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
-                        VALUES ('entrada', ?, ?, 'Carga Inicial de Sistema', 'Marcelo Daniel', ?)
-                    ''', (parte, actual, fecha_local))
-                    conn.commit()
-            return redirect(url_for('stock'))
-            
-        elif form_origen == 'movimiento_stock':
-            tipo_accion = request.form.get('accion') 
-            nro_parte = request.form.get('parte') if request.form.get('parte') else request.form.get('part')
-            amount = int(request.form.get('quantity', 0))
-            responsable = request.form.get('responsable')
-            destino_origen = request.form.get('destino_origen')
-            fecha_local = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
-            
-            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (nro_parte,))
-            fila = cursor.fetchone()
-            if fila and amount > 0:
-                stock_actual = fila['actual']
-                if tipo_accion == 'entrada':
-                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual + amount, nro_parte))
-                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('entrada', ?, ?, ?, ?, ?)", (nro_parte, amount, destino_origen, responsable, fecha_local))
-                elif tipo_accion == 'salida' and stock_actual >= amount:
-                    cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (stock_actual - amount, nro_parte))
-                    cursor.execute("INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha) VALUES ('salida', ?, ?, ?, ?, ?)", (nro_parte, amount, destino_origen, responsable, fecha_local))
-                conn.commit()
-            return redirect(url_for('stock'))
-
-    cursor.execute("SELECT * FROM inventario ORDER BY categoria ASC, item ASC")
-    lista_inventario = cursor.fetchall()
-    cursor.execute("SELECT m.*, i.item, i.motor FROM movimientos m JOIN inventario i ON m.parte = i.parte WHERE m.tipo = 'entrada' ORDER BY m.id DESC LIMIT 10")
-    entradas = cursor.fetchall()
-    cursor.execute("SELECT m.*, i.item, i.motor FROM movimientos m JOIN inventario i ON m.parte = i.parte WHERE m.tipo = 'salida' ORDER BY m.id DESC LIMIT 10")
-    salidas = cursor.fetchall()
-    conn.close()
-    return render_template('stock.html', stock=lista_inventario, entries=entradas, exits=salidas, user=current_user)
-
-@app.route('/mantenimiento')
-@login_required
-def mantenimiento():
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT motor_id, motor_modelo, equipo_asignado FROM control_services ORDER BY motor_id ASC")
-    motores_disponibles = cursor.fetchall()
-    conn.close()
-    return render_template('mantenimiento.html', motores=motores_disponibles)
-
-@app.route('/guardar_mantenimiento', methods=['POST'])
-@login_required
-def guardar_mantenimiento():
-    fecha = request.form.get('fecha')
-    responsable = request.form.get('responsable')
-    motor_seleccionado = request.form.get('motor_id')
-    nuevo_motor_id = request.form.get('nuevo_motor_id', '').strip()
-    nuevo_motor_modelo = request.form.get('nuevo_motor_modelo', '').strip()
-    equipo_seleccionado = request.form.get('equipo_asignado')
-    nuevo_equipo_manual = request.form.get('nuevo_equipo_manual', '').strip()
-    
-    if equipo_seleccionado == 'MANUAL' and nuevo_equipo_manual:
-        equipo_asignado = nuevo_equipo_manual
-    else:
-        equipo_asignado = equipo_seleccionado
+        # Captura de datos estructurados según el diseño del papel
+        lamina_prog = request.form.get('lamina_programada')
+        lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
+        fecha_riego = request.form.get('fecha_riego')
         
-    horas_registro = float(request.form.get('horas', 0))
-    filtro_aceite = request.form.get('filtro_aceite', '').strip()
-    filtro_combustible = request.form.get('filtro_combustible', '').strip()
-    filtro_aire = request.form.get('filtro_aire', '').strip()
-    aceite_motor = request.form.get('aceite_motor', '').strip()
-    reparacion_embrague = "SÍ" if request.form.get('embrague') else "NO"
-    reparacion_ferodo = "SÍ" if request.form.get('ferodo') else "NO"
-    observaciones = request.form.get('observaciones', '').strip()
-    
-    conn = conectar_db()
-    cursor = conn.cursor()
-    
-    if motor_seleccionado == 'NUEVO' and nuevo_motor_id and nuevo_motor_modelo:
-        cursor.execute('''
-            INSERT OR REPLACE INTO control_services (motor_id, motor_modelo, equipo_asignado, horas_actuales, ultimo_service, frecuencia_hs)
-            VALUES (?, ?, ?, ?, ?, 300)
-        ''', (nuevo_motor_id, nuevo_motor_modelo, equipo_asignado, horas_registro, horas_registro))
-        motor_final_id = nuevo_motor_id
-        motor_final_modelo = nuevo_motor_modelo
-    else:
-        cursor.execute("SELECT motor_modelo FROM control_services WHERE motor_id = ?", (motor_seleccionado,))
-        res_m = cursor.fetchone()
-        motor_final_id = motor_seleccionado
-        motor_final_modelo = res_m['motor_modelo'] if res_m else "Desconocido"
-        cursor.execute('''
-            UPDATE control_services 
-            SET equipo_asignado = ?, horas_actuales = ?, ultimo_service = ? 
-            WHERE motor_id = ?
-        ''', (equipo_asignado, horas_registro, horas_registro, motor_final_id))
-
-    detalles_reparacion = []
-    if reparacion_embrague == "SÍ": detalles_reparacion.append("Reparación de Embrague")
-    if reparacion_ferodo == "SÍ": detalles_reparacion.append("Recambio de Ferodo")
-    
-    str_reparaciones = ", ".join(detalles_reparacion) if detalles_reparacion else "Mantenimiento Preventivo Regular"
-    tarea_desc = f"Motor: {motor_final_modelo} ({motor_final_id}) en {equipo_asignado}. Labor: {str_reparaciones}. Novedades: {observaciones}"
-    repuestos_detallados = f"F.Aceite: {filtro_aceite} | F.Comb: {filtro_combustible} | Aceite: {aceite_motor}"
-    
-    cursor.execute('''
-        INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado, horas_registro, motor_id)
-        VALUES (?, ?, 'ALTA', ?, 'COMPLETADA', ?, ?, ?, ?)
-    ''', (tarea_desc, responsable, equipo_asignado, fecha, repuestos_detallados, horas_registro, motor_final_id))
-    
-    repuestos_a_descontar = [filtro_aceite, filtro_aire]
-    if " / " in filtro_combustible:
-        repuestos_a_descontar.extend(filtro_combustible.split(" / "))
-    else:
-        repuestos_a_descontar.append(filtro_combustible)
+        horas_panel = float(request.form.get('horas_panel', 0))
+        horas_motor = float(request.form.get('horas_motor', 0))
+        lamina_real = float(request.form.get('lamina_mm', 0))
         
-    for parte_id in repuestos_a_descontar:
-        parte_id = parte_id.replace("Cod.", "").strip()
-        if parte_id:
-            cursor.execute("SELECT actual FROM inventario WHERE parte = ?", (parte_id,))
-            inv_fila = cursor.fetchone()
-            if inv_fila and inv_fila['actual'] > 0:
-                nuevo_stock = inv_fila['actual'] - 1
-                cursor.execute("UPDATE inventario SET actual = ? WHERE parte = ?", (nuevo_stock, parte_id))
-                cursor.execute('''
-                    INSERT INTO movimientos (tipo, parte, cantidad, destino_origen, responsable, fecha)
-                    VALUES ('salida', ?, 1, ?, ?, ?)
-                ''', (parte_id, f"Service Motor {motor_final_id}", responsable, fecha + " 00:00:00"))
-
-    conn.commit()
-    conn.close()
-    return redirect(url_for('reportes'))
-
-@app.route('/reportes')
-@login_required
-def reportes():
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM registro_riego ORDER BY fecha DESC")
-    historico_riegos = cursor.fetchall()
-    cursor.execute("SELECT * FROM ordenes_trabajo WHERE estado = 'COMPLETADA' ORDER BY fecha DESC")
-    historico_ots = cursor.fetchall()
-    cursor.execute("SELECT equipo_id, SUM(lamina_mm) as mm_totales, SUM(horas_operadas) as hs_totales, COUNT(id) as vueltas FROM registro_riego GROUP BY equipo_id")
-    resum_equipos = cursor.fetchall()
-    cursor.execute("SELECT *, (ultimo_service + frecuencia_hs) AS proximo_service, ((ultimo_service + frecuencia_hs) - horas_actuales) AS horas_restantes FROM control_services")
-    motores_crudo = cursor.fetchall()
-    
-    motores_monitoreo = []
-    for m in motores_crudo:
-        hs_restantes = m['horas_restantes']
-        if hs_restantes <= 0:
-            estado_servicio = "VENCIDO"
-            color_clase = "danger"
-        elif hs_restantes <= 25:
-            estado_servicio = "CRÍTICO"
-            color_clase = "warning"
-        else:
-            estado_servicio = "AL DÍA"
-            color_clase = "success"
-            
-        motores_monitoreo.append({
-            "motor_id": m['motor_id'], "motor_modelo": m['motor_modelo'], "equipo_asignado": m['equipo_asignado'],
-            "horas_actuales": round(m['horas_actuales'], 1), "ultimo_service": round(m['ultimo_service'], 1),
-            "frecuencia_hs": m['frecuencia_hs'], "proximo_service": round(m['proximo_service'], 1),
-            "horas_restantes": round(hs_restantes, 1), "estado": estado_servicio, "color": color_clase
-        })
-    conn.close()
-    return render_template('reportes.html', riegos=historico_riegos, ots=historico_ots, resumen=resum_equipos, motores=motores_monitoreo, user=current_user)
-
-@app.route('/crear-ot', methods=['POST'])
-@login_required
-def crear_ot():
-    tarea = request.form.get('tarea', '').strip()
-    responsable = request.form.get('responsable', '').strip()
-    prioridad = request.form.get('prioridad', 'MEDIA')
-    equipo_id = request.form.get('equipo_id')
-    repuesto_asociado = request.form.get('repuesto_asociado', None)
-    
-    if repuesto_asociado == "" or repuesto_asociado == "Ninguno":
-        repuesto_asociado = None
-
-    fecha_actual = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S')
-
-    if tarea and responsable:
-        conn = conectar_db()
-        cursor = conn.cursor()
+        # Insertar en tabla de históricos hidrológicos
         cursor.execute('''
-            INSERT INTO ordenes_trabajo (tarea, responsable, prioridad, equipo_id, estado, fecha, repuesto_asociado)
-            VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)
-        ''', (tarea, responsable, prioridad, equipo_id, fecha_actual, repuesto_asociado))
+            INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
+            VALUES (?, ?, ?, 2.2, 0, 'MARCHA', ?, ?)
+        ''', (equipo_id, lamina_real, horas_panel, fecha_riego, lamina_prog_val))
+        
+        # Mapeo e impacto directo sobre las HORAS MOTOR reales en control de servicios preventivos
+        mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
+        nombre_mapeado = mapa_equipos.get(equipo_id, "")
+        
+        if nombre_mapeado and horas_motor > 0:
+            cursor.execute('''
+                UPDATE control_services 
+                SET horas_actuales = horas_actuales + ? 
+                WHERE equipo_asignado = ?
+            ''', (horas_motor, nombre_mapeado))
+        
+        # Actualización rápida simulada de telemetría para ver el cambio en el panel central
+        cursor.execute('''
+            UPDATE telemetria_actual
+            SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = 2.2, ultima_actualizacion = 'Turno Cargado'
+            WHERE equipo_id = ?
+        ''', (equipo_id,))
+        
         conn.commit()
         conn.close()
-        flash("Orden de Trabajo generada con éxito.", "success")
-    else:
-        flash("Error: Completá la tarea y el responsable.", "danger")
         
-    return redirect(url_for('index', equipo=equipo_id))
+        flash(f"Registro de riego hídrico completado para {equipo_id}. Horas acumuladas.", "success")
+        return redirect(url_for('index', equipo=equipo_id))
 
+    # --- MÉTODO GET: Cargar datos preliminares de la DB ---
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
+    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
+    
+    equipos_mapa = {
+        "PIVOT-LOTE-A2": {"id": "PIVOT-LOTE-A2", "lote": "Lote A2 - Maíz (156 Ha)", "nombre_corto": "Pivot Lote A2"},
+        "FRONTAL-F22": {"id": "FRONTAL-F22", "lote": "Cuadro Norte - Soja (210 Ha)", "nombre_corto": "Frontal F22"}
+    }
+    data_equipo = equipos_mapa.get(equipo_id, equipos_mapa["PIVOT-LOTE-A2"])
+    
+    conn.close()
+    
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    
+    return render_template('registrar_riego.html', 
+                           data=data_equipo, 
+                           total_acumulado_mm=round(total_acumulado_mm, 1), 
+                           fecha_hoy=fecha_hoy,
+                           user=current_user)
+
+# --- ENDPOINT API PARA MAPA (LEAFLET REAL-TIME CONSULTAS AJAX) ---
 @app.route('/api/status')
-@login_required
 def api_status():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM telemetria_equipos WHERE equipo_id = ?", (equipo_id,))
+    cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_id,))
     fila = cursor.fetchone()
     conn.close()
     
     if fila:
         return jsonify({
             "equipo_id": fila['equipo_id'],
+            "estado": fila['estado_sistema'],
             "latitud": fila['latitud'],
             "longitud": fila['longitud'],
             "presion": f"{fila['presion_terminal']} Bar",
@@ -681,6 +336,7 @@ def api_status():
             "actualizacion": "Sin hardware configurado"
         }), 200
 
+# --- SECCIÓN 1: LOGIN Y CONTROL DE SESIÓN ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -692,15 +348,183 @@ def login():
             login_user(user)
             return redirect(url_for('index'))
         else:
-            error = "Usuario o contraseña incorrectos."
+            error = "Credenciales de operador incorrectas."
     return render_template('login.html', error=error)
 
 @app.route('/logout')
+@login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# --- SECCIÓN 2: GESTIÓN DE STOCK E INVENTARIO ---
+@app.route('/stock', methods=['GET', 'POST'])
+@login_required
+def stock():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        parte = request.form.get('parte').strip().upper()
+        item = request.form.get('item')
+        motor = request.form.get('motor')
+        cantidad = int(request.form.get('cantidad', 0))
+        pasillo = request.form.get('pasillo')
+        estante = request.form.get('estante')
+        
+        cursor.execute('''
+            INSERT INTO inventario (parte, item, motor, cantidad, pasillo, estante)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(parte) DO UPDATE SET
+                cantidad = cantidad + excluded.cantidad,
+                item = excluded.item,
+                motor = excluded.motor,
+                pasillo = excluded.pasillo,
+                estante = excluded.estante
+        ''', (parte, item, motor, cantidad, pasillo, estante))
+        conn.commit()
+        flash(f"Insumo técnico [{parte}] guardado o actualizado correctamente.", "success")
+        return redirect(url_for('stock'))
+        
+    cursor.execute("SELECT * FROM inventario ORDER BY parte ASC")
+    items_stock = cursor.fetchall()
+    conn.close()
+    return render_template('stock.html', inventario=items_stock)
+
+# --- SECCIÓN 3: PLAN DE MANTENIMIENTO PREVENTIVO Y HORAS ---
+@app.route('/mantenimiento', methods=['GET', 'POST'])
+@login_required
+def mantenimiento():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        equipo = request.form.get('equipo_asignado')
+        freq = float(request.form.get('frecuencia_horas'))
+        horas_act = float(request.form.get('horas_actuales', 0))
+        desc = request.form.get('descripcion_tarea')
+        prox = horas_act + freq
+        
+        cursor.execute('''
+            INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (equipo, horas_act, prox, freq, desc))
+        conn.commit()
+        flash("Nuevo plan de alerta de service establecido.", "success")
+        return redirect(url_for('mantenimiento'))
+        
+    cursor.execute("SELECT * FROM control_services ORDER BY id DESC")
+    servicios = cursor.fetchall()
+    conn.close()
+    return render_template('mantenimiento.html', servicios=servicios)
+
+# --- SECCIÓN 4: CREACIÓN Y GESTIÓN DE ORDENES DE TRABAJO (OT) ---
+@app.route('/crear-ot', methods=['POST'])
+@login_required
+def crear_ot():
+    equipo_id = request.form.get('equipo_id')
+    tarea = request.form.get('tarea')
+    responsable = request.form.get('responsable')
+    prioridad = request.form.get('prioridad')
+    repuesto_asociado = request.form.get('repuesto_asociado')
+    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+    
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO ordenes_trabajo (equipo_id, tarea, responsable, prioridad, repuesto_asociado, fecha, estado)
+        VALUES (?, ?, ?, ?, ?, ?, 'PENDIENTE')
+    ''', (equipo_id, tarea, responsable, prioridad, repuesto_asociado, fecha_hoy))
+    conn.commit()
+    conn.close()
+    
+    flash("Orden de Trabajo Técnica abierta y asignada.", "success")
+    return redirect(url_for('index', equipo=equipo_id))
+
+@app.route('/finalizar-ot/<int:ot_id>')
+@login_required
+def finalizar_ot(ot_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM ordenes_trabajo WHERE id = ?", (ot_id,))
+    ot = cursor.fetchone()
+    
+    if ot:
+        # Descontar del inventario físico el repuesto comprometido si existiera
+        if ot['repuesto_asociado']:
+            cursor.execute('''
+                UPDATE inventario 
+                SET cantidad = MAX(0, cantidad - 1) 
+                WHERE parte = ?
+            ''', (ot['repuesto_asociado'],))
+            
+        cursor.execute("UPDATE ordenes_trabajo SET estado = 'DESPACHADA' WHERE id = ?", (ot_id,))
+        conn.commit()
+        flash(f"Orden de Trabajo #{ot_id} despachada con éxito. Insumos descontados.", "success")
+        
+    conn.close()
+    return redirect(url_for('index', equipo=ot['equipo_id'] if ot else 'PIVOT-LOTE-A2'))
+
+@app.route('/desactivar-alerta/<int:alerta_id>')
+@login_required
+def desactivar_alerta(alerta_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT equipo_id FROM alertas_criticas WHERE id = ?", (alerta_id,))
+    al = cursor.fetchone()
+    
+    cursor.execute("UPDATE alertas_criticas SET activa = 0 WHERE id = ?", (alerta_id,))
+    
+    if al:
+        cursor.execute('''
+            UPDATE telemetria_actual 
+            SET estado_sistema = 'MARCHA EN AGUA' 
+            WHERE equipo_id = ?
+        ''', (al['equipo_id'],))
+        
+    conn.commit()
+    conn.close()
+    flash("Alerta archivada. Equipo restablecido en condiciones operativas estándar.", "success")
+    return redirect(url_for('index', equipo=al['equipo_id'] if al else 'PIVOT-LOTE-A2'))
+
+# --- SECCIÓN 5: REPORTES E HISTÓRICOS GENERALES ---
+@app.route('/reportes')
+@login_required
+def reportes():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM registro_riego ORDER BY id DESC")
+    todos_riegos = cursor.fetchall()
+    conn.close()
+    return render_template('reportes.html', riegos=todos_riegos)
+
+@app.route('/descargar-datos-ciclo/<equipo_id>')
+@login_required
+def descargar_datos_ciclo(equipo_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, fecha, lamina_programada, lamina_mm, horas_operadas, presion_bar 
+        FROM registro_riego 
+        WHERE equipo_id = ? 
+        ORDER BY id ASC
+    ''', (equipo_id,))
+    filas = cursor.fetchall()
+    conn.close()
+    
+    def generar_csv():
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Nro_Turno', 'Fecha_Operacion', 'Lamina_Programada_mm', 'Lamina_Real_Aplicada_mm', 'Horas_Marcha_Panel', 'Presion_Trabajo_Bar'])
+        for f in filas:
+            writer.writerow([f['id'], f['fecha'], f['lamina_programada'], f['lamina_mm'], f['horas_operadas'], f['presion_bar']])
+        return output.getvalue()
+        
+    response = Response(generar_csv(), mimetype='text/csv')
+    response.headers.set("Content-Disposition", f"attachment; filename=historial_riego_{equipo_id}.csv")
+    return response
+
 if __name__ == '__main__':
-    inicializar_db()
-    puerto = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=puerto)
+    app.run(debug=True, port=5000)
