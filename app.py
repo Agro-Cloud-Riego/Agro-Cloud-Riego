@@ -27,7 +27,31 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA CON TIMEOUT ---
+# --- RUTA DE LOGIN (FALTABA ESTA FUNCIÓN Y POR ESO DABA ERROR RENDER) ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username in usuarios_sistema and usuarios_sistema[username] == password:
+            user = User(username)
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'danger')
+    # Si entra por GET, renderiza una interfaz simple o redirige automáticamente si prefieres no usar clave
+    return '''
+        <div style="background:#0b0f19; color:white; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+            <form method="POST" style="background:#131c2e; padding:30px; border-radius:12px; border:1px solid #233554; display:flex; flex-direction:column; gap:15px; width:300px;">
+                <h3 style="margin:0; text-align:center;">AgroRiego Pro - Acceso</h3>
+                <input type="text" name="username" placeholder="Usuario (marcelo)" required style="padding:10px; background:#0f172a; border:1px solid #233554; color:white; border-radius:6px;">
+                <input type="password" name="password" placeholder="Contraseña" required style="padding:10px; background:#0f172a; border:1px solid #233554; color:white; border-radius:6px;">
+                <button type="submit" style="background:#10b981; color:white; border:none; padding:12px; font-weight:bold; border-radius:6px; cursor:pointer;">Ingresar al Sistema</button>
+            </form>
+        </div>
+    '''
+
+# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA ---
 def conectar_db():
     conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
@@ -68,13 +92,13 @@ def inicializar_db():
         CREATE TABLE IF NOT EXISTS registro_riego (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             equipo_id TEXT NOT NULL,
-            fecha TEXT NOT NULL,                -- Se usa como Fecha Inicio
-            horas_operadas REAL NOT NULL,       -- Se usa como Hs Inicio (Panel)
-            horas_parada TEXT,                  -- Se usa como Fecha Fin (Texto/Date)
-            duracion_vuelta REAL,               -- Se usa como Hs Fin (Panel)
-            posicion_grados INTEGER,            -- Se usa como Tiempo Recorrido Calculado
-            lamina_mm REAL NOT NULL,            -- Lámina Real Aplicada
-            estado_operacion TEXT,              -- Se usa como Motivo de Parada / Observación
+            fecha TEXT NOT NULL,                
+            horas_operadas REAL NOT NULL,       
+            horas_parada TEXT,                  
+            duracion_vuelta REAL,               
+            posicion_grados INTEGER,            
+            lamina_mm REAL NOT NULL,            
+            estado_operacion TEXT,              
             presion_bar REAL,
             lamina_programada REAL DEFAULT 0.0,
             nro_vuelta INTEGER
@@ -246,7 +270,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (ESTILO PLANILLA EXCEL SEGUIMIENTO - COMPLETO Y UNIFICADO) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (ESTILO PLANILLA EXCEL SEGUIMIENTO) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -265,7 +289,6 @@ def registrar_riego():
             nro_vuelta = request.form.get('nro_vuelta')
             nro_vuelta_val = int(nro_vuelta) if nro_vuelta else None
             
-            # Se crea el registro marcándolo "EN MARCHA"
             cursor.execute('''
                 INSERT INTO registro_riego (
                     equipo_id, fecha, horas_operadas, estado_operacion, 
@@ -298,10 +321,9 @@ def registrar_riego():
                 hs_inicio = reg_apertura['horas_operadas']
                 equipo_id = reg_apertura['equipo_id']
                 
-                # Cálculo de tiempo recorrido (Hs Fin - Hs Inicio)
+                # Tiempo recorrido = Hs Fin - Hs Inicio
                 tiempo_recorrido = hs_fin - hs_inicio
                 
-                # Modificamos estado_operacion para quitar el 'EN MARCHA' y poner el motivo de parada
                 cursor.execute('''
                     UPDATE registro_riego 
                     SET horas_parada = ?, 
@@ -334,15 +356,12 @@ def registrar_riego():
         conn.close()
         return redirect(url_for('registrar_riego'))
 
-    # Trae los giros activos ("EN MARCHA") para el panel celeste dinámico
     cursor.execute("SELECT id, equipo_id, fecha, horas_operadas, nro_vuelta FROM registro_riego WHERE estado_operacion = 'EN MARCHA' ORDER BY id DESC")
     activos = [dict(row) for row in cursor.fetchall()]
 
-    # Calculamos de forma dinámica el tiempo temporal transcurrido para cada equipo activo
     for a in activos:
         a['horas_operadas'] = round(a['horas_operadas'], 1)
 
-    # Historial cerrado que va directo a la tabla de Auditoría de la derecha
     cursor.execute('''
         SELECT id, equipo_id, fecha as fecha_inicio, horas_operadas as hs_inicio, 
                horas_parada as fecha_fin, duracion_vuelta as hs_fin, 
@@ -366,32 +385,6 @@ def registrar_riego():
                            total_acumulado_mm=round(total_acumulado_mm, 1), 
                            fecha_hoy=fecha_hoy,
                            user=current_user)
-
-# --- ENDPOINT API PARA EL MAPA ---
-@app.route('/api/status')
-def api_status():
-    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_id,))
-    fila = cursor.fetchone()
-    conn.close()
-    
-    if fila:
-        return jsonify({
-            "equipo_id": fila['equipo_id'], "estado": fila['estado_sistema'],
-            "latitud": fila['latitud'], "longitud": fila['longitud'],
-            "presion": fila['presion_terminal'], "posicion_angular": f"{fila['posicion_actual']}°",
-            "rssi": fila['rssi'], "actualizacion": fila['ultima_actualizacion']
-        }), 200
-    else:
-        lat_def = -25.1794 if equipo_id == "PIVOT-LOTE-A2" else -25.1750
-        lng_def = -63.8632 if equipo_id == "PIVOT-LOTE-A2" else -63.8500
-        return jsonify({
-            "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
-            "presion": 0.0, "posicion_angular": "0°", "rssi": "0 dBm",
-            "actualizacion": "Sin hardware"
-        }), 200
 
 # --- CONTROL DE STOCK ---
 @app.route('/stock', methods=['GET', 'POST'])
