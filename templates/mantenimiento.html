@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Gestión de Mantenimiento</title>
+    <title>AgroRiego Pro - Mantenimiento</title>
     <style>
         :root { 
             --bg-principal: #0b0f19; 
@@ -12,7 +12,6 @@
             --texto-ok: #38bdf8; 
             --verde: #10b981; 
             --amarillo: #f59e0b;
-            --alerta: #ef4444;
         }
         body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
         header { border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
@@ -40,7 +39,6 @@
         .btn-guardar:hover { background-color: #059669; }
         
         .caja-dinamica { background: #1e293b; padding: 12px; border-radius: 6px; border: 1px dashed var(--borde); margin-top: 8px; display: none; }
-        
         .alerta-notif { background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; border-radius: 4px; margin-bottom: 20px; color: #fff; font-size: 14px; }
     </style>
 </head>
@@ -71,7 +69,11 @@
         <div class="seccion-titulo">🔧 Reporte de Servicio Técnico y Tareas Preventivas</div>
         
         <form class="formulario-manto" method="POST" action="{{ url_for('mantenimiento') }}">
-            
+            <div class="grupo-input">
+                <label>Fecha de Ejecución</label>
+                <input type="date" id="fecha" name="fecha" required>
+            </div>
+
             <div class="grupo-input">
                 <label>Infraestructura / Unidad Asignada</label>
                 <select name="equipo_asignado" id="equipo_asignado" onchange="evaluarEquipoManual(this.value)" required>
@@ -79,7 +81,6 @@
                     <option value="Frontal F22">Frontal frontal F22 (22 Tramos)</option>
                     <option value="MANUAL">-- Ingresar Maquinaria Manual --</option>
                 </select>
-                
                 <div id="seccion_equipo_manual" class="caja-dinamica">
                     <label>Escriba el Nombre del Equipo/Infraestructura:</label>
                     <input type="text" id="nuevo_equipo_manual" name="equipo_manual_texto" placeholder="Ej: Equipo Rebombeo Norte">
@@ -100,7 +101,6 @@
                     <option value="Cornell Pump 6HH">Bomba Centrífuga Cornell 6HH</option>
                     <option value="NUEVO">-- Registrar Nueva Motorización --</option>
                 </select>
-                
                 <div id="seccion_nuevo_motor" class="caja-dinamica">
                     <label>ID / Tag de Motor:</label>
                     <input type="text" id="nuevo_motor_id" name="nuevo_motor_id" placeholder="Ej: MT-DEUTZ-04" style="margin-bottom:8px;">
@@ -139,7 +139,7 @@
 
             <div class="grupo-input col-completa">
                 <label>Descripción del Trabajo Realizado y Registro de Desgaste</label>
-                <textarea name="descripcion_tarea" rows="4" placeholder="Detallar tareas realizadas (Ej: Se completó engrase en juntas cardánicas, control de alineación del cable guía y torque de bulones en torre central)..." required></textarea>
+                <textarea name="descripcion_tarea" rows="4" placeholder="Detallar tareas..." required></textarea>
             </div>
 
             <button type="submit" class="btn-guardar col-completa">💾 Guardar Registro de Mantenimiento</button>
@@ -147,33 +147,26 @@
     </div>
 
     <script>
-        // Seteo automático del campo de texto manual si es requerido
+        document.getElementById('fecha').valueAsDate = new Date();
+
         function evaluarNuevoMotor(valor) {
             var divNuevo = document.getElementById('seccion_nuevo_motor');
             var reqId = document.getElementById('nuevo_motor_id');
             var reqMod = document.getElementById('nuevo_motor_modelo');
-            
             if(valor === 'NUEVO') {
-                divNuevo.style.display = 'block';
-                reqId.required = true;
-                reqMod.required = true;
+                divNuevo.style.display = 'block'; reqId.required = true; reqMod.required = true;
             } else {
-                divNuevo.style.display = 'none';
-                reqId.required = false;
-                reqMod.required = false;
+                divNuevo.style.display = 'none'; reqId.required = false; reqMod.required = false;
             }
         }
 
         function evaluarEquipoManual(valor) {
             var divEquipo = document.getElementById('seccion_equipo_manual');
             var inputEquipo = document.getElementById('nuevo_equipo_manual');
-            
             if(valor === 'MANUAL') {
-                divEquipo.style.display = 'block';
-                inputEquipo.required = true;
+                divEquipo.style.display = 'block'; inputEquipo.required = true;
             } else {
-                divEquipo.style.display = 'none';
-                inputEquipo.required = false;
+                divEquipo.style.display = 'none'; inputEquipo.required = false;
             }
         }
     </script>
