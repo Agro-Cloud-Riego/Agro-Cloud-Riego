@@ -138,9 +138,7 @@
                 <div class="grid-telemetria">
                     <div class="dato-caja">
                         <label>Estado Motor</label>
-                        {% if 'Inactivo' in data.ultima_lectura or 'Hace' in data.ultima_lectura %}
-                            <div id="val-estado" class="dato-valor parado">⚪ DETENIDO</div>
-                        {% elif 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}
+                        {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}
                             <div id="val-estado" class="dato-valor marcha">🟢 EN MARCHA CON AGUA</div>
                         {% else %}
                             <div id="val-estado" class="dato-valor parado">⚪ DETENIDO</div>
@@ -149,7 +147,7 @@
 
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
-                        {% if data.presion and data.presion|float > 0.5 and 'Inactivo' not in data.ultima_lectura and 'Hace' not in data.ultima_lectura %}
+                        {% if data.presion and data.presion|float > 0.5 %}
                             <div id="val-presion" class="dato-valor" style="color: var(--verde);">
                                 {{ data.presion }} <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>
                             </div>
@@ -172,20 +170,16 @@
                 
                 <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">
                     Último reporte LoRa: 
-                    <strong id="val-lectura" style="color: #fff;">
-                        {% if "Inactivo" in data.ultima_lectura or "Hace" in data.ultima_lectura or "-" not in data.ultima_lectura %}
+                    <strong id="val-lectura">
+                        {% if "Inactivo" in data.ultima_lectura or "-" not in data.ultima_lectura %}
                             {{ data.ultima_lectura }}
                         {% else %}
                             {% set partes_fecha = data.ultima_lectura.split(' ') %}
-                            {% if partes_fecha|length >= 2 %}
-                                {% set fecha_iso = partes_fecha[0].split('-') %}
-                                Fecha {{ fecha_iso[2] }}/{{ fecha_iso[1] }}/{{ fecha_iso[0] }} Hora {{ partes_fecha[1][:5] }}
-                            {% else %}
-                                {{ data.ultima_lectura }}
-                            {% endif %}
+                            {% set fecha_iso = partes_fecha[0].split('-') %}
+                            Fecha {{ fecha_iso[2] }}/{{ fecha_iso[1] }}/{{ fecha_iso[0] }} Hora {{ partes_fecha[1][:5] }}
                         {% endif %}
                     </strong> 
-                    | Señal: <span id="val-senal" style="color: #fff;">{{ data.senal }}</span> | 
+                    | Señal: <span id="val-senal">{{ data.senal }}</span> | 
                     <a href="{{ url_for('descargar_datos_ciclo', equipo_id=data.id) }}" style="color: var(--texto-ok); margin-left: 10px; font-weight: bold; text-decoration: none;">📥 Descargar Ciclo CSV</a>
                 </p>
             </div>
@@ -343,47 +337,22 @@
                     .then(data => {
                         if (data) {
                             var divEstado = document.getElementById('val-estado');
-                            var divPresion = document.getElementById('val-presion');
-                            var containerLectura = document.getElementById('val-lectura');
-                            
-                            // Validación robusta de desconexión usando la actualización de la API
-                            if (data.actualizacion.includes("Inactivo") || data.actualizacion.includes("Hace")) {
+                            if(data.estado && data.estado.toLowerCase().includes('archa')) {
+                                divEstado.innerText = "🟢 EN MARCHA CON AGUA";
+                                divEstado.className = "dato-valor marcha";
+                            } else {
                                 divEstado.innerText = "⚪ DETENIDO";
                                 divEstado.className = "dato-valor parado";
-                                
+                            }
+                            
+                            var divPresion = document.getElementById('val-presion');
+                            var pVal = parseFloat(data.presion);
+                            if (!isNaN(pVal) && pVal > 0.5) {
+                                divPresion.innerHTML = pVal + ' <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>';
+                                divPresion.style.color = "var(--verde)";
+                            } else {
                                 divPresion.innerHTML = '0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>';
                                 divPresion.style.color = "#64748b";
-                                
-                                containerLectura.innerText = data.actualizacion;
-                            } else {
-                                if(data.estado && data.estado.toLowerCase().includes('archa')) {
-                                    divEstado.innerText = "🟢 EN MARCHA CON AGUA";
-                                    divEstado.className = "dato-valor marcha";
-                                } else {
-                                    divEstado.innerText = "⚪ DETENIDO";
-                                    divEstado.className = "dato-valor parado";
-                                }
-                                
-                                var pVal = parseFloat(data.presion);
-                                if (!isNaN(pVal) && pVal > 0.5) {
-                                    divPresion.innerHTML = pVal + ' <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>';
-                                    divPresion.style.color = "var(--verde)";
-                                } else {
-                                    divPresion.innerHTML = '0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>';
-                                    divPresion.style.color = "#64748b";
-                                }
-
-                                if (data.actualizacion.includes(' ')) {
-                                    var partes = data.actualizacion.split(' ');
-                                    var f = partes[0].split('-');
-                                    if (f.length === 3) {
-                                        containerLectura.innerText = "Fecha " + f[2] + "/" + f[1] + "/" + f[0] + " Hora " + partes[1].substring(0, 5);
-                                    } else {
-                                        containerLectura.innerText = data.actualizacion;
-                                    }
-                                } else {
-                                    containerLectura.innerText = data.actualizacion;
-                                }
                             }
 
                             if (data.latitud && data.longitud && parseFloat(data.latitud) !== 0 && map && marcador) {
@@ -396,12 +365,24 @@
                             
                             document.getElementById('val-caudal').innerText = data.caudal;
                             document.getElementById('val-angulo').innerText = data.posicion_angular;
+                            
+                            // Formateo dinámico tamén por JS para as actualizacións en vivo en segundo plano
+                            var containerLectura = document.getElementById('val-lectura');
+                            if (data.actualizacion.includes("Inactivo") || !data.actualizacion.includes("-")) {
+                                containerLectura.innerText = data.actualizacion;
+                            } else {
+                                var partes = data.actualizacion.split(' ');
+                                var f = partes[0].split('-');
+                                containerLectura.innerText = "Fecha " + f[2] + "/" + f[1] + "/" + f[0] + " Hora " + partes[1].substring(0, 5);
+                            }
+                            
                             document.getElementById('val-senal').innerText = data.rssi;
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
+            // Correxido o nome da función do intervalo (tiña unha errata na "t")
             setInterval(actualizarTelemetria, 5000);
         });
     </script>
