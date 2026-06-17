@@ -63,7 +63,8 @@
     <header>
         <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
         <div style="font-size: 14px; color: #94a3b8;">
-            Usuario: <strong>{{ user.id if user and user.id else 'Marcelo Daniel' }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
+            Usuario: <strong>{{ user.id if user and user.id else 'Marcelo Daniel' }}</strong> |
+            <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
         </div>
     </header>
 
@@ -190,79 +191,18 @@
         </div>
 
         <div>
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">📝 Registro Turno / Lámina de Riego</div>
-                
-                <form method="POST" action="{{ url_for('index', equipo=data.id) }}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <input type="hidden" name="form_tipo" value="nuevo_riego">
-                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                    
-                    <div style="display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--borde); padding-right: 12px;">
-                        <div class="grupo-campo">
-                            <label>Lote Activo</label>
-                            <input type="text" value="{{ data.lote }}" readonly style="background: rgba(35, 53, 84, 0.3); color: #94a3b8; font-weight: bold;">
-                        </div>
-                        
-                        <div class="grupo-campo">
-                            <label>Lámina Programada (mm)</label>
-                            <input type="number" step="0.1" name="lamina_programada" id="lamina_programada" placeholder="Ej: 15.0" required style="border-color: var(--amarillo); font-size: 14px; background: #0f172a; color: white;">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Lámina Acumulada</label>
-                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.1); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Horas de Marcha del Turno</label>
-                            <input type="number" step="0.1" name="horas_operadas" id="horas_operadas" placeholder="Ej: 18.5" required style="border-color: var(--texto-ok); font-size: 14px;">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Fecha de Operación</label>
-                            <input type="date" name="fecha_riego" required value="2026-06-16" style="border-color: var(--borde);">
-                        </div>
-                    </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 10px; justify-content: flex-start;">
-                        <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--texto-ok); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
-                            Cálculo de Variables
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label style="color: #fff; font-weight: bold;">Lámina Real Aplicada (mm)</label>
-                            <input type="number" step="0.1" name="lamina_mm" id="lamina_mm" placeholder="Ej: 14.8" required style="border-color: var(--verde); font-size: 15px; font-weight: bold;">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Presión en Barra (Bar)</label>
-                            <input type="number" step="0.1" name="presion_bar" placeholder="Ej: 2.2" value="2.2" required style="border-color: var(--borde);">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Posición Angular Ficticia (°)</label>
-                            <input type="number" name="posicion_grados" placeholder="Ej: 180" value="0" required style="border-color: var(--borde);">
-                        </div>
-
-                        <div class="grupo-campo">
-                            <label>Estado de Operación</label>
-                            <select name="estado_operacion" style="border-color: var(--borde);">
-                                <option value="MARCHA">MARCHA</option>
-                                <option value="PARADO">PARADO</option>
-                                <option value="FALLA">FALLA</option>
-                                <option value="MOVIMIENTO">MOVIMIENTO (Sin agua)</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 10px; margin-top: 5px; width: 100%;">
-                            💾 Guardar en Libro Hídrico
-                        </button>
-                    </div>
-                </form>
+            <div class="tarjeta" style="border-color: var(--verde); background: rgba(16, 185, 129, 0.02); padding: 20px;">
+                <div class="tarjeta-titulo" style="color: var(--verde); font-weight: bold;">📝 Registro de Turnos (Libro Hídrico)</div>
+                <p style="font-size: 13px; color: #94a3b8; margin-top: 0; line-height: 1.4;">
+                    Hacé clic abajo para abrir la pantalla dedicada de carga hídrica. Podrás registrar la lámina programada, horas de panel, horas de motor y la lámina real calculada de la vuelta.
+                </p>
+                <a href="{{ url_for('registrar_riego', equipo=data.id) }}" style="display: block; text-align: center; text-decoration: none; background: var(--verde); color: white; padding: 12px; font-weight: bold; border-radius: 6px; font-size: 14px; transition: background 0.2s;">
+                    🌊 Abrir Formulario de Registro
+                </a>
             </div>
 
             <div class="tarjeta">
-                <div class="tarjeta-titulo">👨‍🔧 Levantar Orden de Trabajo (OT)</div>
+                <div class="tarjeta-titulo">&nbsp;👨‍🔧 Levantar Orden de Trabajo (OT)</div>
                 <form method="POST" action="{{ url_for('crear_ot') }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
@@ -335,13 +275,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var equipoId = "{{ data.id }}";
-            
-            // Inyectamos las coordenadas dinámicas renderizadas desde SQLite
             var latInicial = parseFloat("{{ data.lat }}");
             var lngInicial = parseFloat("{{ data.lng }}");
 
             var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
-
             L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
                 maxZoom: 20,
                 subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
@@ -351,7 +288,6 @@
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
 
-            // Dibujar radio de cobertura estimado para el Pivot/Frontal
             var circuloPivot = L.circle([latInicial, lngInicial], {
                 color: '#38bdf8',
                 fillColor: '#38bdf8',
@@ -389,9 +325,7 @@
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
-            // Consulta en tiempo real de telemetría cada 5 segundos
             setInterval(actualizarTelemetria, 5000);
-
             setTimeout(function() {
                 map.invalidateSize();
             }, 400);
