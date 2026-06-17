@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="es"><head>
+<!DOCTYPE html>
+<html lang="es">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroRiego Pro - Monitoreo Avanzado</title>
@@ -41,7 +43,7 @@
         .dato-caja { background: #0f172a; border: 1px solid var(--borde); padding: 12px; border-radius: 8px; text-align: center; }
         .dato-valor { font-size: 18px; font-weight: bold; margin-top: 5px; color: var(--texto-ok); overflow: hidden; text-overflow: ellipsis; }
         .dato-valor.marcha { color: var(--verde); }
-        .dato-valor.desconectado, .dato-valor.parado { color: var(--alerta); }
+        .dato-valor.desconectado, .dato-valor.parado { color: #64748b; }
         
         .formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media(max-width: 600px) { .formulario { grid-template-columns: 1fr; } }
@@ -58,7 +60,9 @@
         .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
         
         footer { border-top: 1px solid var(--borde); padding-top: 15px; margin-top: 30px; text-align: center; font-size: 12px; color: #64748b; }
-    </style></head><body>
+    </style>
+</head>
+<body>
 
     <header>
         <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
@@ -111,22 +115,53 @@
 
     <div class="grid-dashboard">
         <div>
+            <!-- CONDICIONAL GPS: Muestra el mapa y coordenadas satelitales solo si hay geoposición cargada -->
             <div class="tarjeta" style="padding: 0; overflow: hidden;">
-                <div class="tarjeta-titulo" style="padding: 20px 20px 10px 20px; margin: 0;">🗺️ Mapa Satelital: {{ data.nombre_corto }} ({{ data.lote }})</div>
-                <div id="mapa-pivot" style="height: 320px; width: 100%; background: #0f172a;"></div>
+                <div class="tarjeta-titulo" style="padding: 20px 20px 10px 20px; margin: 0;">
+                    🗺️ Mapa Satelital: {{ data.nombre_corto }} ({{ data.lote }})
+                </div>
+                {% if data.lat and data.lng and data.lat != 0 and data.lat != '0' %}
+                    <div id="mapa-pivot" style="height: 320px; width: 100%; background: #0f172a;"></div>
+                    <div style="padding: 10px 20px; font-size: 13px; color: var(--texto-ok); background: #0f172a; border-top: 1px solid var(--borde);">
+                        📍 Ubicación GPS Confirmada: Lat: <strong>{{ data.lat }}</strong> | Lon: <strong>{{ data.lng }}</strong>
+                    </div>
+                {% else %}
+                    <div style="height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #0f172a; color: var(--amarillo); text-align: center; padding: 20px;">
+                        <span style="font-size: 30px; margin-bottom: 10px;">🛰️</span>
+                        <strong>Buscando señal GPS...</strong>
+                        <p style="font-size: 12px; color: #64748b; margin: 5px 0 0 0;">El equipo no se encuentra en la ubicación o el módulo satelital no reportó coordenadas todavía.</p>
+                    </div>
+                {% endif %}
             </div>
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">📡 Datos Dinámicos: {{ data.nombre_corto }} ({{ data.lote }})</div>
                 <div class="grid-telemetria">
+                    
+                    <!-- ESTADO MOTOR COMPLETO CON FILTRO DE MARCHA VERDE -->
                     <div class="dato-caja">
                         <label>Estado Motor</label>
-                        <div id="val-estado" class="dato-valor {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}marcha{% else %}parado{% endif %}">{{ data.estado }}</div>
+                        {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}
+                            <div id="val-estado" class="dato-valor marcha">🟢 EN MARCHA CON AGUA</div>
+                        {% else %}
+                            <div id="val-estado" class="dato-valor parado">⚪ DETENIDO</div>
+                        {% endif %}
                     </div>
+
+                    <!-- PRESIÓN DINÁMICA CON ALERTAS INTELIGENTES -->
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
-                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }}</div>
+                        {% if data.presion and data.presion|float > 0.5 %}
+                            <div id="val-presion" class="dato-valor" style="color: var(--verde);">
+                                {{ data.presion }} <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>
+                            </div>
+                        {% else %}
+                            <div id="val-presion" class="dato-valor" style="color: #64748b; font-size: 14px; margin-top: 8px;">
+                                0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>
+                            </div>
+                        {% endif %}
                     </div>
+
                     <div class="dato-caja">
                         <label>Caudalímetro</label>
                         <div id="val-caudal" class="dato-valor">{{ data.caudal }}</div>
@@ -269,55 +304,74 @@
             var latInicial = parseFloat("{{ data.lat }}");
             var lngInicial = parseFloat("{{ data.lng }}");
 
-            var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
-            L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-                maxZoom: 20,
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: 'Mapas &copy; Google Satelital'
-            }).addTo(map);
-            var marcador = L.marker([latInicial, lngInicial]).addTo(map);
-            marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
-            var circuloPivot = L.circle([latInicial, lngInicial], {
-                color: '#38bdf8',
-                fillColor: '#38bdf8',
-                fillOpacity: 0.12,
-                radius: equipoId === "PIVOT-LOTE-A2" ? 700 : 500
-            }).addTo(map);
+            // Solo inicializa Leaflet si las coordenadas iniciales no están vacías ni en cero
+            if (!isNaN(latInicial) && !isNaN(lngInicial) && latInicial !== 0) {
+                var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: 'Mapas &copy; Google Satelital'
+                }).addTo(map);
+                var marcador = L.marker([latInicial, lngInicial]).addTo(map);
+                marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
+                var circuloPivot = L.circle([latInicial, lngInicial], {
+                    color: '#38bdf8',
+                    fillColor: '#38bdf8',
+                    fillOpacity: 0.12,
+                    radius: equipoId === "PIVOT-LOTE-A2" ? 700 : 500
+                }).addTo(map);
+
+                setTimeout(function() {
+                    map.invalidateSize();
+                }, 400);
+            }
 
             function actualizarTelemetria() {
                 fetch('/api/status?equipo=' + equipoId)
                     .then(response => response.json())
                     .then(data => {
-                        if (data && data.latitud && data.longitud) {
-                            var nuevaLat = parseFloat(data.latitud);
-                            var nuevaLng = parseFloat(data.longitud);
-                            
-                            marcador.setLatLng([nuevaLat, nuevaLng]);
-                            circuloPivot.setLatLng([nuevaLat, nuevaLng]);
-
+                        if (data) {
+                            // 1. Manejo del motor en tiempo real
                             var divEstado = document.getElementById('val-estado');
-                            divEstado.innerText = data.estado || "MARCHA";
                             if(data.estado && data.estado.toLowerCase().includes('archa')) {
-                                divEstado.className = "text-ok marcha";
+                                divEstado.innerText = "🟢 EN MARCHA CON AGUA";
+                                divEstado.className = "dato-valor marcha";
                             } else {
-                                divEstado.className = "text-ok parado";
+                                divEstado.innerText = "⚪ DETENIDO";
+                                divEstado.className = "dato-valor parado";
                             }
                             
-                            document.getElementById('val-presion').innerText = data.presion;
+                            // 2. Manejo dinámico de presión por JS en el refresco automático
+                            var divPresion = document.getElementById('val-presion');
+                            var pVal = parseFloat(data.presion);
+                            if (!isNaN(pVal) && pVal > 0.5) {
+                                divPresion.innerHTML = pVal + ' <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>';
+                                divPresion.style.color = "var(--verde)";
+                            } else {
+                                divPresion.innerHTML = '0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>';
+                                divPresion.style.color = "#64748b";
+                            }
+
+                            // 3. Actualización de mapa y marcador (si existe geoposición activa)
+                            if (data.latitud && data.longitud && parseFloat(data.latitud) !== 0 && map && marcador) {
+                                var nuevaLat = parseFloat(data.latitud);
+                                var nuevaLng = parseFloat(data.longitud);
+                                
+                                marcador.setLatLng([nuevaLat, nuevaLng]);
+                                circuloPivot.setLatLng([nuevaLat, nuevaLng]);
+                                marcador.getPopup().setContent("<b>" + data.equipo_id + "</b><br>Presión Extremo: " + data.presion).update();
+                            }
+                            
+                            document.getElementById('val-caudal').innerText = data.caudal;
                             document.getElementById('val-angulo').innerText = data.posicion_angular;
                             document.getElementById('val-lectura').innerText = data.actualizacion;
                             document.getElementById('val-senal').innerText = data.rssi;
-
-                            marcador.getPopup().setContent("<b>" + data.equipo_id + "</b><br>Presión Extremo: " + data.presion).update();
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
-            setInterval(actualizarTelemetria, 5000);
-            setTimeout(function() {
-                map.invalidateSize();
-            }, 400);
+            setInterval(actualizartElemetria, 5000);
         });
     </script>
 
@@ -345,4 +399,6 @@
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
-    </script></body></html>
+    </script>
+</body>
+</html>
