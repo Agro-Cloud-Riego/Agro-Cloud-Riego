@@ -115,7 +115,6 @@
 
     <div class="grid-dashboard">
         <div>
-            <!-- CONDICIONAL GPS: Muestra el mapa y coordenadas satelitales solo si hay geoposición cargada -->
             <div class="tarjeta" style="padding: 0; overflow: hidden;">
                 <div class="tarjeta-titulo" style="padding: 20px 20px 10px 20px; margin: 0;">
                     🗺️ Mapa Satelital: {{ data.nombre_corto }} ({{ data.lote }})
@@ -137,8 +136,6 @@
             <div class="tarjeta">
                 <div class="tarjeta-titulo">📡 Datos Dinámicos: {{ data.nombre_corto }} ({{ data.lote }})</div>
                 <div class="grid-telemetria">
-                    
-                    <!-- ESTADO MOTOR COMPLETO CON FILTRO DE MARCHA VERDE -->
                     <div class="dato-caja">
                         <label>Estado Motor</label>
                         {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}
@@ -148,7 +145,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- PRESIÓN DINÁMICA CON ALERTAS INTELIGENTES -->
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
                         {% if data.presion and data.presion|float > 0.5 %}
@@ -171,8 +167,19 @@
                         <div id="val-angulo" class="dato-valor" style="color: var(--verde);">{{ data.posicion_tramo }}</div>
                     </div>
                 </div>
+                
                 <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">
-                    Último reporte LoRa: <strong id="val-lectura">{{ data.ultima_lectura }}</strong> | Señal: <span id="val-senal">{{ data.senal }}</span> | 
+                    Último reporte LoRa: 
+                    <strong id="val-lectura">
+                        {% if "Inactivo" in data.ultima_lectura or "-" not in data.ultima_lectura %}
+                            {{ data.ultima_lectura }}
+                        {% else %}
+                            {% set partes_fecha = data.ultima_lectura.split(' ') %}
+                            {% set fecha_iso = partes_fecha[0].split('-') %}
+                            Fecha {{ fecha_iso[2] }}/{{ fecha_iso[1] }}/{{ fecha_iso[0] }} Hora {{ partes_fecha[1][:5] }}
+                        {% endif %}
+                    </strong> 
+                    | Señal: <span id="val-senal">{{ data.senal }}</span> | 
                     <a href="{{ url_for('descargar_datos_ciclo', equipo_id=data.id) }}" style="color: var(--texto-ok); margin-left: 10px; font-weight: bold; text-decoration: none;">📥 Descargar Ciclo CSV</a>
                 </p>
             </div>
@@ -303,8 +310,7 @@
             var equipoId = "{{ data.id }}";
             var latInicial = parseFloat("{{ data.lat }}");
             var lngInicial = parseFloat("{{ data.lng }}");
-
-            // Solo inicializa Leaflet si las coordenadas iniciales no están vacías ni en cero
+            
             if (!isNaN(latInicial) && !isNaN(lngInicial) && latInicial !== 0) {
                 var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
                 L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
@@ -320,7 +326,6 @@
                     fillOpacity: 0.12,
                     radius: equipoId === "PIVOT-LOTE-A2" ? 700 : 500
                 }).addTo(map);
-
                 setTimeout(function() {
                     map.invalidateSize();
                 }, 400);
@@ -331,7 +336,6 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data) {
-                            // 1. Manejo del motor en tiempo real
                             var divEstado = document.getElementById('val-estado');
                             if(data.estado && data.estado.toLowerCase().includes('archa')) {
                                 divEstado.innerText = "🟢 EN MARCHA CON AGUA";
@@ -341,7 +345,6 @@
                                 divEstado.className = "dato-valor parado";
                             }
                             
-                            // 2. Manejo dinámico de presión por JS en el refresco automático
                             var divPresion = document.getElementById('val-presion');
                             var pVal = parseFloat(data.presion);
                             if (!isNaN(pVal) && pVal > 0.5) {
@@ -352,11 +355,9 @@
                                 divPresion.style.color = "#64748b";
                             }
 
-                            // 3. Actualización de mapa y marcador (si existe geoposición activa)
                             if (data.latitud && data.longitud && parseFloat(data.latitud) !== 0 && map && marcador) {
                                 var nuevaLat = parseFloat(data.latitud);
                                 var nuevaLng = parseFloat(data.longitud);
-                                
                                 marcador.setLatLng([nuevaLat, nuevaLng]);
                                 circuloPivot.setLatLng([nuevaLat, nuevaLng]);
                                 marcador.getPopup().setContent("<b>" + data.equipo_id + "</b><br>Presión Extremo: " + data.presion).update();
@@ -364,14 +365,25 @@
                             
                             document.getElementById('val-caudal').innerText = data.caudal;
                             document.getElementById('val-angulo').innerText = data.posicion_angular;
-                            document.getElementById('val-lectura').innerText = data.actualizacion;
+                            
+                            // Formateo dinámico tamén por JS para as actualizacións en vivo en segundo plano
+                            var containerLectura = document.getElementById('val-lectura');
+                            if (data.actualizacion.includes("Inactivo") || !data.actualizacion.includes("-")) {
+                                containerLectura.innerText = data.actualizacion;
+                            } else {
+                                var partes = data.actualizacion.split(' ');
+                                var f = partes[0].split('-');
+                                containerLectura.innerText = "Fecha " + f[2] + "/" + f[1] + "/" + f[0] + " Hora " + partes[1].substring(0, 5);
+                            }
+                            
                             document.getElementById('val-senal').innerText = data.rssi;
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
-            setInterval(actualizartElemetria, 5000);
+            // Correxido o nome da función do intervalo (tiña unha errata na "t")
+            setInterval(actualizarTelemetria, 5000);
         });
     </script>
 
