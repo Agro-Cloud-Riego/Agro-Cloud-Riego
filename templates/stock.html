@@ -103,7 +103,7 @@
         <div>
             <div class="tarjeta">
                 <div class="tarjeta-titulo">🔄 Movimiento de Stock Directo (Físico)</div>
-                <form method="POST" class="formulario">
+                <form action="{{ url_for('stock') }}" method="POST" class="formulario">
                     <input type="hidden" name="form_origen" value="movimiento_stock">
                     
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
