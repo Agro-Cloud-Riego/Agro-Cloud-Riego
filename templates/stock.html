@@ -55,7 +55,6 @@
         <div style="font-size: 14px; color: #94a3b8;">Encargado: <strong>Marcelo Daniel</strong></div>
     </header>
 
-    <!-- MENÚ UNIFICADO (Se agregó Registro de Riego para evitar saltos) -->
     <div class="nav-principal">
         <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Registro de Riego</a>
@@ -64,9 +63,9 @@
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages() %}
       {% if messages %}
-        {% for category, message in messages %}
+        {% for message in messages %}
           <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; margin-bottom: 15px; border-radius: 4px; color: #fff; font-size: 14px;">
               {{ message }}
           </div>
@@ -106,20 +105,15 @@
                             </td>
                         </tr>
                         {% endfor %}
-                        {% if not inventario %}
-                            <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay repuestos registrados en el catálogo.</td></tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div>
-            <!-- FORMULARIO DE ALTA Y EDICIÓN UNIFICADO CON LA BASE DE DATOS -->
             <div class="tarjeta">
                 <div class="tarjeta-titulo">➕ Dar de Alta / Modificar Repuesto</div>
                 <form action="{{ url_for('stock') }}" method="POST" class="formulario">
-                    
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
                         <label>Número de Parte / Código Único</label>
                         <input type="text" name="parte" placeholder="Ej: RE-4589" required style="text-transform: uppercase;">
@@ -144,20 +138,38 @@
                         <label>Cantidad Inicial / Unidades a Sumar</label>
                         <input type="number" name="cantidad" value="1" min="0" required>
                     </div>
-                    
                     <button type="submit" class="btn-enviar">Registrar en Catálogo</button>
                 </form>
             </div>
 
-            <!-- TABLERO DE ACCESOS RÁPIDOS PARA INTEGRIDAD DEL DISEÑO -->
             <div class="tarjeta">
-                <div class="tarjeta-titulo" style="font-size:14px; color:var(--texto-ok);">ℹ️ Notas de Consumo</div>
-                <p style="font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.5;">
-                    Recuerda que las bajas en el inventario también se descuentan de forma automática una vez que marcas una <strong>Orden de Trabajo (OT)</strong> como <span style="color: var(--verde);">Despachada</span> en el Panel de Monitoreo.
-                </p>
+                <div class="tarjeta-titulo" style="font-size:14px; color:var(--verde);">📥 Últimos Ingresos de Material</div>
+                <ul class="historial-lista">
+                    {% for e in entradas %}
+                        <li class=\"historial-item\">
+                            <span style="color: var(--verde); font-weight: bold;">+{{ e.cantidad }} u.</span> de <strong>{{ e.item }}</strong> - <small>{{ e.destino_origen }} ({{ e.fecha }})</small>
+                        </li>
+                    {% endfor %}
+                    {% if not entradas %}
+                        <li style="color: #64748b; font-size: 12px;">No hay ingresos recientes.</li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <div class="tarjeta">
+                <div class="tarjeta-titulo" style="font-size:14px; color:var(--alerta);">📤 Últimos Egresos de Material</div>
+                <ul class="historial-lista">
+                    {% for s in salidas %}
+                        <li class="historial-item">
+                            <span style="color: var(--alerta); font-weight: bold;">-{{ s.cantidad }} u.</span> de <strong>{{ s.item }}</strong> - <small>{{ s.destino_origen }} ({{ s.fecha }})</small>
+                        </li>
+                    {% endfor %}
+                    {% if not salidas %}
+                        <li style="color: #64748b; font-size: 12px;">No hay egresos recientes.</li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
     </div>
-
 </body>
 </html>
