@@ -36,6 +36,7 @@
         .btn-enviar { background: var(--verde); border: none; color: white; padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
         .btn-enviar:hover { background: #059669; }
 
+        .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
@@ -51,53 +52,68 @@
 
     <header>
         <h1>AgroRiego Pro - Gestión de Taller y Pañol</h1>
-        <div style="font-size: 14px; color: #94a3b8;">Encargado: <strong>{{ user.id }}</strong></div>
+        <div style="font-size: 14px; color: #94a3b8;">Encargado: <strong>Marcelo Daniel</strong></div>
     </header>
 
     <div class="nav-principal">
-        <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
+        <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link active">Stock e Insumos Operativos</a>
         <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
     </div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; margin-bottom: 15px; border-radius: 4px; color: #fff; font-size: 14px;">
+              {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <div class="grid-stock">
         <div class="tarjeta">
             <div class="tarjeta-titulo">📦 Inventario de Repuestos y Componentes en Pañol</div>
-            <table style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th>Nro Parte / Código</th>
-                        <th>Descripción Item</th>
-                        <th>Categoría</th>
-                        <th>Compatibilidad Motor</th>
-                        <th>Ubicación Física</th>
-                        <th>Mínimo Requerido</th>
-                        <th>Stock Actual</th>
-                        <th>Estado Alerta</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in stock %}
-                    <tr>
-                        <td><code>{{ item.parte }}</code></td>
-                        <td><strong>{{ item.item }}</strong></td>
-                        <td>{{ item.categoria }}</td>
-                        <td style="color: var(--texto-ok);">{{ item.motor }}</td>
-                        <td>{{ item.ubicacion }}</td>
-                        <td style="text-align: center;">{{ item.minimo }}</td>
-                        <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ item.actual }}</td>
-                        <td>
-                            {% if item.actual <= item.minimo %}
-                                <span class="badge-critico">⚠️ RECOMPRA CRÍTICA</span>
-                            {% else %}
-                                <span class="badge-ok">✓ DISPONIBLE</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nro Parte / Código</th>
+                            <th>Descripción Item</th>
+                            <th>Categoría</th>
+                            <th>Compatibilidad Motor</th>
+                            <th>Ubicación Física</th>
+                            <th>Mínimo Requerido</th>
+                            <th>Stock Actual</th>
+                            <th>Estado Alerta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock %}
+                        <tr>
+                            <td><code>{{ item.parte }}</code></td>
+                            <td><strong>{{ item.item }}</strong></td>
+                            <td>{{ item.categoria }}</td>
+                            <td style="color: var(--texto-ok);">{{ item.motor }}</td>
+                            <td>{{ item.ubicacion }}</td>
+                            <td style="text-align: center;">{{ item.minimo }}</td>
+                            <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ item.actual }}</td>
+                            <td>
+                                {% if item.actual|int <= item.minimo|int %}
+                                    <span class="badge-critico">⚠️ RECOMPRA CRÍTICA</span>
+                                {% else %}
+                                    <span class="badge-ok">✓ DISPONIBLE</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not stock %}
+                            <tr><td colspan="8" style="text-align: center; color: #64748b;">No hay repuestos registrados en el catálogo.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div>
@@ -139,12 +155,12 @@
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">➕ Dar de Alta Nuevo Repuesto Flex</div>
-                <form method="POST" class="formulario">
+                <form action="{{ url_for('stock') }}" method="POST" class="formulario">
                     <input type="hidden" name="form_origen" value="alta_articulo">
                     
                     <div class="grupo-campo">
                         <label>Número de Parte / Código Único</label>
-                        <input type="text" name="parte" placeholder="Ej: RE-4589" required>
+                        <input type="text" name="parte" placeholder="Ej: RE-4589" required style="text-transform: uppercase;">
                     </div>
                     <div class="grupo-campo">
                         <label>Nombre del Item</label>
@@ -170,11 +186,11 @@
                     </div>
                     <div class="grupo-campo">
                         <label>Mínimo Crítico de Seguridad</label>
-                        <input type="number" name="minimo" value="2" required>
+                        <input type="number" name="minimo" value="2" min="0" required>
                     </div>
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
                         <label>Cantidad Inicial Disponible</label>
-                        <input type="number" name="actual" value="0" required>
+                        <input type="number" name="actual" value="0" min="0" required>
                     </div>
                     <button type="submit" class="btn-enviar">Registrar en Catálogo</button>
                 </form>
@@ -185,9 +201,12 @@
                 <ul class="historial-lista">
                     {% for e in entradas %}
                         <li class="historial-item">
-                            +{{ e.cantidad }} u. de <strong>{{ e.item }}</strong> - <small>{{ e.destino_origen }} ({{ e.fecha }})</small>
+                            <span style="color: var(--verde); font-weight: bold;">+{{ e.cantidad }} u.</span> de <strong>{{ e.item }}</strong> - <small>{{ e.destino_origen }} ({{ e.fecha }})</small>
                         </li>
                     {% endfor %}
+                    {% if not entradas %}
+                        <li style="color: #64748b; font-size: 12px;">No hay ingresos recientes.</li>
+                    {% endif %}
                 </ul>
             </div>
 
@@ -196,9 +215,12 @@
                 <ul class="historial-lista">
                     {% for s in salidas %}
                         <li class="historial-item">
-                            -{{ s.cantidad }} u. de <strong>{{ s.item }}</strong> - <small>{{ s.destino_origen }} ({{ s.fecha }})</small>
+                            <span style="color: var(--alerta); font-weight: bold;">-{{ s.cantidad }} u.</span> de <strong>{{ s.item }}</strong> - <small>{{ s.destino_origen }} ({{ s.fecha }})</small>
                         </li>
                     {% endfor %}
+                    {% if not salidas %}
+                        <li style="color: #64748b; font-size: 12px;">No hay egresos recientes.</li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
