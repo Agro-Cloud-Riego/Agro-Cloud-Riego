@@ -18,7 +18,6 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
         h1 { margin: 0; font-size: 24px; color: #fff; }
         
-        /* Caja contenedora para alinear los 4 botones arriba */
         .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
         .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
         .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
@@ -47,7 +46,8 @@
         .badge-warning { background-color: var(--amarillo); color: #000; }
         .badge-danger { background-color: var(--alerta); color: #fff; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: left; }
+        .table-responsive { overflow-x: auto; width: 100%; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
         th { background-color: #0f172a; color: #94a3b8; padding: 12px; border-bottom: 2px solid var(--borde); text-transform: uppercase; font-size: 11px; }
         td { padding: 12px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
 
@@ -70,18 +70,16 @@
 
     <header>
         <h1>AgroRiego Pro - Historiales Generales</h1>
-        <span style="color: #94a3b8; font-size: 14px;">Generado por: <strong>{{ user.id }}</strong></span>
+        <span style="color: #94a3b8; font-size: 14px;">Generado por: <strong>Marcelo Daniel</strong></span>
     </header>
 
-    <!-- BARRA CON LOS 4 BOTONES UNIFICADOS ARRIBA -->
     <div class="nav-principal">
-        <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
+        <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
         <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link active">Reportes e Históricos</a>
     </div>
 
-    <!-- RESUMEN ACUMULADO -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">
             <span>📊 Acumulados de Campaña por Equipo</span>
@@ -97,12 +95,11 @@
                 </div>
             {% endfor %}
             {% if not resumen %}
-                <div style="color: #64748b; font-size: 13px;">No hay datos hídricos registrados todavía.</div>
+                <div style="color: #64748b; font-size: 13px; padding: 10px;">No hay datos hídricos registrados todavía en esta campaña.</div>
             {% endif %}
         </div>
     </div>
 
-    <!-- CONTROL DE MOTORES Y SEMÁFORO -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">⚙️ Estado de Motores Físicos y Alerta de Próximo Service (Frecuencia: 300 hs)</div>
         <div class="grid-motores">
@@ -129,67 +126,78 @@
                     </div>
                 </div>
             {% endfor %}
+            {% if not motores %}
+                <div style="color: #64748b; font-size: 13px; padding: 10px;">No hay motores registrados para monitoreo en el taller.</div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- HISTORIAL DE RIEGOS -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">🌊 Libro de Campo - Todos los Riegos Ejecutados</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha Registro</th>
-                    <th>Equipo / Ubicación</th>
-                    <th>Lámina Aplicada</th>
-                    <th>Horas Operadas Real</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for rg in riegos %}
-                <tr>
-                    <td><strong>{{ rg.fecha }}</strong></td>
-                    <td style="color: var(--texto-ok); font-weight: bold;">{{ rg.equipo_id }}</td>
-                    <td>{{ rg.lamina_mm }} mm</td>
-                    <td>{{ rg.horas_operadas }} hs</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha Registro</th>
+                        <th>Equipo / Ubicación</th>
+                        <th>Lámina Aplicada</th>
+                        <th>Horas Operadas Real</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rg in riegos %}
+                    <tr>
+                        <td><strong>{{ rg.fecha }}</strong></td>
+                        <td style="color: var(--texto-ok); font-weight: bold;">{{ rg.equipo_id }}</td>
+                        <td>{{ rg.lamina_mm }} mm</td>
+                        <td>{{ rg.horas_operadas }} hs</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not riegos %}
+                        <tr><td colspan="4" style="text-align: center; color: #64748b;">No se encuentran registros de riego ingresados.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- HISTORIAL DE OTS CERRADAS -->
     <div class="tarjeta">
         <div class="tarjeta-titulo">🛠️ Libro Histórico de Mantenimiento y Taller (Órdenes Cumplidas)</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Equipo / Destino</th>
-                    <th>Horas Motor</th>
-                    <th>Detalles del Trabajo / Tarea Técnica Realizada</th>
-                    <th>Responsable</th>
-                    <th>Repuestos Utilizados</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for o in ots %}
-                <tr>
-                    <td>{{ o.fecha }}</td>
-                    <td><strong>{{ o.equipo_id }}</strong></td>
-                    <td><span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span></td>
-                    <td>{{ o.tarea }}</td>
-                    <td style="color: var(--amarillo);">{{ o.responsable }}</td>
-                    <td>
-                        {% if o.repuesto_asociado and 'None' not in o.repuesto_asociado %}
-                            <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 4px 6px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
-                        {% else %}
-                            <span style="color: #64748b; font-size: 12px;">Sin repuestos de stock</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Equipo / Destino</th>
+                        <th>Horas Motor</th>
+                        <th>Detalles del Trabajo / Tarea Técnica Realizada</th>
+                        <th>Responsable</th>
+                        <th>Repuestos Utilizados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in ots %}
+                    <tr>
+                        <td>{{ o.fecha }}</td>
+                        <td><strong>{{ o.equipo_id }}</strong></td>
+                        <td><span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span></td>
+                        <td>{{ o.tarea }}</td>
+                        <td style="color: var(--amarillo);">{{ o.responsable }}</td>
+                        <td>
+                            {% if o.repuesto_asociado and 'None' not in o.repuesto_asociado %}
+                                <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 4px 6px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
+                            {% else %}
+                                <span style="color: #64748b; font-size: 12px;">Sin repuestos de stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not ots %}
+                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay órdenes de trabajo registradas o cerradas en el libro.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </body>
 </html>
