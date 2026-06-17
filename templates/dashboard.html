@@ -69,7 +69,8 @@
     </header>
 
     <div class="nav-principal">
-        <a href="{{ url_for('index') }}" class="nav-link active">Panel de Monitoreo</a>
+        <a href="{{ url_for('index', equipo=data.id) }}" class="nav-link active">Panel de Monitoreo</a>
+        <a href="{{ url_for('registrar_riego', equipo=data.id) }}" class="nav-link">Registro de Riego</a>
         <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
         <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
         <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
@@ -142,7 +143,7 @@
             </div>
 
             <div class="tarjeta">
-                <div class="tarjeta-titulo">📊 Evolución de Riego Reciente</div>
+                <div class="tarjeta-titulo">📊 Evolución de Riego Recent</div>
                 <div style="background: #0f172a; border-radius: 8px; padding: 10px;">
                     <canvas id="graficoRiego" style="max-height: 260px;"></canvas>
                 </div>
@@ -182,7 +183,7 @@
                             </tr>
                             {% endfor %}
                             {% if not ot %}
-                            <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este equipo.</td></tr>
+                                <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este equipo.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -191,16 +192,6 @@
         </div>
 
         <div>
-            <div class="tarjeta" style="border-color: var(--verde); background: rgba(16, 185, 129, 0.02); padding: 20px;">
-                <div class="tarjeta-titulo" style="color: var(--verde); font-weight: bold;">📝 Registro de Turnos (Libro Hídrico)</div>
-                <p style="font-size: 13px; color: #94a3b8; margin-top: 0; line-height: 1.4;">
-                    Hacé clic abajo para abrir la pantalla dedicada de carga hídrica. Podrás registrar la lámina programada, horas de panel, horas de motor y la lámina real calculada de la vuelta.
-                </p>
-                <a href="{{ url_for('registrar_riego', equipo=data.id) }}" style="display: block; text-align: center; text-decoration: none; background: var(--verde); color: white; padding: 12px; font-weight: bold; border-radius: 6px; font-size: 14px; transition: background 0.2s;">
-                    🌊 Abrir Formulario de Registro
-                </a>
-            </div>
-
             <div class="tarjeta">
                 <div class="tarjeta-titulo">&nbsp;👨‍🔧 Levantar Orden de Trabajo (OT)</div>
                 <form method="POST" action="{{ url_for('crear_ot') }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
@@ -284,10 +275,8 @@
                 subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
                 attribution: 'Mapas &copy; Google Satelital'
             }).addTo(map);
-
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
-
             var circuloPivot = L.circle([latInicial, lngInicial], {
                 color: '#38bdf8',
                 fillColor: '#38bdf8',
@@ -337,7 +326,6 @@
         const fechas = {{ fechas_riego | tojson | safe }};
         const laminas = {{ laminas_riego | tojson | safe }};
         const horas = {{ horas_riego | tojson | safe }};
-        
         new Chart(ctx, {
             type: 'bar',
             data: {
@@ -353,7 +341,7 @@
                     x: { grid: { color: '#233554' }, ticks: { color: '#94a3b8' } },
                     y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros (mm)', color: '#38bdf8' } },
                     y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha (hs)', color: '#10b981' } }
-                ],
+                },
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
