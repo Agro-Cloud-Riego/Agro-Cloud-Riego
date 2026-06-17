@@ -182,7 +182,7 @@ def index():
             "nombre_corto": "Pivot Lote A2" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Frontal F22",
             "lote": "Lote A2 - Maíz (156 Ha)" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Cuadro Norte - Soja (210 Ha)",
             "estado": fila_telemetria['estado_sistema'],
-            "presion": f"{fila_telemetria['presion_terminal']} Bar",
+            "presion": fila_telemetria['presion_terminal'],  # Pasado como número limpio para evaluar condicionales en HTML
             "caudal": "185.000" if "MARCHA" in fila_telemetria['estado_sistema'] else "0",
             "posicion_tramo": f"{fila_telemetria['posicion_actual']}°",
             "ultima_lectura": fila_telemetria['ultima_actualizacion'],
@@ -191,7 +191,7 @@ def index():
             "lng": fila_telemetria['longitud']
         }
     else:
-        data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": "0 Bar", "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
+        data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": 0.0, "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
 
     todos_equipos = {
         "PIVOT-LOTE-A2": {"nombre_corto": "Pivot Lote A2"},
@@ -230,7 +230,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (UNIFICADO AL MENÚ) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (MODIFICADO PARA CARGA 100% MANUAL) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -240,59 +240,66 @@ def registrar_riego():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
     if request.method == 'POST':
+        # Toma el nombre del lote/cobertura ingresado manualmente en el formulario
+        equipo_id = request.form.get('equipo_id', equipo_id).strip()
         lamina_prog = request.form.get('lamina_programada')
         lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
-        fecha_riego = request.form.get('fecha_riego')
+        fecha_riego = request.form.get('fecha')
         
-        horas_panel = float(request.form.get('horas_panel', 0))
-        horas_motor = float(request.form.get('horas_motor', 0))
+        horas_operadas = float(request.form.get('horas_operadas', 0))
         lamina_real = float(request.form.get('lamina_mm', 0))
+        presion_trabajo = float(request.form.get('presion_bar', 0.0))
         
-        # Insertar registro de riego real
+        # Insertar registro de riego manual en el Libro Histórico
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
-            VALUES (?, ?, ?, 2.2, 0, 'MARCHA', ?, ?)
-        ''', (equipo_id, lamina_real, horas_panel, fecha_riego, lamina_prog_val))
+            VALUES (?, ?, ?, ?, 0, 'MARCHA', ?, ?)
+        ''', (equipo_id, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val))
         
-        # Actualización de horas en la tabla de mantenimiento preventivo
+        # Intentar actualizar horas de mantenimiento preventivo si coincide con los equipos estándar
         mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
-        nombre_mapeado = mapa_equipos.get(equipo_id, "")
+        nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
         
-        if nombre_mapeado and horas_motor > 0:
+        if horas_operadas > 0:
             cursor.execute('''
                 UPDATE control_services 
-                SET horas_actuales = horas_actuales + ? 
+                SET horas_actuales = horas_actuales + ?
                 WHERE equipo_asignado = ?
-            ''', (horas_motor, nombre_mapeado))
+            ''', (horas_operadas, nombre_mapeado))
         
-        # Cambiar estado del equipo en telemetría activa
+        # Guardar en telemetría el estado si el lote corresponde a los monitoreados por hardware
         cursor.execute('''
             UPDATE telemetria_actual
-            SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = 2.2, ultima_actualizacion = 'Turno Cargado'
+            SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = ?, ultima_actualizacion = 'Turno Cargado'
             WHERE equipo_id = ?
-        ''', (equipo_id,))
+        ''', (presion_trabajo, equipo_id))
         
         conn.commit()
         conn.close() 
         
-        flash(f"Registro de riego guardado e impactado en el sistema.", "success")
+        flash(f"Registro de riego para '{equipo_id}' guardado correctamente.", "success")
         return redirect(url_for('index', equipo=equipo_id))
 
     # --- PROCEDIMIENTO GET ---
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
+    # Obtener los últimos 10 riegos cargados de cualquier lote para mostrarlos en la tabla derecha
+    cursor.execute("SELECT equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar FROM registro_riego ORDER BY id DESC LIMIT 10")
+    riegos_cargados = cursor.fetchall()
+    
     equipos_mapa = {
         "PIVOT-LOTE-A2": {"id": "PIVOT-LOTE-A2", "lote": "Lote A2 - Maíz (156 Ha)", "nombre_corto": "Pivot Lote A2"},
         "FRONTAL-F22": {"id": "FRONTAL-F22", "lote": "Cuadro Norte - Soja (210 Ha)", "nombre_corto": "Frontal F22"}
     }
-    data_equipo = equipos_mapa.get(equipo_id, equipos_mapa["PIVOT-LOTE-A2"])
+    data_equipo = equipos_mapa.get(equipo_id, {"id": equipo_id, "lote": "Carga Manual", "nombre_corto": equipo_id})
     
     conn.close() 
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     
     return render_template('registrar_riego.html', 
                            data=data_equipo, 
+                           riegos=riegos_cargados,  # Pasa la lista de riegos a la tabla del template
                            total_acumulado_mm=round(total_acumulado_mm, 1), 
                            fecha_hoy=fecha_hoy,
                            user=current_user)
@@ -311,7 +318,7 @@ def api_status():
         return jsonify({
             "equipo_id": fila['equipo_id'], "estado": fila['estado_sistema'],
             "latitud": fila['latitud'], "longitud": fila['longitud'],
-            "presion": f"{fila['presion_terminal']} Bar", "posicion_angular": f"{fila['posicion_actual']}°",
+            "presion": fila['presion_terminal'], "posicion_angular": f"{fila['posicion_actual']}°",
             "rssi": fila['rssi'], "actualizacion": fila['ultima_actualizacion']
         }), 200
     else:
@@ -319,7 +326,7 @@ def api_status():
         lng_def = -63.8632 if equipo_id == "PIVOT-LOTE-A2" else -63.8500
         return jsonify({
             "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
-            "presion": "0.0 Bar", "posicion_angular": "0°", "rssi": "0 dBm",
+            "presion": 0.0, "posicion_angular": "0°", "rssi": "0 dBm",
             "actualizacion": "Sin hardware"
         }), 200
 
@@ -371,6 +378,7 @@ def stock():
         ''', (parte, item, motor, amount, pasillo, estante))
         conn.commit()
         conn.close()
+    
         flash(f"Insumo [{parte}] actualizado.", "success")
         return redirect(url_for('stock'))
         
@@ -394,7 +402,7 @@ def mantenimiento():
         prox = horas_act + freq
         
         cursor.execute('''
-            INSERT INTO control_services (equipo_asignado, hours_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea)
+            INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea)
             VALUES (?, ?, ?, ?, ?)
         ''', (equipo, horas_act, prox, freq, desc))
         conn.commit()
