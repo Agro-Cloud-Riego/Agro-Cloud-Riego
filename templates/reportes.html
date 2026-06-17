@@ -80,7 +80,7 @@
                     {% for r in riegos %}
                     <tr>
                         <td>#{{ r.id }}</td>
-                        <td><strong style="color: var(--texto-ok);">{{ r.equipo_id }}</strong></td>
+                        <td><strong style="color: var(--texto-ok);">${r.equipo_id if r.equipo_id else r.pivot_id}</strong></td>
                         <td>{{ r.fecha }}</td>
                         <td><span class="badge-vuelta">V-{{ r.nro_vuelta if r.nro_vuelta else '-' }}</span></td>
                         <td>{{ r.lamina_programada }} mm</td>
@@ -118,13 +118,13 @@
                     <tr>
                         <td>{{ o.fecha }}</td>
                         <td><strong>{{ o.equipo_id }}</strong></td>
-                        <td><span style="color: var(--texto-ok);">{{ o.horas_registro }} hs</span></td>
-                        <td>{{ o.tarea }}</td>
-                        <td style="color: var(--amarillo);">{{ o.responsable }}</td>
+                        <td><span style="color: var(--texto-ok);">${o.horas_registro if o.horas_registro else o.horas_actuales} hs</span></td>
+                        <td>{{ o.tarea if o.tarea else o.descripcion_tarea }}</td>
+                        <td style="color: var(--amarillo);">{{ o.responsable if o.responsable else 'Equipo Técnico' }}</td>
                         <td>
                             {% if o.repuesto_asociado and 'None' not in o.repuesto_asociado %}
                                 <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 4px 6px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
-                            {% else % border-radius: 4px;}
+                            {% else %}
                                 <span style="color: #64748b; font-size: 12px;">Sin repuestos de stock</span>
                             {% endif %}
                         </td>
