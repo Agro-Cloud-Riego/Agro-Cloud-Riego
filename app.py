@@ -177,16 +177,39 @@ def index():
     fila_telemetria = cursor.fetchone()
     
     if fila_telemetria:
+        estado_final = fila_telemetria['estado_sistema']
+        presion_final = fila_telemetria['presion_terminal']
+        caudal_final = "185.000" if "MARCHA" in estado_final else "0"
+        
+        # --- PARSEO DE FECHA Y HORA EN TIEMPO REAL ---
+        lectura_humana = fila_telemetria['ultima_actualizacion']
+        try:
+            # Intentamos leer el timestamp real si viene del hardware
+            ultima_vez = datetime.strptime(fila_telemetria['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
+            
+            # Si pasaron más de 5 minutos sin reportar, asumimos inactividad técnica
+            if datetime.now() - ultima_vez > timedelta(minutes=5):
+                estado_final = "❌ DETENIDO (Desconectado / Sin Señal)"
+                presion_final = 0.0
+                caudal_final = "0"
+                lectura_humana = ultima_vez.strftime('%d/%m/%Y %H:%M') + " (Inactivo)"
+            else:
+                # Formato ordenado legible: Día/Mes/Año Hora:Minutos
+                lectura_humana = ultima_vez.strftime('%d/%m/%Y %H:%M')
+        except Exception:
+            # Si el registro es una semilla vieja o texto ('Hace 2 min', 'Turno Cargado'), se mantiene sin romper la app
+            pass
+
         data_equipo = {
             "id": fila_telemetria['equipo_id'],
             "nombre_corto": "Pivot Lote A2" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Frontal F22",
             "lote": "Lote A2 - Maíz (156 Ha)" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Cuadro Norte - Soja (210 Ha)",
-            "estado": fila_telemetria['estado_sistema'],
-            "presion": fila_telemetria['presion_terminal'],  # Pasado como número limpio para evaluar condicionales en HTML
-            "caudal": "185.000" if "MARCHA" in fila_telemetria['estado_sistema'] else "0",
+            "estado": estado_final,
+            "presion": presion_final, 
+            "caudal": caudal_final,
             "posicion_tramo": f"{fila_telemetria['posicion_actual']}°",
-            "ultima_lectura": fila_telemetria['ultima_actualizacion'],
-            "senal": fila_telemetria['rssi'],
+            "ultima_lectura": lectura_humana,
+            "senal": fila_telemetria['rssi'] if "Inactivo" not in lectura_humana else "-- dBm",
             "lat": fila_telemetria['latitud'],
             "lng": fila_telemetria['longitud']
         }
@@ -230,7 +253,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (MODIFICADO PARA CARGA 100% MANUAL) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (CARGA 100% MANUAL) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -240,7 +263,6 @@ def registrar_riego():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
     if request.method == 'POST':
-        # Toma el nombre del lote/cobertura ingresado manualmente en el formulario
         equipo_id = request.form.get('equipo_id', equipo_id).strip()
         lamina_prog = request.form.get('lamina_programada')
         lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
@@ -250,13 +272,11 @@ def registrar_riego():
         lamina_real = float(request.form.get('lamina_mm', 0))
         presion_trabajo = float(request.form.get('presion_bar', 0.0))
         
-        # Insertar registro de riego manual en el Libro Histórico
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
             VALUES (?, ?, ?, ?, 0, 'MARCHA', ?, ?)
         ''', (equipo_id, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val))
         
-        # Intentar actualizar horas de mantenimiento preventivo si coincide con los equipos estándar
         mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
         nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
         
@@ -267,7 +287,6 @@ def registrar_riego():
                 WHERE equipo_asignado = ?
             ''', (horas_operadas, nombre_mapeado))
         
-        # Guardar en telemetría el estado si el lote corresponde a los monitoreados por hardware
         cursor.execute('''
             UPDATE telemetria_actual
             SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = ?, ultima_actualizacion = 'Turno Cargado'
@@ -280,11 +299,9 @@ def registrar_riego():
         flash(f"Registro de riego para '{equipo_id}' guardado correctamente.", "success")
         return redirect(url_for('index', equipo=equipo_id))
 
-    # --- PROCEDIMIENTO GET ---
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
-    # Obtener los últimos 10 riegos cargados de cualquier lote para mostrarlos en la tabla derecha
     cursor.execute("SELECT equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar FROM registro_riego ORDER BY id DESC LIMIT 10")
     riegos_cargados = cursor.fetchall()
     
@@ -292,6 +309,7 @@ def registrar_riego():
         "PIVOT-LOTE-A2": {"id": "PIVOT-LOTE-A2", "lote": "Lote A2 - Maíz (156 Ha)", "nombre_corto": "Pivot Lote A2"},
         "FRONTAL-F22": {"id": "FRONTAL-F22", "lote": "Cuadro Norte - Soja (210 Ha)", "nombre_corto": "Frontal F22"}
     }
+    
     data_equipo = equipos_mapa.get(equipo_id, {"id": equipo_id, "lote": "Carga Manual", "nombre_corto": equipo_id})
     
     conn.close() 
@@ -299,7 +317,7 @@ def registrar_riego():
     
     return render_template('registrar_riego.html', 
                            data=data_equipo, 
-                           riegos=riegos_cargados,  # Pasa la lista de riegos a la tabla del template
+                           riegos=riegos_cargados, 
                            total_acumulado_mm=round(total_acumulado_mm, 1), 
                            fecha_hoy=fecha_hoy,
                            user=current_user)
