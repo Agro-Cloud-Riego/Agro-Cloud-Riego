@@ -83,7 +83,6 @@ def inicializar_db():
     ''')
     
     # --- SCRIPT DE MIGRACIÓN AUTOMÁTICA ---
-    # Esto evita fallas si la base de datos ya existía en producción sin los nuevos campos
     columnas_nuevas = {
         "nro_vuelta": "INTEGER",
         "horas_parada": "REAL",
@@ -147,7 +146,7 @@ def inicializar_db():
     cursor.execute("SELECT COUNT(*) FROM control_services")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
-                       ("Pivot A2", 214.5, 250.0, 250.0, "Cambio aceite caja reductora central y filtros"))
+                        ("Pivot A2", 214.5, 250.0, 250.0, "Cambio aceite caja reductora central y filtros"))
         cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
                        ("Frontal F22", 480.0, 500.0, 500.0, "Engrase general de cardanes y revisión de alineación"))
         
@@ -199,7 +198,6 @@ def index():
         presion_final = fila_telemetria['presion_terminal']
         caudal_final = "185.000" if "MARCHA" in estado_final else "0"
         
-        # --- PARSEO DE FECHA Y HORA EN TIEMPO REAL ---
         lectura_humana = fila_telemetria['ultima_actualizacion']
         try:
             ultima_vez = datetime.strptime(fila_telemetria['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
@@ -247,7 +245,6 @@ def index():
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
-    # SOLUCIÓN DEL ERROR AQUÍ: Agregada la tupla (equipo_seleccionado,) al final de la consulta
     cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
     registros_grafico = cursor.fetchall()[::-1]
     
@@ -268,17 +265,17 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (SEGUIMIENTO DE VUELTAS Y TIEMPOS) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (MODIFICADO PARA PERMITIR ENTRADA LIBRE Y MOSTRAR TODO CUALQUIER LOTE) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    
     if request.method == 'POST':
-        equipo_id = request.form.get('equipo_id', equipo_id).strip()
+        # NUEVO: Lee directamente la cadena de texto manual que enviaste desde el HTML
+        equipo_id_manual = request.form.get('equipo_id', '').strip()
+        
         lamina_prog = request.form.get('lamina_programada')
         lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
         fecha_riego = request.form.get('fecha')
@@ -287,7 +284,6 @@ def registrar_riego():
         lamina_real = float(request.form.get('lamina_mm', 0))
         presion_trabajo = float(request.form.get('presion_bar', 0.0))
         
-        # Captura de los nuevos campos técnicos
         nro_vuelta = request.form.get('nro_vuelta')
         nro_vuelta_val = int(nro_vuelta) if nro_vuelta else None
         horas_parada = request.form.get('horas_parada')
@@ -295,14 +291,14 @@ def registrar_riego():
         duracion_vuelta = request.form.get('duracion_vuelta')
         duracion_vuelta_val = float(duracion_vuelta) if duracion_vuelta else 0.0
         
-        # Inserción completa en la base de datos
+        # Guardamos en la tabla con el nombre de lote ingresado a mano
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada, nro_vuelta, horas_parada, duracion_vuelta) 
             VALUES (?, ?, ?, ?, 0, 'MARCHA', ?, ?, ?, ?, ?)
-        ''', (equipo_id, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val, nro_vuelta_val, horas_parada_val, duracion_vuelta_val))
+        ''', (equipo_id_manual, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val, nro_vuelta_val, horas_parada_val, duracion_vuelta_val))
         
         mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
-        nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
+        nombre_mapeado = mapa_equipos.get(equipo_id_manual, equipo_id_manual)
         
         if horas_operadas > 0:
             cursor.execute('''
@@ -311,31 +307,31 @@ def registrar_riego():
                 WHERE equipo_asignado = ?
             ''', (horas_operadas, nombre_mapeado))
         
+        # Intentamos actualizar la telemetría del equipo si existe en la base de datos
         cursor.execute('''
             UPDATE telemetria_actual
             SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = ?, ultima_actualizacion = 'Turno Cargado'
             WHERE equipo_id = ?
-        ''', (presion_trabajo, equipo_id))
+        ''', (presion_trabajo, equipo_id_manual))
         
         conn.commit()
         conn.close() 
         
-        flash(f"Registro de vuelta de riego Nro {nro_vuelta_val} para '{equipo_id}' guardado correctamente.", "success")
-        return redirect(url_for('index', equipo=equipo_id))
+        flash(f"Registro de vuelta de riego Nro {nro_vuelta_val} para '{equipo_id_manual}' guardado correctamente.", "success")
+        return redirect(url_for('index', equipo=equipo_id_manual))
 
-    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
-    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
-    
-    # Seleccionamos las columnas incluyendo las tres nuevas para mostrarlas en la tabla del libro histórico
-    cursor.execute("SELECT id, equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar, nro_vuelta, horas_parada, duracion_vuelta FROM registro_riego ORDER BY id DESC LIMIT 10")
+    # NUEVO: Trae de la DB absolutamente TODOS los turnos de riego cargados por orden de ingreso, sin filtros de lote restrictivos
+    cursor.execute('''
+        SELECT id, equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar, nro_vuelta, horas_parada, duracion_vuelta 
+        FROM registro_riego ORDER BY id DESC LIMIT 10
+    ''')
     riegos_cargados = cursor.fetchall()
     
-    equipos_mapa = {
-        "PIVOT-LOTE-A2": {"id": "PIVOT-LOTE-A2", "lote": "Lote A2 - Maíz (156 Ha)", "nombre_corto": "Pivot Lote A2"},
-        "FRONTAL-F22": {"id": "FRONTAL-F22", "lote": "Cuadro Norte - Soja (210 Ha)", "nombre_corto": "Frontal F22"}
-    }
+    data_equipo = {"id": "CARGA_LIBRE", "lote": "Ingreso Manual de Lotes", "nombre_corto": "Registro Manual"}
     
-    data_equipo = equipos_mapa.get(equipo_id, {"id": equipo_id, "lote": "Carga Manual", "nombre_corto": equipo_id})
+    # Cálculo global del acumulado de mm cargado en la base de datos
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego")
+    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
     conn.close() 
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
@@ -514,7 +510,7 @@ def deactivate_alerta(alerta_id):
     flash("Alerta técnica solucionada.", "success")
     return redirect(url_for('index', equipo=al['equipo_id'] if al else 'PIVOT-LOTE-A2'))
 
-# --- REPORTES Y EXPORTACIÓN (ACTUALIZADO CON VUELTAS Y DETENCIONES) ---
+# --- REPORTES Y EXPORTACIÓN ---
 @app.route('/reportes')
 @login_required
 def reportes():
@@ -530,7 +526,6 @@ def reportes():
 def descargar_datos_ciclo(equipo_id):
     conn = conectar_db()
     cursor = conn.cursor()
-    # Exportación enriquecida para análisis completo en Excel/CSV
     cursor.execute('''
         SELECT id, fecha, nro_vuelta, lamina_programada, lamina_mm, horas_operadas, horas_parada, duracion_vuelta, presion_bar 
         FROM registro_riego WHERE equipo_id = ? ORDER BY id ASC
@@ -547,7 +542,7 @@ def descargar_datos_ciclo(equipo_id):
                 f['id'], 
                 f['fecha'], 
                 f['nro_vuelta'] if f['nro_vuelta'] else '-', 
-                f['lamina_programada'], 
+                f['lambda_programada'] if 'lambda_programada' in f.keys() else f['lamina_programada'], 
                 f['lamina_mm'], 
                 f['horas_operadas'], 
                 f['horas_parada'] if f['horas_parada'] else 0.0, 
@@ -560,7 +555,6 @@ def descargar_datos_ciclo(equipo_id):
     response.headers.set("Content-Disposition", f"attachment; filename=historial_riego_{equipo_id}.csv")
     return response
 
-# --- ADAPTADOR DE PUERTOS PARA PRODUCCIÓN EN LA NUBE ---
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=puerto, debug=True)
