@@ -530,7 +530,7 @@ def finalizar_ot(ot_id):
 
 @app.route('/desactivar-alerta/<int:alerta_id>')
 @login_required
-def deactivate_alerta(alerta_id):
+def desactivar_alerta(alerta_id):
     conn = conectar_db()
     cursor = conn.cursor()
     cursor.execute("SELECT equipo_id FROM alertas_criticas WHERE id = ?", (alerta_id,))
