@@ -27,9 +27,10 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- CONFIGURACIÓN DE BASE DE DATOS ---
+# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA ---
 def conectar_db():
-    conn = sqlite3.connect(DATABASE)
+    # Agregamos timeout para evitar el error "database is locked" si hay consultas concurrentes
+    conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -169,9 +170,9 @@ def index():
             ''', (f"FALLA: {tipo_falla}", eq_id))
             
             conn.commit()
+            conn.close() # Cierre inmediato antes de redirigir
             flash("Alerta de rotura emitida al panel técnico.", "danger")
-            
-        return redirect(url_for('index', equipo=equipo_seleccionado))
+            return redirect(url_for('index', equipo=equipo_seleccionado))
 
     # Lectura de Telemetría Dinámica de la DB
     cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
@@ -218,13 +219,13 @@ def index():
     
     # Historial para el gráfico de barras/líneas de Chart.js
     cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
-    registros_grafico = cursor.fetchall()[::-1] # Invertir para orden cronológico izquierdo a derecho
+    registros_grafico = cursor.fetchall()[::-1]
     
     fechas_riego = [r['fecha'] for r in registros_grafico]
     laminas_riego = [r['lamina_mm'] for r in registros_grafico]
     horas_riego = [r['horas_operadas'] for r in registros_grafico]
     
-    conn.close()
+    conn.close() # Cerramos la conexión para liberar SQLite por completo
     
     return render_template('dashboard.html', 
                            data=data_equipo, 
@@ -237,7 +238,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- NUEVA RUTA APARTE: SEPARADOR DE REGISTRO DE RIEGO (DOS COLUMNAS) ---
+# --- NUEVA RUTA APARTE OPTIMIZADA: ELIMINA EL COLOQUEO Y EL DELAY ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -247,7 +248,6 @@ def registrar_riego():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
     if request.method == 'POST':
-        # Captura de datos estructurados según el diseño del papel
         lamina_prog = request.form.get('lamina_programada')
         lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
         fecha_riego = request.form.get('fecha_riego')
@@ -256,13 +256,13 @@ def registrar_riego():
         horas_motor = float(request.form.get('horas_motor', 0))
         lamina_real = float(request.form.get('lamina_mm', 0))
         
-        # Insertar en tabla de históricos hidrológicos
+        # Guardamos en base de datos
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
             VALUES (?, ?, ?, 2.2, 0, 'MARCHA', ?, ?)
         ''', (equipo_id, lamina_real, horas_panel, fecha_riego, lamina_prog_val))
         
-        # Mapeo e impacto directo sobre las HORAS MOTOR reales en control de servicios preventivos
+        # Actualizamos las horas físicas de motor para services preventivos
         mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
         nombre_mapeado = mapa_equipos.get(equipo_id, "")
         
@@ -273,7 +273,7 @@ def registrar_riego():
                 WHERE equipo_asignado = ?
             ''', (horas_motor, nombre_mapeado))
         
-        # Actualización rápida simulada de telemetría para ver el cambio en el panel central
+        # Seteamos el estado de telemetría a Marcha Estable
         cursor.execute('''
             UPDATE telemetria_actual
             SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = 2.2, ultima_actualizacion = 'Turno Cargado'
@@ -281,12 +281,12 @@ def registrar_riego():
         ''', (equipo_id,))
         
         conn.commit()
-        conn.close()
+        conn.close() # <-- LIBERA EL ARCHIVO DB INMEDIATAMENTE
         
-        flash(f"Registro de riego hídrico completado para {equipo_id}. Horas acumuladas.", "success")
+        flash(f"Registro de riego hídrico completado con éxito.", "success")
         return redirect(url_for('index', equipo=equipo_id))
 
-    # --- MÉTODO GET: Cargar datos preliminares de la DB ---
+    # --- MÉTODO GET ---
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
@@ -296,7 +296,7 @@ def registrar_riego():
     }
     data_equipo = equipos_mapa.get(equipo_id, equipos_mapa["PIVOT-LOTE-A2"])
     
-    conn.close()
+    conn.close() # <-- LIBERA EL ARCHIVO DB ANTES DE RENDERIZAR
     
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     
@@ -306,7 +306,7 @@ def registrar_riego():
                            fecha_hoy=fecha_hoy,
                            user=current_user)
 
-# --- ENDPOINT API PARA MAPA (LEAFLET REAL-TIME CONSULTAS AJAX) ---
+# --- ENDPOINT API PARA MAPA ---
 @app.route('/api/status')
 def api_status():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
@@ -333,10 +333,10 @@ def api_status():
         return jsonify({
             "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
             "presion": "0.0 Bar", "posicion_angular": "0°", "rssi": "0 dBm",
-            "actualizacion": "Sin hardware configurado"
+            "actualizacion": "Sin hardware"
         }), 200
 
-# --- SECCIÓN 1: LOGIN Y CONTROL DE SESIÓN ---
+# --- SECCIÓN 1: LOGIN ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -383,7 +383,8 @@ def stock():
                 estante = excluded.estante
         ''', (parte, item, motor, cantidad, pasillo, estante))
         conn.commit()
-        flash(f"Insumo técnico [{parte}] guardado o actualizado correctamente.", "success")
+        conn.close()
+        flash(f"Insumo técnico [{parte}] guardado.", "success")
         return redirect(url_for('stock'))
         
     cursor.execute("SELECT * FROM inventario ORDER BY parte ASC")
@@ -391,7 +392,7 @@ def stock():
     conn.close()
     return render_template('stock.html', inventario=items_stock)
 
-# --- SECCIÓN 3: PLAN DE MANTENIMIENTO PREVENTIVO Y HORAS ---
+# --- SECCIÓN 3: MANTENIMIENTO PREVENTIVO ---
 @app.route('/mantenimiento', methods=['GET', 'POST'])
 @login_required
 def mantenimiento():
@@ -410,7 +411,8 @@ def mantenimiento():
             VALUES (?, ?, ?, ?, ?)
         ''', (equipo, horas_act, prox, freq, desc))
         conn.commit()
-        flash("Nuevo plan de alerta de service establecido.", "success")
+        conn.close()
+        flash("Nuevo plan de service establecido.", "success")
         return redirect(url_for('mantenimiento'))
         
     cursor.execute("SELECT * FROM control_services ORDER BY id DESC")
@@ -418,7 +420,7 @@ def mantenimiento():
     conn.close()
     return render_template('mantenimiento.html', servicios=servicios)
 
-# --- SECCIÓN 4: CREACIÓN Y GESTIÓN DE ORDENES DE TRABAJO (OT) ---
+# --- SECCIÓN 4: ORDENES DE TRABAJO (OT) ---
 @app.route('/crear-ot', methods=['POST'])
 @login_required
 def crear_ot():
@@ -438,7 +440,7 @@ def crear_ot():
     conn.commit()
     conn.close()
     
-    flash("Orden de Trabajo Técnica abierta y asignada.", "success")
+    flash("Orden de Trabajo Técnica abierta.", "success")
     return redirect(url_for('index', equipo=equipo_id))
 
 @app.route('/finalizar-ot/<int:ot_id>')
@@ -451,7 +453,6 @@ def finalizar_ot(ot_id):
     ot = cursor.fetchone()
     
     if ot:
-        # Descontar del inventario físico el repuesto comprometido si existiera
         if ot['repuesto_asociado']:
             cursor.execute('''
                 UPDATE inventario 
@@ -461,9 +462,9 @@ def finalizar_ot(ot_id):
             
         cursor.execute("UPDATE ordenes_trabajo SET estado = 'DESPACHADA' WHERE id = ?", (ot_id,))
         conn.commit()
-        flash(f"Orden de Trabajo #{ot_id} despachada con éxito. Insumos descontados.", "success")
-        
+    
     conn.close()
+    flash(f"Orden despachada.", "success")
     return redirect(url_for('index', equipo=ot['equipo_id'] if ot else 'PIVOT-LOTE-A2'))
 
 @app.route('/desactivar-alerta/<int:alerta_id>')
@@ -486,10 +487,10 @@ def desactivar_alerta(alerta_id):
         
     conn.commit()
     conn.close()
-    flash("Alerta archivada. Equipo restablecido en condiciones operativas estándar.", "success")
+    flash("Alerta archivada con éxito.", "success")
     return redirect(url_for('index', equipo=al['equipo_id'] if al else 'PIVOT-LOTE-A2'))
 
-# --- SECCIÓN 5: REPORTES E HISTÓRICOS GENERALES ---
+# --- SECCIÓN 5: REPORTES ---
 @app.route('/reportes')
 @login_required
 def reportes():
