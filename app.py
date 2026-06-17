@@ -27,7 +27,7 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- RUTA DE LOGIN (FALTABA ESTA FUNCIÓN Y POR ESO DABA ERROR RENDER) ---
+# --- RUTA DE LOGIN (CORREGIDO: REINCORPORADA) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -39,7 +39,6 @@ def login():
             return redirect(url_for('index'))
         else:
             flash('Usuario o contraseña incorrectos', 'danger')
-    # Si entra por GET, renderiza una interfaz simple o redirige automáticamente si prefieres no usar clave
     return '''
         <div style="background:#0b0f19; color:white; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
             <form method="POST" style="background:#131c2e; padding:30px; border-radius:12px; border:1px solid #233554; display:flex; flex-direction:column; gap:15px; width:300px;">
@@ -51,7 +50,15 @@ def login():
         </div>
     '''
 
-# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA ---
+# --- RUTA DE CERRAR SESIÓN (CORREGIDO: REINCORPORADA PARA SOLUCIONAR EL BUILDERROR) ---
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Sesión cerrada correctamente.', 'success')
+    return redirect(url_for('login'))
+
+# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA CON TIMEOUT ---
 def conectar_db():
     conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
@@ -92,13 +99,13 @@ def inicializar_db():
         CREATE TABLE IF NOT EXISTS registro_riego (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             equipo_id TEXT NOT NULL,
-            fecha TEXT NOT NULL,                
-            horas_operadas REAL NOT NULL,       
-            horas_parada TEXT,                  
-            duracion_vuelta REAL,               
-            posicion_grados INTEGER,            
-            lamina_mm REAL NOT NULL,            
-            estado_operacion TEXT,              
+            fecha TEXT NOT NULL,                -- Se usa como Fecha Inicio
+            horas_operadas REAL NOT NULL,       -- Se usa como Hs Inicio (Panel)
+            horas_parada TEXT,                  -- Se usa como Fecha Fin (Texto/Date)
+            duracion_vuelta REAL,               -- Se usa como Hs Fin (Panel)
+            posicion_grados INTEGER,            -- Se usa como Tiempo Recorrido Calculado
+            lamina_mm REAL NOT NULL,            -- Lámina Real Aplicada
+            estado_operacion TEXT,              -- Se usa como Motivo de Parada / Observación
             presion_bar REAL,
             lamina_programada REAL DEFAULT 0.0,
             nro_vuelta INTEGER
@@ -289,6 +296,7 @@ def registrar_riego():
             nro_vuelta = request.form.get('nro_vuelta')
             nro_vuelta_val = int(nro_vuelta) if nro_vuelta else None
             
+            # Se crea el registro marcándolo "EN MARCHA"
             cursor.execute('''
                 INSERT INTO registro_riego (
                     equipo_id, fecha, horas_operadas, estado_operacion, 
@@ -296,6 +304,7 @@ def registrar_riego():
                 ) VALUES (?, ?, ?, 'EN MARCHA', 0.0, ?, ?)
             ''', (equipo_id_manual, fecha_inicio, hs_inicio, float(avance if avance else 20.0), nro_vuelta_val))
             
+            # Impacto opcional en telemetría para ver el cambio de estado en vivo
             cursor.execute('''
                 UPDATE telemetria_actual 
                 SET estado_sistema = 'MARCHA EN AGUA', ultima_actualizacion = 'Arrancado Manual' 
@@ -314,6 +323,7 @@ def registrar_riego():
             observacion = request.form.get('observacion', 'Completo sin fallas').strip()
             presion_bar = float(request.form.get('presion_bar', 0.0))
             
+            # Buscamos las horas iniciales guardadas en la apertura
             cursor.execute("SELECT horas_operadas, equipo_id FROM registro_riego WHERE id = ?", (registro_id,))
             reg_apertura = cursor.fetchone()
             
@@ -321,9 +331,10 @@ def registrar_riego():
                 hs_inicio = reg_apertura['horas_operadas']
                 equipo_id = reg_apertura['equipo_id']
                 
-                # Tiempo recorrido = Hs Fin - Hs Inicio
+                # Cálculo matemático idéntico a tu celda de Excel
                 tiempo_recorrido = hs_fin - hs_inicio
                 
+                # Consolidamos el registro con los datos de parada definitivos
                 cursor.execute('''
                     UPDATE registro_riego 
                     SET horas_parada = ?, 
@@ -335,6 +346,7 @@ def registrar_riego():
                     WHERE id = ?
                 ''', (fecha_fin, hs_fin, tiempo_recorrido, lamina_real, observacion, presion_bar, registro_id))
                 
+                # Sumamos el tiempo de marcha real al contador de servicios preventivos
                 mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
                 nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
                 
@@ -344,6 +356,7 @@ def registrar_riego():
                     WHERE equipo_asignado = ? OR equipo_asignado = ?
                 ''', (tiempo_recorrido, nombre_mapeado, equipo_id))
                 
+                # Cambiamos el estado en telemetría a detenido
                 cursor.execute('''
                     UPDATE telemetria_actual 
                     SET estado_sistema = 'PARADO', presion_terminal = 0.0, ultima_actualizacion = 'Parada Manual' 
@@ -356,12 +369,11 @@ def registrar_riego():
         conn.close()
         return redirect(url_for('registrar_riego'))
 
+    # Trae los giros activos ("EN MARCHA") para poder cerrarlos en la interfaz
     cursor.execute("SELECT id, equipo_id, fecha, horas_operadas, nro_vuelta FROM registro_riego WHERE estado_operacion = 'EN MARCHA' ORDER BY id DESC")
-    activos = [dict(row) for row in cursor.fetchall()]
+    activos = cursor.fetchall()
 
-    for a in activos:
-        a['horas_operadas'] = round(a['horas_operadas'], 1)
-
+    # Trae el historial cerrado respetando las columnas exactas de tu Excel
     cursor.execute('''
         SELECT id, equipo_id, fecha as fecha_inicio, horas_operadas as hs_inicio, 
                horas_parada as fecha_fin, duracion_vuelta as hs_fin, 
@@ -385,6 +397,32 @@ def registrar_riego():
                            total_acumulado_mm=round(total_acumulado_mm, 1), 
                            fecha_hoy=fecha_hoy,
                            user=current_user)
+
+# --- ENDPOINT API PARA EL MAPA ---
+@app.route('/api/status')
+def api_status():
+    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_id,))
+    fila = cursor.fetchone()
+    conn.close()
+    
+    if fila:
+        return jsonify({
+            "equipo_id": fila['equipo_id'], "estado": fila['estado_sistema'],
+            "latitud": fila['latitud'], "longitud": fila['longitud'],
+            "presion": fila['presion_terminal'], "posicion_angular": f"{fila['posicion_actual']}°",
+            "rssi": fila['rssi'], "actualizacion": fila['ultima_actualizacion']
+        }), 200
+    else:
+        lat_def = -25.1794 if equipo_id == "PIVOT-LOTE-A2" else -25.1750
+        lng_def = -63.8632 if equipo_id == "PIVOT-LOTE-A2" else -63.8500
+        return jsonify({
+            "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
+            "presion": 0.0, "posicion_angular": "0°", "rssi": "0 dBm",
+            "actualizacion": "Sin hardware"
+        }), 200
 
 # --- CONTROL DE STOCK ---
 @app.route('/stock', methods=['GET', 'POST'])
