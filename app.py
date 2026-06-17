@@ -29,6 +29,7 @@ def load_user(user_id):
 
 # --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA CON TIMEOUT ---
 def conectar_db():
+    # El timeout de 30 segundos previene bloqueos 'database is locked' en Render
     conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
@@ -63,21 +64,18 @@ def inicializar_db():
         )
     ''')
     
-    # Tabla de Historial de Riego Adaptada al Excel de Auditoría
+    # Tabla de Historial Hidrológico / Libro de Riego
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS registro_riego (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             equipo_id TEXT NOT NULL,
-            fecha TEXT NOT NULL,                -- Se usa como Fecha Inicio
-            horas_operadas REAL NOT NULL,       -- Se usa como Hs Inicio (Panel)
-            horas_parada TEXT,                  -- Se usa como Fecha Fin (Texto/Date)
-            duracion_vuelta REAL,               -- Se usa como Hs Fin (Panel)
-            posicion_grados INTEGER,            -- Se usa como Tiempo Recorrido Calculado
-            lamina_mm REAL NOT NULL,            -- Lámina Real Aplicada
-            estado_operacion TEXT,              -- Se usa como Motivo de Parada / Observación
+            lamina_mm REAL NOT NULL,
+            horas_operadas REAL NOT NULL,
             presion_bar REAL,
-            lamina_programada REAL DEFAULT 0.0,
-            nro_vuelta INTEGER
+            posicion_grados INTEGER,
+            estado_operacion TEXT,
+            fecha TEXT NOT NULL,
+            lamina_programada REAL DEFAULT 0.0
         )
     ''')
     
@@ -105,7 +103,7 @@ def inicializar_db():
         )
     ''')
     
-    # Tabla de Telemetría Dinámica Real
+    # Tabla de Telemetría Dinámica Real (Hardware LoRa / Simulación)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS telemetria_actual (
             equipo_id TEXT PRIMARY KEY,
@@ -119,7 +117,7 @@ def inicializar_db():
         )
     ''')
     
-    # Datos semilla iniciales si la DB está vacía
+    # Datos semilla de telemetría si no existen
     cursor.execute("SELECT COUNT(*) FROM telemetria_actual")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO telemetria_actual VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -127,16 +125,18 @@ def inicializar_db():
         cursor.execute("INSERT INTO telemetria_actual VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                        ("FRONTAL-F22", -25.1750, -63.8500, 0.0, 0, "PARADO FALTA PRESION", "-94 dBm", "Hace 14 min"))
         
+    # Datos semilla de servicios si no existen
     cursor.execute("SELECT COUNT(*) FROM control_services")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
-                        ("Pivot A2", 214.5, 250.0, 250.0, "Cambio aceite caja reductora central y filtros"))
+                       ("Pivot A2", 214.5, 250.0, 250.0, "Cambio aceite caja reductora central y filtros"))
         cursor.execute("INSERT INTO control_services (equipo_asignado, horas_actuales, horas_proximo_service, frecuencia_horas, descripcion_tarea) VALUES (?, ?, ?, ?, ?)",
                        ("Frontal F22", 480.0, 500.0, 500.0, "Engrase general de cardanes y revisión de alineación"))
         
     conn.commit()
     conn.close()
 
+# Inicializar Base de Datos al arrancar la app
 inicializar_db()
 
 # --- RUTA PRINCIPAL: DASHBOARD DE MONITOREO LORA ---
@@ -180,17 +180,24 @@ def index():
         estado_final = fila_telemetria['estado_sistema']
         presion_final = fila_telemetria['presion_terminal']
         caudal_final = "185.000" if "MARCHA" in estado_final else "0"
+        
+        # --- PARSEO DE FECHA Y HORA EN TIEMPO REAL ---
         lectura_humana = fila_telemetria['ultima_actualizacion']
         try:
+            # Intentamos leer el timestamp real si viene del hardware
             ultima_vez = datetime.strptime(fila_telemetria['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
+            
+            # Si pasaron más de 5 minutos sin reportar, asumimos inactividad técnica
             if datetime.now() - ultima_vez > timedelta(minutes=5):
                 estado_final = "❌ DETENIDO (Desconectado / Sin Señal)"
                 presion_final = 0.0
                 caudal_final = "0"
                 lectura_humana = ultima_vez.strftime('%d/%m/%Y %H:%M') + " (Inactivo)"
             else:
+                # Formato ordenado legible: Día/Mes/Año Hora:Minutos
                 lectura_humana = ultima_vez.strftime('%d/%m/%Y %H:%M')
         except Exception:
+            # Si el registro es una semilla vieja o texto ('Hace 2 min', 'Turno Cargado'), se mantiene sin romper la app
             pass
 
         data_equipo = {
@@ -226,12 +233,12 @@ def index():
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
-    cursor.execute("SELECT fecha, lamina_mm, posicion_grados FROM registro_riego WHERE equipo_id = ? AND estado_operacion != 'EN MARCHA' ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
+    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
     registros_grafico = cursor.fetchall()[::-1]
     
     fechas_riego = [r['fecha'] for r in registros_grafico]
     laminas_riego = [r['lamina_mm'] for r in registros_grafico]
-    horas_riego = [r['posicion_grados'] if r['posicion_grados'] else 0.0 for r in registros_grafico]
+    horas_riego = [r['horas_operadas'] for r in registros_grafico]
     
     conn.close()
     
@@ -246,123 +253,71 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- SECCIÓN: REGISTRO DE RIEGO (ESTILO PLANILLA EXCEL SEGUIMIENTO - COMPLETO Y UNIFICADO) ---
+# --- SECCIÓN: REGISTRO DE RIEGO (CARGA 100% MANUAL) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    if request.method == 'POST':
-        form_accion = request.form.get('form_accion')
-        
-        # ACCIÓN A: REPORTE DE APERTURA / INICIO DE MARCHA
-        if form_accion == 'iniciar':
-            equipo_id_manual = request.form.get('equipo_id', '').strip().upper()
-            fecha_inicio = request.form.get('fecha_inicio')
-            hs_inicio = float(request.form.get('hs_inicio', 0.0))
-            avance = request.form.get('avance')
-            nro_vuelta = request.form.get('nro_vuelta')
-            nro_vuelta_val = int(nro_vuelta) if nro_vuelta else None
-            
-            # Se crea el registro marcándolo "EN MARCHA"
-            cursor.execute('''
-                INSERT INTO registro_riego (
-                    equipo_id, fecha, horas_operadas, estado_operacion, 
-                    lamina_mm, lamina_programada, nro_vuelta
-                ) VALUES (?, ?, ?, 'EN MARCHA', 0.0, ?, ?)
-            ''', (equipo_id_manual, fecha_inicio, hs_inicio, float(avance if avance else 20.0), nro_vuelta_val))
-            
-            cursor.execute('''
-                UPDATE telemetria_actual 
-                SET estado_sistema = 'MARCHA EN AGUA', ultima_actualizacion = 'Arrancado Manual' 
-                WHERE equipo_id = ?
-            ''', (equipo_id_manual,))
-            
-            conn.commit()
-            flash(f"✓ Turno de riego Abierto para '{equipo_id_manual}' con {hs_inicio} Hs Panel.", "success")
-            
-        # ACCIÓN B: REPORTE DE CIERRE / CALCULO DE TIEMPO RECORRIDO (EXCEL LOGIC)
-        elif form_accion == 'finalizar':
-            registro_id = request.form.get('registro_id')
-            fecha_fin = request.form.get('fecha_fin')
-            hs_fin = float(request.form.get('hs_fin', 0.0))
-            lamina_real = float(request.form.get('lamina_mm', 0.0))
-            observacion = request.form.get('observacion', 'Completo sin fallas').strip()
-            presion_bar = float(request.form.get('presion_bar', 0.0))
-            
-            cursor.execute("SELECT horas_operadas, equipo_id FROM registro_riego WHERE id = ?", (registro_id,))
-            reg_apertura = cursor.fetchone()
-            
-            if reg_apertura:
-                hs_inicio = reg_apertura['horas_operadas']
-                equipo_id = reg_apertura['equipo_id']
-                
-                # Cálculo de tiempo recorrido (Hs Fin - Hs Inicio)
-                tiempo_recorrido = hs_fin - hs_inicio
-                
-                # Modificamos estado_operacion para quitar el 'EN MARCHA' y poner el motivo de parada
-                cursor.execute('''
-                    UPDATE registro_riego 
-                    SET horas_parada = ?, 
-                        duracion_vuelta = ?, 
-                        posicion_grados = ?, 
-                        lamina_mm = ?, 
-                        estado_operacion = ?,
-                        presion_bar = ?
-                    WHERE id = ?
-                ''', (fecha_fin, hs_fin, tiempo_recorrido, lamina_real, observacion, presion_bar, registro_id))
-                
-                mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
-                nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
-                
-                cursor.execute('''
-                    UPDATE control_services 
-                    SET horas_actuales = horas_actuales + ?
-                    WHERE equipo_asignado = ? OR equipo_asignado = ?
-                ''', (tiempo_recorrido, nombre_mapeado, equipo_id))
-                
-                cursor.execute('''
-                    UPDATE telemetria_actual 
-                    SET estado_sistema = 'PARADO', presion_terminal = 0.0, ultima_actualizacion = 'Parada Manual' 
-                    WHERE equipo_id = ?
-                ''', (equipo_id,))
-                
-                conn.commit()
-                flash(f"✓ Registro cerrado para {equipo_id}. Tiempo de marcha: {round(tiempo_recorrido, 1)} hs.", "success")
-                
-        conn.close()
-        return redirect(url_for('registrar_riego'))
-
-    # Trae los giros activos ("EN MARCHA") para el panel celeste dinámico
-    cursor.execute("SELECT id, equipo_id, fecha, horas_operadas, nro_vuelta FROM registro_riego WHERE estado_operacion = 'EN MARCHA' ORDER BY id DESC")
-    activos = [dict(row) for row in cursor.fetchall()]
-
-    # Calculamos de forma dinámica el tiempo temporal transcurrido para cada equipo activo
-    for a in activos:
-        a['horas_operadas'] = round(a['horas_operadas'], 1)
-
-    # Historial cerrado que va directo a la tabla de Auditoría de la derecha
-    cursor.execute('''
-        SELECT id, equipo_id, fecha as fecha_inicio, horas_operadas as hs_inicio, 
-               horas_parada as fecha_fin, duracion_vuelta as hs_fin, 
-               posicion_grados as tiempo_recorrido, lamina_mm as lamina, 
-               estado_operacion as observacion, presion_bar, nro_vuelta
-        FROM registro_riego 
-        WHERE estado_operacion != 'EN MARCHA' 
-        ORDER BY id DESC LIMIT 15
-    ''')
-    historial_excel = cursor.fetchall()
+    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
-    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE estado_operacion != 'EN MARCHA'")
+    if request.method == 'POST':
+        equipo_id = request.form.get('equipo_id', equipo_id).strip()
+        lamina_prog = request.form.get('lamina_programada')
+        lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
+        fecha_riego = request.form.get('fecha')
+        
+        horas_operadas = float(request.form.get('horas_operadas', 0))
+        lamina_real = float(request.form.get('lamina_mm', 0))
+        presion_trabajo = float(request.form.get('presion_bar', 0.0))
+        
+        cursor.execute('''
+            INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
+            VALUES (?, ?, ?, ?, 0, 'MARCHA', ?, ?)
+        ''', (equipo_id, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val))
+        
+        mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
+        nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
+        
+        if horas_operadas > 0:
+            cursor.execute('''
+                UPDATE control_services 
+                SET horas_actuales = horas_actuales + ?
+                WHERE equipo_asignado = ?
+            ''', (horas_operadas, nombre_mapeado))
+        
+        cursor.execute('''
+            UPDATE telemetria_actual
+            SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = ?, ultima_actualizacion = 'Turno Cargado'
+            WHERE equipo_id = ?
+        ''', (presion_trabajo, equipo_id))
+        
+        conn.commit()
+        conn.close() 
+        
+        flash(f"Registro de riego para '{equipo_id}' guardado correctamente.", "success")
+        return redirect(url_for('index', equipo=equipo_id))
+
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
+    
+    cursor.execute("SELECT equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar FROM registro_riego ORDER BY id DESC LIMIT 10")
+    riegos_cargados = cursor.fetchall()
+    
+    equipos_mapa = {
+        "PIVOT-LOTE-A2": {"id": "PIVOT-LOTE-A2", "lote": "Lote A2 - Maíz (156 Ha)", "nombre_corto": "Pivot Lote A2"},
+        "FRONTAL-F22": {"id": "FRONTAL-F22", "lote": "Cuadro Norte - Soja (210 Ha)", "nombre_corto": "Frontal F22"}
+    }
+    
+    data_equipo = equipos_mapa.get(equipo_id, {"id": equipo_id, "lote": "Carga Manual", "nombre_corto": equipo_id})
     
     conn.close() 
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     
     return render_template('registrar_riego.html', 
-                           activos=activos, 
-                           historial=historial_excel, 
+                           data=data_equipo, 
+                           riegos=riegos_cargados, 
                            total_acumulado_mm=round(total_acumulado_mm, 1), 
                            fecha_hoy=fecha_hoy,
                            user=current_user)
@@ -393,6 +348,27 @@ def api_status():
             "actualizacion": "Sin hardware"
         }), 200
 
+# --- ACCESO Y SEGURIDAD ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        usuario = request.form.get('username')
+        clave = request.form.get('password')
+        if usuario in usuarios_sistema and usuarios_sistema[usuario] == clave:
+            user = User(usuario)
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            error = "Credenciales de operador incorrectas."
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
 # --- CONTROL DE STOCK ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
@@ -420,7 +396,7 @@ def stock():
         ''', (parte, item, motor, amount, pasillo, estante))
         conn.commit()
         conn.close()
-        
+    
         flash(f"Insumo [{parte}] actualizado.", "success")
         return redirect(url_for('stock'))
         
@@ -499,7 +475,7 @@ def finalizar_ot(ot_id):
 
 @app.route('/desactivar-alerta/<int:alerta_id>')
 @login_required
-def deactivate_alerta(alerta_id):
+def desactivar_alerta(alerta_id):
     conn = conectar_db()
     cursor = conn.cursor()
     cursor.execute("SELECT equipo_id FROM alertas_criticas WHERE id = ?", (alerta_id,))
@@ -519,7 +495,7 @@ def deactivate_alerta(alerta_id):
 def reportes():
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, equipo_id, fecha, lamina_mm, lamina_programada, horas_operadas, presion_bar, nro_vuelta, horas_parada, duracion_vuelta FROM registro_riego ORDER BY id DESC")
+    cursor.execute("SELECT * FROM registro_riego ORDER BY id DESC")
     todos_riegos = cursor.fetchall()
     conn.close()
     return render_template('reportes.html', riegos=todos_riegos)
@@ -529,35 +505,23 @@ def reportes():
 def descargar_datos_ciclo(equipo_id):
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, fecha, nro_vuelta, lamina_programada, lamina_mm, horas_operadas, horas_parada, duracion_vuelta, presion_bar 
-        FROM registro_riego WHERE equipo_id = ? ORDER BY id ASC
-    ''', (equipo_id,))
+    cursor.execute('SELECT id, fecha, lamina_programada, lamina_mm, horas_operadas, presion_bar FROM registro_riego WHERE equipo_id = ? ORDER BY id ASC', (equipo_id,))
     filas = cursor.fetchall()
     conn.close()
     
     def generar_csv():
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Nro_Turno', 'Fecha_Operacion', 'Nro_Vuelta', 'Lamina_Programada_mm', 'Lamina_Real_Aplicada_mm', 'Horas_Marcha_hs', 'Horas_Parada_hs', 'Duracion_Vuelta_Total_hs', 'Presion_Trabajo_Bar'])
+        writer.writerow(['Nro_Turno', 'Fecha_Operacion', 'Lamina_Programada_mm', 'Lamina_Real_Aplicada_mm', 'Horas_Marcha_Panel', 'Presion_Trabajo_Bar'])
         for f in filas:
-            writer.writerow([
-                f['id'], 
-                f['fecha'], 
-                f['nro_vuelta'] if f['nro_vuelta'] else '-', 
-                f['lamina_programada'], 
-                f['lamina_mm'], 
-                f['horas_operadas'], 
-                f['horas_parada'] if f['horas_parada'] else '-', 
-                f['duracion_vuelta'] if f['duracion_vuelta'] else 0.0, 
-                f['presion_bar']
-            ])
+            writer.writerow([f['id'], f['fecha'], f['lamina_programada'], f['lamina_mm'], f['horas_operadas'], f['presion_bar']])
         return output.getvalue()
         
     response = Response(generar_csv(), mimetype='text/csv')
     response.headers.set("Content-Disposition", f"attachment; filename=historial_riego_{equipo_id}.csv")
     return response
 
+# --- ADAPTADOR DE PUERTOS PARA PRODUCCIÓN EN LA NUBE ---
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=puerto, debug=True)
