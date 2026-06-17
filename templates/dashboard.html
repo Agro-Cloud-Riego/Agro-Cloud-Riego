@@ -1,9 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
+<!DOCTYPE html><html lang="es"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Telemetría y Operaciones</title>
+    <title>AgroRiego Pro - Monitoreo Avanzado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -60,14 +58,12 @@
         .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
         
         footer { border-top: 1px solid var(--borde); padding-top: 15px; margin-top: 30px; text-align: center; font-size: 12px; color: #64748b; }
-    </style>
-</head>
-<body>
+    </style></head><body>
 
     <header>
         <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
         <div style="font-size: 14px; color: #94a3b8;">
-            Usuario: <strong>{{ user_id if user_id else 'Operador' }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
+            Usuario: <strong>{{ user.id if user and user.id else 'Marcelo Daniel' }}</strong> | <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
         </div>
     </header>
 
@@ -85,6 +81,16 @@
             </a>
         {% endfor %}
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alerta-item" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); margin-bottom: 15px;">
+              <span style="color: #fff;">{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
     {% if alertas %}
     <div class="alertas-contenedor">
@@ -113,22 +119,25 @@
                 <div class="grid-telemetria">
                     <div class="dato-caja">
                         <label>Estado Motor</label>
-                        <div id="val-estado" class="dato-valor {% if 'archa' in data.estado|string %}marcha{% else %}parado{% endif %}">{{ data.estado }}</div>
+                        <div id="val-estado" class="dato-valor {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}marcha{% else %}parado{% endif %}">{{ data.estado }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Presión Extremo</label>
-                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }} Bar</div>
+                        <div id="val-presion" class="dato-valor" style="color: var(--amarillo);">{{ data.presion }}</div>
                     </div>
                     <div class="dato-caja">
                         <label>Caudalímetro</label>
-                        <div id="val-caudal" class="dato-valor">{{ data.caudal }} L/h</div>
+                        <div id="val-caudal" class="dato-valor">{{ data.caudal }}</div>
                     </div>
                     <div class="dato-caja">
-                        <label>Posición Geográfica</label>
-                        <div id="val-posicion" class="dato-valor" style="font-size: 13px; color: #cbd5e1;" title="{{ data.posicion }}">{{ data.posicion }}</div>
+                        <label>Posición Angular</label>
+                        <div id="val-angulo" class="dato-valor" style="color: var(--verde);">{{ data.posicion_tramo }}</div>
                     </div>
                 </div>
-                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">Último reporte LoRa: <strong id="val-lectura">{{ data.ultima_lectura }}</strong> | Señal: <span id="val-senal">{{ data.senal }}</span></p>
+                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">
+                    Último reporte LoRa: <strong id="val-lectura">{{ data.ultima_lectura }}</strong> | Señal: <span id="val-senal">{{ data.senal }}</span> | 
+                    <a href="{{ url_for('descargar_datos_ciclo', equipo_id=data.id) }}" style="color: var(--texto-ok); margin-left: 10px; font-weight: bold; text-decoration: none;">📥 Descargar Ciclo CSV</a>
+                </p>
             </div>
 
             <div class="tarjeta">
@@ -160,7 +169,7 @@
                                 <td>{{ o.fecha }}</td>
                                 <td><strong>{{ o.tarea }}</strong></td>
                                 <td>{{ o.responsable }}</td>
-                                <td><span style="color: {% if o.prioridad == 'CRITICA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">{{ o.prioridad }}</span></td>
+                                <td><span style="color: {% if o.prioridad == 'CRITICA' or o.prioridad == 'ALTA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">{{ o.prioridad }}</span></td>
                                 <td>
                                     {% if o.repuesto_asociado %}
                                         <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 2px 4px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
@@ -172,7 +181,7 @@
                             </tr>
                             {% endfor %}
                             {% if not ot %}
-                            <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este pivot.</td></tr>
+                            <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este equipo.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -182,35 +191,31 @@
 
         <div>
             <div class="tarjeta">
-                <div class="tarjeta-titulo">📝 Registro de Riego por Turno / Vuelta</div>
+                <div class="tarjeta-titulo">📝 Registro Turno / Lámina de Riego</div>
                 
-                <form method="POST" action="{{ url_for('guardar_riego') }}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <form method="POST" action="{{ url_for('index', equipo=data.id) }}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <input type="hidden" name="form_tipo" value="nuevo_riego">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
                     <div style="display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--borde); padding-right: 12px;">
-                        <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--amarillo); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
-                            Datos Base (Editables)
-                        </div>
-
                         <div class="grupo-campo">
-                            <label>Lote / Nomenclatura</label>
-                            <input type="text" name="lote" value="{{ data.lote }}" style="border-color: var(--borde); color: #fff;">
+                            <label>Lote Activo</label>
+                            <input type="text" value="{{ data.lote }}" readonly style="background: rgba(35, 53, 84, 0.3); color: #94a3b8; font-weight: bold;">
                         </div>
                         
                         <div class="grupo-campo">
-                            <label>Lámina Obj / Prog (mm)</label>
-                            <input type="number" step="0.1" name="riego_objetivo" value="{{ data.riego_objetivo if data.riego_objetivo else '40.0' }}" style="border-color: var(--borde); color: var(--amarillo);">
+                            <label>Lámina Programada (mm)</label>
+                            <input type="number" step="0.1" name="lamina_programada" id="lamina_programada" placeholder="Ej: 15.0" required style="border-color: var(--amarillo); font-size: 14px; background: #0f172a; color: white;">
                         </div>
 
                         <div class="grupo-campo">
-                            <label>Lámina Acumulada Previa</label>
-                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.05); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
+                            <label>Lámina Acumulada</label>
+                            <input type="text" value="{{ total_acumulado_mm }} mm" readonly style="background: rgba(16, 185, 129, 0.1); color: var(--verde); font-weight: bold; border-color: rgba(16, 185, 129, 0.2);">
                         </div>
 
                         <div class="grupo-campo">
-                            <label>Horas Panel (Tablero)</label>
-                            <input type="number" step="0.1" name="horas_panel" value="{{ data.horas_totales if data.horas_totales else '0.0' }}" style="border-color: var(--borde); color: #cbd5e1;">
+                            <label>Horas de Marcha del Turno</label>
+                            <input type="number" step="0.1" name="horas_operadas" id="horas_operadas" placeholder="Ej: 18.5" required style="border-color: var(--texto-ok); font-size: 14px;">
                         </div>
 
                         <div class="grupo-campo">
@@ -221,31 +226,36 @@
 
                     <div style="display: flex; flex-direction: column; gap: 10px; justify-content: flex-start;">
                         <div style="background: #0f172a; padding: 6px; border-radius: 4px; text-align: center; font-size: 11px; color: var(--texto-ok); font-weight: bold; border: 1px dashed var(--borde); margin-bottom: 5px;">
-                            Carga de Vuelta (Timer)
+                            Cálculo de Variables
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: #94a3b8;">Lámina al 100% Vel. (mm)</label>
-                            <input type="number" id="lamina_100" step="0.1" value="5.0" style="border-color: var(--borde); color: #94a3b8;" title="Milímetros que tira el equipo si avanza a máxima velocidad (Timer al 100%)">
+                            <label style="color: #fff; font-weight: bold;">Lámina Real Aplicada (mm)</label>
+                            <input type="number" step="0.1" name="lamina_mm" id="lamina_mm" placeholder="Ej: 14.8" required style="border-color: var(--verde); font-size: 15px; font-weight: bold;">
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: #fff; font-weight: bold;">% Timer en Tablero</label>
-                            <input type="number" id="timer_porcentaje" name="timer_porcentaje" min="1" max="100" placeholder="Ej: 50" required style="border-color: var(--texto-ok); font-size: 15px; font-weight: bold; color: #fff;">
+                            <label>Presión en Barra (Bar)</label>
+                            <input type="number" step="0.1" name="presion_bar" placeholder="Ej: 2.2" value="2.2" required style="border-color: var(--borde);">
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: var(--verde); font-weight: bold;">Lámina Aplicada (mm)</label>
-                            <input type="number" id="lamina_mm" step="0.1" name="lamina_mm" placeholder="Se calcula sola..." required style="border-color: var(--verde); font-size: 16px; font-weight: bold; color: var(--verde); background: rgba(16, 185, 129, 0.05);">
+                            <label>Posición Angular Ficticia (°)</label>
+                            <input type="number" name="posicion_grados" placeholder="Ej: 180" value="0" required style="border-color: var(--borde);">
                         </div>
 
                         <div class="grupo-campo">
-                            <label style="color: #fff; font-weight: bold;">Horas Motor (en la vuelta)</label>
-                            <input type="number" step="0.1" name="horas_operadas" placeholder="Ej: 14.5" required style="border-color: var(--texto-ok); font-size: 15px;">
+                            <label>Estado de Operación</label>
+                            <select name="estado_operacion" style="border-color: var(--borde);">
+                                <option value="MARCHA">MARCHA</option>
+                                <option value="PARADO">PARADO</option>
+                                <option value="FALLA">FALLA</option>
+                                <option value="MOVIMIENTO">MOVIMIENTO (Sin agua)</option>
+                            </select>
                         </div>
 
-                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 12px; margin-top: 10px; width: 100%; font-size: 14px;">
-                            💾 Guardar Riego en {{ data.nombre_corto }}
+                        <button type="submit" class="btn-enviar" style="background: var(--verde); padding: 10px; margin-top: 5px; width: 100%;">
+                            💾 Guardar en Libro Hídrico
                         </button>
                     </div>
                 </form>
@@ -253,26 +263,28 @@
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">👨‍🔧 Levantar Orden de Trabajo (OT)</div>
-                <form method="POST" class="formulario" style="grid-template-columns: 1fr 1fr;">
-                    <input type="hidden" name="form_tipo" value="nueva_ot">
+                <form method="POST" action="{{ url_for('crear_ot') }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
                     <div class="grupo-campo" style="grid-column: 1 / -1;">
                         <label>Descripción del Problema Técnico</label>
-                        <textarea name="tarea" rows="2" placeholder="Ej: Ajuste de micro en torre de alineación" required></textarea>
+                        <textarea name="tarea" rows="2" placeholder="Ej: Ajuste de micro en torre de alineación o cambio de tramo eléctrico" required></textarea>
                     </div>
                     <div class="grupo-campo">
                         <label>Asignar Técnico</label>
                         <select name="responsable">
-                            <option value="Electricista">Electricista de Turno</option>
-                            <option value="Preventista">Preventista de Campo</option>
-                            <option value="Especialista Mecánico">Mecánico de Cajas/Bombas</option>
+                            <option value="Electricista">Electricista</option>
+                            <option value="Técnico Preventista 1">Técnico Preventista 1</option>
+                            <option value="Técnico Preventista 2">Técnico Preventista 2</option>
+                            <option value="Especialista Mecánico (Cajas)">Especialista Mecánico (Cajas)</option>
+                            <option value="Especialista Mecánico (Bombas)">Especialista Mecánico (Bombas)</option>
                         </select>
                     </div>
                     <div class="grupo-campo">
                         <label>Prioridad</label>
                         <select name="prioridad">
                             <option value="NORMAL">Normal / Programado</option>
+                            <option value="ALTA">Alta / Urgente</option>
                             <option value="CRITICA">Crítica / Equipo Parado</option>
                         </select>
                     </div>
@@ -291,7 +303,7 @@
 
             <div class="tarjeta" style="border-color: rgba(239, 68, 68, 0.4);">
                 <div class="tarjeta-titulo" style="color: var(--alerta);">⚠️ Reportar Rotura o Detención</div>
-                <form method="POST" class="formulario" style="grid-template-columns: 1fr 1fr;">
+                <form method="POST" action="{{ url_for('index', equipo=data.id) }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
                     <input type="hidden" name="form_tipo" value="nueva_alerta">
                     <input type="hidden" name="equipo_id" value="{{ data.id }}">
                     
@@ -302,11 +314,12 @@
                             <option value="Desalineación Mecánica">Desalineación Mecánica</option>
                             <option value="Corte Eléctrico (Tramo)">Corte Eléctrico (Tramo)</option>
                             <option value="Problema en Grupo Electrógeno/Motor">Problema en Grupo Electrógeno/Motor</option>
+                            <option value="Alerta de Presión Inalámbrica LoRa">Alerta de Presión Inalámbrica LoRa</option>
                         </select>
                     </div>
                     <div class="grupo-campo">
-                        <label>Detalle Adicional</label>
-                        <input type="text" name="descripcion" placeholder="Ej: Falla en bomba principal" required>
+                        <label>Detalle Adicional / Síntomas</label>
+                        <input type="text" name="descripcion" placeholder="Ej: Pérdida física en codo de entrada o motor recalentado" required>
                     </div>
                     <button type="submit" class="btn-enviar" style="background: var(--alerta);">Emitir Alerta Crítica</button>
                 </form>
@@ -315,15 +328,17 @@
     </div>
 
     <footer>
-        AgroRiego Pro v2.5 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
+        AgroRiego Pro v2.4 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var equipoId = "{{ data.id }}";
-            var latInicial = -25.1794;
-            var lngInicial = -63.8632;
+            
+            // Inyectamos las coordenadas dinámicas renderizadas desde SQLite
+            var latInicial = parseFloat("{{ data.lat }}");
+            var lngInicial = parseFloat("{{ data.lng }}");
 
             var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
 
@@ -336,7 +351,13 @@
             var marcador = L.marker([latInicial, lngInicial]).addTo(map);
             marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
 
-            var circuloPivot = null;
+            // Dibujar radio de cobertura estimado para el Pivot/Frontal
+            var circuloPivot = L.circle([latInicial, lngInicial], {
+                color: '#38bdf8',
+                fillColor: '#38bdf8',
+                fillOpacity: 0.12,
+                radius: equipoId === "PIVOT-LOTE-A2" ? 700 : 500
+            }).addTo(map);
 
             function actualizarTelemetria() {
                 fetch('/api/status?equipo=' + equipoId)
@@ -347,80 +368,33 @@
                             var nuevaLng = parseFloat(data.longitud);
                             
                             marcador.setLatLng([nuevaLat, nuevaLng]);
-                            map.panTo([nuevaLat, nuevaLng]);
+                            circuloPivot.setLatLng([nuevaLat, nuevaLng]);
 
-                            if (circuloPivot) {
-                                circuloPivot.setLatLng([nuevaLat, nuevaLng]);
-                            } else {
-                                circuloPivot = L.circle([nuevaLat, nuevaLng], {
-                                    color: '#38bdf8',
-                                    fillColor: '#38bdf8',
-                                    fillOpacity: 0.15,
-                                    radius: 670
-                                }).addTo(map);
-                            }
-                            
                             var divEstado = document.getElementById('val-estado');
-                            divEstado.innerText = data.estado;
-                            if(data.estado.toLowerCase().includes('archa')) {
-                                divEstado.className = "dato-valor marcha";
+                            divEstado.innerText = data.estado || "MARCHA";
+                            if(data.estado && data.estado.toLowerCase().includes('archa')) {
+                                divEstado.className = "text-ok marcha";
                             } else {
-                                divEstado.className = "dato-valor parado";
+                                divEstado.className = "text-ok parado";
                             }
                             
-                            var presionValor = parseFloat(data.presion);
-                            var divPresion = document.getElementById('val-presion');
-                            divPresion.innerText = presionValor.toFixed(1) + " Bar";
-                            
-                            if (presionValor < 1.3) {
-                                divPresion.style.color = 'var(--alerta)';
-                            } else if (presionValor < 1.6) {
-                                divPresion.style.color = 'var(--amarillo)';
-                            } else {
-                                divPresion.style.color = 'var(--verde)';
-                            }
+                            document.getElementById('val-presion').innerText = data.presion;
+                            document.getElementById('val-angulo').innerText = data.posicion_angular;
+                            document.getElementById('val-lectura').innerText = data.actualizacion;
+                            document.getElementById('val-senal').innerText = data.rssi;
 
-                            document.getElementById('val-caudal').innerText = data.caudal + " L/h";
-                            document.getElementById('val-posicion').innerText = nuevaLat.toFixed(4) + ", " + nuevaLng.toFixed(4);
-                            document.getElementById('val-lectura').innerText = data.ultima_lectura;
-                            document.getElementById('val-senal').innerText = data.senal;
-
-                            marcador.getPopup().setContent("<b>" + data.nombre_corto + "</b><br>Presión Extremo: " + presionValor.toFixed(1) + " Bar").update();
+                            marcador.getPopup().setContent("<b>" + data.equipo_id + "</b><br>Presión Extremo: " + data.presion).update();
                         }
                     })
                     .catch(err => console.log("Buscando actualización de señal LoRa..."));
             }
 
-            setInterval(actualizarTelemetria, 4000);
+            // Consulta en tiempo real de telemetría cada 5 segundos
+            setInterval(actualizarTelemetria, 5000);
 
             setTimeout(function() {
                 map.invalidateSize();
             }, 400);
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputTimer = document.getElementById('timer_porcentaje');
-            const inputLamina100 = document.getElementById('lamina_100');
-            const inputLaminaCalculada = document.getElementById('lamina_mm');
-
-            function calcularLaminaPorVuelta() {
-                const timer = parseFloat(inputTimer.value);
-                const laminaBase = parseFloat(inputLamina100.value);
-
-                if (!isNaN(timer) && !isNaN(laminaBase) && timer > 0) {
-                    // REGLA DE TRES INVERSA: A menor porcentaje del timer, el equipo va más lento y aplica MÁS lámina.
-                    // Fórmula física: Lámina = Lámina_al_100% * (100 / %_Timer)
-                    const resultado = laminaBase * (100 / timer);
-                    inputLaminaCalculada.value = resultado.toFixed(1);
-                } else {
-                    inputLaminaCalculada.value = '';
-                }
-            }
-
-            inputTimer.addEventListener('input', calcularLaminaPorVuelta);
-            inputLamina100.addEventListener('input', calcularLaminaPorVuelta);
         });
     </script>
 
@@ -443,12 +417,10 @@
                 responsive: true,
                 scales: {
                     x: { grid: { color: '#233554' }, ticks: { color: '#94a3b8' } },
-                    y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros', color: '#38bdf8' } },
-                    y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha', color: '#10b981' } }
+                    y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros (mm)', color: '#38bdf8' } },
+                    y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha (hs)', color: '#10b981' } }
                 ],
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
         });
-    </script>
-</body>
-</html>
+    </script></body></html>
