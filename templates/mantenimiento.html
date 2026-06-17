@@ -46,12 +46,13 @@
         <h1>AgroRiego Pro - Gestión de Mantenimiento</h1>
     </header>
 
-    <div class="nav-principal">
-        <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
-        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link active">Mantenimiento</a>
-        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
-    </div>
+    <div class="nav-principal" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid #233554; padding-bottom: 10px;">
+    <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Panel de Monitoreo</a>
+    <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Registro de Riego</a>
+    <a href="{{ url_for('stock') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Stock e Insumos Operativos</a>
+    <a href="{{ url_for('mantenimiento') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Mantenimiento</a>
+    <a href="{{ url_for('reportes') }}" style="color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px;">Reportes e Históricos</a>
+</div>
 
     <div class="tarjeta">
         <div class="tarjeta-titulo">📝 Registro de Trabajos y Taller (Pivots y Frontales)</div>
