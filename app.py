@@ -27,9 +27,9 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA PARA LA NUBE ---
+# --- CONFIGURACIÓN DE BASE DE DATOS OPTIMIZADA CON TIMEOUT ---
 def conectar_db():
-    # El timeout de 30 segundos evita el error "database is locked" en consultas concurrentes
+    # El timeout de 30 segundos previene bloqueos 'database is locked' en la nube
     conn = sqlite3.connect(DATABASE, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
@@ -148,7 +148,6 @@ def index():
     
     equipo_seleccionado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
-    # Procesar Formularios Secundarios (Alertas) del Index
     if request.method == 'POST':
         form_tipo = request.form.get('form_tipo')
         eq_id = request.form.get('equipo_id')
@@ -170,11 +169,10 @@ def index():
             ''', (f"FALLA: {tipo_falla}", eq_id))
             
             conn.commit()
-            conn.close() # Liberar archivo de inmediato antes del redirect
+            conn.close()
             flash("Alerta de rotura emitida al panel técnico.", "danger")
             return redirect(url_for('index', equipo=equipo_seleccionado))
 
-    # Lectura de Telemetría Dinámica de la DB
     cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
     fila_telemetria = cursor.fetchone()
     
@@ -195,29 +193,23 @@ def index():
     else:
         data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": "0 Bar", "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
 
-    # Carga de selectores de equipos superiores
     todos_equipos = {
         "PIVOT-LOTE-A2": {"nombre_corto": "Pivot Lote A2"},
         "FRONTAL-F22": {"nombre_corto": "Frontal F22"}
     }
     
-    # Órdenes de Trabajo de este equipo
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE equipo_id = ? AND estado = 'PENDIENTE'", (equipo_seleccionado,))
     ots = cursor.fetchall()
     
-    # Repuestos para el desplegable de OTs
     cursor.execute("SELECT parte, item, motor FROM inventario WHERE cantidad > 0")
     repuestos = cursor.fetchall()
     
-    # Alertas activas en la barra superior
     cursor.execute("SELECT * FROM alertas_criticas WHERE activa = 1")
     alertas_activas = cursor.fetchall()
     
-    # Cálculo de lámina acumulada
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
-    # Historial para el gráfico de barras/líneas de Chart.js
     cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
     registros_grafico = cursor.fetchall()[::-1]
     
@@ -225,7 +217,7 @@ def index():
     laminas_riego = [r['lamina_mm'] for r in registros_grafico]
     horas_riego = [r['horas_operadas'] for r in registros_grafico]
     
-    conn.close() # Cerramos conexión antes de renderizar para que SQLite quede libre
+    conn.close()
     
     return render_template('dashboard.html', 
                            data=data_equipo, 
@@ -238,7 +230,7 @@ def index():
                            laminas_riego=laminas_riego,
                            horas_riego=horas_riego)
 
-# --- VISTA INDEPENDIENTE: REGISTRO DE RIEGO (DISEÑO DOS COLUMNAS) ---
+# --- VISTA INDEPENDIENTE: REGISTRO DE RIEGO (LIBRO HÍDRICO) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
 @login_required
 def registrar_riego():
@@ -256,13 +248,13 @@ def registrar_riego():
         horas_motor = float(request.form.get('horas_motor', 0))
         lamina_real = float(request.form.get('lamina_mm', 0))
         
-        # Insertar en tabla de históricos hidrológicos
+        # Insertar registro de riego real
         cursor.execute('''
             INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
             VALUES (?, ?, ?, 2.2, 0, 'MARCHA', ?, ?)
         ''', (equipo_id, lamina_real, horas_panel, fecha_riego, lamina_prog_val))
         
-        # Mapeo e impacto directo sobre las horas físicas reales de los motores asignados
+        # Actualización de horas en la tabla de mantenimiento preventivo
         mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
         nombre_mapeado = mapa_equipos.get(equipo_id, "")
         
@@ -273,7 +265,7 @@ def registrar_riego():
                 WHERE equipo_asignado = ?
             ''', (horas_motor, nombre_mapeado))
         
-        # Seteamos el estado de telemetría a Marcha Estable
+        # Cambiar estado del equipo en telemetría activa
         cursor.execute('''
             UPDATE telemetria_actual
             SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = 2.2, ultima_actualizacion = 'Turno Cargado'
@@ -281,12 +273,12 @@ def registrar_riego():
         ''', (equipo_id,))
         
         conn.commit()
-        conn.close() # LIBERACIÓN INMEDIATA DEL ARCHIVO DB
+        conn.close() # Cierre inmediato y liberación forzada
         
-        flash(f"Registro de riego hídrico completado con éxito.", "success")
+        flash(f"Registro hídrico guardado e impactado en el sistema.", "success")
         return redirect(url_for('index', equipo=equipo_id))
 
-    # --- MÉTODO GET ---
+    # --- PROCEDIMIENTO GET ---
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
     
@@ -296,7 +288,7 @@ def registrar_riego():
     }
     data_equipo = equipos_mapa.get(equipo_id, equipos_mapa["PIVOT-LOTE-A2"])
     
-    conn.close() # LIBERACIÓN INMEDIATA ANTES DE PASAR AL HTML
+    conn.close() # Cerramos conexión antes de mandar al template html
     
     fecha_hoy = datetime.now().strftime('%Y-%m-%d')
     
@@ -306,7 +298,7 @@ def registrar_riego():
                            fecha_hoy=fecha_hoy,
                            user=current_user)
 
-# --- ENDPOINT API PARA MAPA ---
+# --- ENDPOINT API PARA EL MAPA ---
 @app.route('/api/status')
 def api_status():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
@@ -318,14 +310,10 @@ def api_status():
     
     if fila:
         return jsonify({
-            "equipo_id": fila['equipo_id'],
-            "estado": fila['estado_sistema'],
-            "latitud": fila['latitud'],
-            "longitud": fila['longitud'],
-            "presion": f"{fila['presion_terminal']} Bar",
-            "posicion_angular": f"{fila['posicion_actual']}°",
-            "rssi": fila['rssi'],
-            "actualizacion": fila['ultima_actualizacion']
+            "equipo_id": fila['equipo_id'], "estado": fila['estado_sistema'],
+            "latitud": fila['latitud'], "longitud": fila['longitud'],
+            "presion": f"{fila['presion_terminal']} Bar", "posicion_angular": f"{fila['posicion_actual']}°",
+            "rssi": fila['rssi'], "actualizacion": fila['ultima_actualizacion']
         }), 200
     else:
         lat_def = -25.1794 if equipo_id == "PIVOT-LOTE-A2" else -25.1750
@@ -333,10 +321,10 @@ def api_status():
         return jsonify({
             "equipo_id": equipo_id, "latitud": lat_def, "longitud": lng_def,
             "presion": "0.0 Bar", "posicion_angular": "0°", "rssi": "0 dBm",
-            "actualizacion": "Sin hardware configurado"
+            "actualizacion": "Sin hardware"
         }), 200
 
-# --- SECCIÓN 1: LOGIN ---
+# --- ACCESO Y SEGURIDAD ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -357,7 +345,7 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- SECCIÓN 2: GESTIÓN DE STOCK E INVENTARIO ---
+# --- CONTROL DE STOCK ---
 @app.route('/stock', methods=['GET', 'POST'])
 @login_required
 def stock():
@@ -368,7 +356,7 @@ def stock():
         parte = request.form.get('parte').strip().upper()
         item = request.form.get('item')
         motor = request.form.get('motor')
-        cantidad = int(request.form.get('cantidad', 0))
+        amount = int(request.form.get('cantidad', 0))
         pasillo = request.form.get('pasillo')
         estante = request.form.get('estante')
         
@@ -381,10 +369,10 @@ def stock():
                 motor = excluded.motor,
                 pasillo = excluded.pasillo,
                 estante = excluded.estante
-        ''', (parte, item, motor, cantidad, pasillo, estante))
+        ''', (parte, item, motor, amount, pasillo, estante))
         conn.commit()
         conn.close()
-        flash(f"Insumo técnico [{parte}] guardado o actualizado correctamente.", "success")
+        flash(f"Insumo [{parte}] actualizado.", "success")
         return redirect(url_for('stock'))
         
     cursor.execute("SELECT * FROM inventario ORDER BY parte ASC")
@@ -392,7 +380,7 @@ def stock():
     conn.close()
     return render_template('stock.html', inventario=items_stock)
 
-# --- SECCIÓN 3: PLAN DE MANTENIMIENTO PREVENTIVO ---
+# --- MANTENIMIENTO PREVENTIVO ---
 @app.route('/mantenimiento', methods=['GET', 'POST'])
 @login_required
 def mantenimiento():
@@ -412,7 +400,7 @@ def mantenimiento():
         ''', (equipo, horas_act, prox, freq, desc))
         conn.commit()
         conn.close()
-        flash("Nuevo plan de alerta de service establecido.", "success")
+        flash("Plan de service preventivo guardado.", "success")
         return redirect(url_for('mantenimiento'))
         
     cursor.execute("SELECT * FROM control_services ORDER BY id DESC")
@@ -420,7 +408,7 @@ def mantenimiento():
     conn.close()
     return render_template('mantenimiento.html', servicios=servicios)
 
-# --- SECCIÓN 4: ORDENES DE TRABAJO (OT) ---
+# --- ÓRDENES DE TRABAJO (OT) ---
 @app.route('/crear-ot', methods=['POST'])
 @login_required
 def crear_ot():
@@ -440,7 +428,7 @@ def crear_ot():
     conn.commit()
     conn.close()
     
-    flash("Orden de Trabajo Técnica abierta y asignada.", "success")
+    flash("Orden técnica lanzada con éxito.", "success")
     return redirect(url_for('index', equipo=equipo_id))
 
 @app.route('/finalizar-ot/<int:ot_id>')
@@ -448,23 +436,16 @@ def crear_ot():
 def finalizar_ot(ot_id):
     conn = conectar_db()
     cursor = conn.cursor()
-    
     cursor.execute("SELECT * FROM ordenes_trabajo WHERE id = ?", (ot_id,))
     ot = cursor.fetchone()
     
     if ot:
         if ot['repuesto_asociado']:
-            cursor.execute('''
-                UPDATE inventario 
-                SET cantidad = MAX(0, cantidad - 1) 
-                WHERE parte = ?
-            ''', (ot['repuesto_asociado'],))
-            
+            cursor.execute('UPDATE inventario SET cantidad = MAX(0, cantidad - 1) WHERE parte = ?', (ot['repuesto_asociado'],))
         cursor.execute("UPDATE ordenes_trabajo SET estado = 'DESPACHADA' WHERE id = ?", (ot_id,))
         conn.commit()
-        flash(f"Orden de Trabajo #{ot_id} despachada con éxito. Insumos descontados.", "success")
-        
     conn.close()
+    flash("Orden técnica cerrada y repuestos descontados.", "success")
     return redirect(url_for('index', equipo=ot['equipo_id'] if ot else 'PIVOT-LOTE-A2'))
 
 @app.route('/desactivar-alerta/<int:alerta_id>')
@@ -472,25 +453,18 @@ def finalizar_ot(ot_id):
 def desactivar_alerta(alerta_id):
     conn = conectar_db()
     cursor = conn.cursor()
-    
     cursor.execute("SELECT equipo_id FROM alertas_criticas WHERE id = ?", (alerta_id,))
     al = cursor.fetchone()
     
     cursor.execute("UPDATE alertas_criticas SET activa = 0 WHERE id = ?", (alerta_id,))
-    
     if al:
-        cursor.execute('''
-            UPDATE telemetria_actual 
-            SET estado_sistema = 'MARCHA EN AGUA' 
-            WHERE equipo_id = ?
-        ''', (al['equipo_id'],))
-        
+        cursor.execute("UPDATE telemetria_actual SET estado_sistema = 'MARCHA EN AGUA' WHERE equipo_id = ?", (al['equipo_id'],))
     conn.commit()
     conn.close()
-    flash("Alerta archivada. Equipo restablecido en condiciones operativas estándar.", "success")
+    flash("Alerta técnica solucionada.", "success")
     return redirect(url_for('index', equipo=al['equipo_id'] if al else 'PIVOT-LOTE-A2'))
 
-# --- SECCIÓN 5: REPORTES E HISTÓRICOS GENERALES ---
+# --- REPORTES Y EXPORTACIÓN ---
 @app.route('/reportes')
 @login_required
 def reportes():
@@ -506,12 +480,7 @@ def reportes():
 def descargar_datos_ciclo(equipo_id):
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, fecha, lamina_programada, lamina_mm, horas_operadas, presion_bar 
-        FROM registro_riego 
-        WHERE equipo_id = ? 
-        ORDER BY id ASC
-    ''', (equipo_id,))
+    cursor.execute('SELECT id, fecha, lamina_programada, lamina_mm, horas_operadas, presion_bar FROM registro_riego WHERE equipo_id = ? ORDER BY id ASC', (equipo_id,))
     filas = cursor.fetchall()
     conn.close()
     
@@ -526,11 +495,3 @@ def descargar_datos_ciclo(equipo_id):
     response = Response(generar_csv(), mimetype='text/csv')
     response.headers.set("Content-Disposition", f"attachment; filename=historial_riego_{equipo_id}.csv")
     return response
-
-# --- BLOQUE DE INICIO ADAPTATIVO (COMPATIBLE CON LOCAL Y RENDER/NUBE) ---
-if __name__ == '__main__':
-    # Lee la variable PORT asignada dinámicamente por la nube, o usa el 5000 en tu PC
-    puerto = int(os.environ.get("PORT", 5000))
-    
-    # Escucha en la dirección global 0.0.0.0 requerida para abrir los puertos de red externos
-    app.run(host="0.0.0.0", port=puerto, debug=True)
