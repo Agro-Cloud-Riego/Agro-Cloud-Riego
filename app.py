@@ -259,45 +259,20 @@ def index():
 def registrar_riego():
     conn = conectar_db()
     cursor = conn.cursor()
-    
-    equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
-    
     if request.method == 'POST':
-        equipo_id = request.form.get('equipo_id', equipo_id).strip()
-        lamina_prog = request.form.get('lamina_programada')
-        lamina_prog_val = float(lamina_prog) if lamina_prog else 0.0
-        fecha_riego = request.form.get('fecha')
-        
-        horas_operadas = float(request.form.get('horas_operadas', 0))
-        lamina_real = float(request.form.get('lamina_mm', 0))
-        presion_trabajo = float(request.form.get('presion_bar', 0.0))
-        
-        cursor.execute('''
-            INSERT INTO registro_riego (equipo_id, lamina_mm, horas_operadas, presion_bar, posicion_grados, estado_operacion, fecha, lamina_programada) 
-            VALUES (?, ?, ?, ?, 0, 'MARCHA', ?, ?)
-        ''', (equipo_id, lamina_real, horas_operadas, presion_trabajo, fecha_riego, lamina_prog_val))
-        
-        mapa_equipos = {"PIVOT-LOTE-A2": "Pivot A2", "FRONTAL-F22": "Frontal F22"}
-        nombre_mapeado = mapa_equipos.get(equipo_id, equipo_id)
-        
-        if horas_operadas > 0:
-            cursor.execute('''
-                UPDATE control_services 
-                SET horas_actuales = horas_actuales + ?
-                WHERE equipo_asignado = ?
-            ''', (horas_operadas, nombre_mapeado))
-        
-        cursor.execute('''
-            UPDATE telemetria_actual
-            SET estado_sistema = 'MARCHA EN AGUA', presion_terminal = ?, ultima_actualizacion = 'Turno Cargado'
-            WHERE equipo_id = ?
-        ''', (presion_trabajo, equipo_id))
-        
-        conn.commit()
-        conn.close() 
-        
-        flash(f"Registro de riego para '{equipo_id}' guardado correctamente.", "success")
-        return redirect(url_for('index', equipo=equipo_id))
+        form_accion = request.form.get('form_accion')
+        if form_accion == 'finalizar':
+            registro_id = request.form.get('registro_id')
+            hs_fin = float(request.form.get('hs_fin', 0.0))
+            cursor.execute("SELECT horas_operadas FROM registro_riego WHERE id = ?", (registro_id,))
+            reg = cursor.fetchone()
+            if reg:
+                # El abs() asegura que el tiempo sea siempre positivo
+                tiempo_recorrido = abs(hs_fin - reg['horas_operadas'])
+                cursor.execute("UPDATE registro_riego SET duracion_vuelta = ?, estado_operacion = 'COMPLETADO' WHERE id = ?", (tiempo_recorrido, registro_id))
+                conn.commit()
+    conn.close()
+    return render_template('registrar_riego.html', user=current_user)
 
     cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_id,))
     total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
