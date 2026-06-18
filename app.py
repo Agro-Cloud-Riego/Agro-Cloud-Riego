@@ -480,7 +480,6 @@ def desactivar_alerta(alerta_id):
     cursor = conn.cursor()
     cursor.execute("SELECT equipo_id FROM alertas_criticas WHERE id = ?", (alerta_id,))
     al = cursor.fetchone()
-    
     cursor.execute("UPDATE alertas_criticas SET activa = 0 WHERE id = ?", (alerta_id,))
     if al:
         cursor.execute("UPDATE telemetria_actual SET estado_sistema = 'MARCHA EN AGUA' WHERE equipo_id = ?", (al['equipo_id'],))
@@ -488,7 +487,7 @@ def desactivar_alerta(alerta_id):
     conn.close()
     flash("Alerta técnica solucionada.", "success")
     return redirect(url_for('index', equipo=al['equipo_id'] if al else 'PIVOT-LOTE-A2'))
-
+    
 # --- REPORTES Y EXPORTACIÓN ---
 @app.route('/reportes')
 @login_required
