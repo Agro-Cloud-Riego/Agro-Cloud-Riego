@@ -145,33 +145,44 @@ inicializar_db()
 def index():
     conn = conectar_db()
     cursor = conn.cursor()
-    
     equipo_seleccionado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
     if request.method == 'POST':
-        form_tipo = request.form.get('form_tipo')
-        eq_id = request.form.get('equipo_id')
+        # (Aquí mantienes tu lógica de POST para alertas igual que la tenías)
+        pass 
+
+    cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
+    fila = cursor.fetchone()
+    
+    if fila:
+        # Lógica de detección de estado real
+        presion = fila['presion_terminal']
+        ultima_vez = datetime.strptime(fila['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
         
-        if form_tipo == 'nueva_alerta':
-            tipo_falla = request.form.get('tipo_falla')
-            desc = request.form.get('descripcion')
-            ahora = datetime.now().strftime('%H:%M - %d/%m')
+        if presion < 0.2:
+            estado = "⚪ APAGADO (Sin Presión)"
+            caudal = "0"
+        elif datetime.now() - ultima_vez > timedelta(minutes=5):
+            estado = "❌ DETENIDO (Sin Señal)"
+            caudal = "0"
+        else:
+            estado = fila['estado_sistema']
+            caudal = "185.000" if "MARCHA" in estado else "0"
             
-            cursor.execute('''
-                INSERT INTO alertas_criticas (equipo_id, tipo_falla, descripcion, fecha_hora, activa)
-                VALUES (?, ?, ?, ?, 1)
-            ''', (eq_id, tipo_falla, desc, ahora))
-            
-            cursor.execute('''
-                UPDATE telemetria_actual 
-                SET estado_sistema = ?, ultima_actualizacion = 'Alerta Reportada'
-                WHERE equipo_id = ?
-            ''', (f"FALLA: {tipo_falla}", eq_id))
-            
-            conn.commit()
-            conn.close()
-            flash("Alerta de rotura emitida al panel técnico.", "danger")
-            return redirect(url_for('index', equipo=equipo_seleccionado))
+        data_equipo = {
+            "id": fila['equipo_id'],
+            "estado": estado,
+            "presion": presion if presion >= 0.2 else 0.0,
+            "caudal": caudal,
+            "posicion_tramo": f"{fila['posicion_actual']}°",
+            "ultima_lectura": fila['ultima_actualizacion']
+        }
+    else:
+        data_equipo = {"id": equipo_seleccionado, "estado": "DESCONECTADO", "presion": 0.0, "caudal": "0"}
+
+    # ... (El resto de tu código de registros y ORDENES sigue igual)
+    conn.close()
+    return render_template('dashboard.html', data=data_equipo, alertas=alertas_activas, ...)
 
     cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
     fila_telemetria = cursor.fetchone()
