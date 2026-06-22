@@ -145,44 +145,94 @@ inicializar_db()
 def index():
     conn = conectar_db()
     cursor = conn.cursor()
+    
     equipo_seleccionado = request.args.get('equipo', 'PIVOT-LOTE-A2')
     
     if request.method == 'POST':
-        # (Aquí mantienes tu lógica de POST para alertas igual que la tenías)
-        pass 
+        form_tipo = request.form.get('form_tipo')
+        eq_id = request.form.get('equipo_id')
+        
+        if form_tipo == 'nueva_alerta':
+            tipo_falla = request.form.get('tipo_falla')
+            desc = request.form.get('descripcion')
+            ahora = datetime.now().strftime('%H:%M - %d/%m')
+            
+            cursor.execute('''
+                INSERT INTO alertas_criticas (equipo_id, tipo_falla, descripcion, fecha_hora, activa)
+                VALUES (?, ?, ?, ?, 1)
+            ''', (eq_id, tipo_falla, desc, ahora))
+            
+            cursor.execute('''
+                UPDATE telemetria_actual 
+                SET estado_sistema = ?, ultima_actualizacion = 'Alerta Reportada'
+                WHERE equipo_id = ?
+            ''', (f"FALLA: {tipo_falla}", eq_id))
+            
+            conn.commit()
+            flash("Alerta de rotura emitida al panel técnico.", "danger")
+            return redirect(url_for('index', equipo=equipo_seleccionado))
 
     cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
     fila = cursor.fetchone()
     
     if fila:
         # Lógica de detección de estado real
+        try:
+            ultima_vez = datetime.strptime(fila['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
+            inactivo = (datetime.now() - ultima_vez > timedelta(minutes=5))
+        except:
+            inactivo = False
+            
         presion = fila['presion_terminal']
-        ultima_vez = datetime.strptime(fila['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
         
         if presion < 0.2:
-            estado = "⚪ APAGADO (Sin Presión)"
-            caudal = "0"
-        elif datetime.now() - ultima_vez > timedelta(minutes=5):
-            estado = "❌ DETENIDO (Sin Señal)"
-            caudal = "0"
+            estado_final = "⚪ APAGADO (Sin Presión)"
+            presion_final = 0.0
+            caudal_final = "0"
+        elif inactivo:
+            estado_final = "❌ DETENIDO (Sin Señal)"
+            presion_final = 0.0
+            caudal_final = "0"
         else:
-            estado = fila['estado_sistema']
-            caudal = "185.000" if "MARCHA" in estado else "0"
+            estado_final = fila['estado_sistema']
+            presion_final = presion
+            caudal_final = "185.000" if "MARCHA" in estado_final else "0"
             
         data_equipo = {
             "id": fila['equipo_id'],
-            "estado": estado,
-            "presion": presion if presion >= 0.2 else 0.0,
-            "caudal": caudal,
+            "nombre_corto": "Pivot Lote A2" if fila['equipo_id'] == "PIVOT-LOTE-A2" else "Frontal F22",
+            "lote": "Lote A2 - Maíz (156 Ha)" if fila['equipo_id'] == "PIVOT-LOTE-A2" else "Cuadro Norte - Soja (210 Ha)",
+            "estado": estado_final,
+            "presion": presion_final, 
+            "caudal": caudal_final,
             "posicion_tramo": f"{fila['posicion_actual']}°",
-            "ultima_lectura": fila['ultima_actualizacion']
+            "ultima_lectura": fila['ultima_actualizacion'],
+            "senal": fila['rssi'] if not inactivo else "-- dBm",
+            "lat": fila['latitud'],
+            "lng": fila['longitud']
         }
     else:
-        data_equipo = {"id": equipo_seleccionado, "estado": "DESCONECTADO", "presion": 0.0, "caudal": "0"}
+        data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": 0.0, "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
 
-    # ... (El resto de tu código de registros y ORDENES sigue igual)
+    # --- DATOS PARA EL DASHBOARD ---
+    cursor.execute("SELECT * FROM alertas_criticas WHERE activa = 1")
+    alertas_activas = cursor.fetchall()
+    
+    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
+    total_acumulado = cursor.fetchone()['mm_tot'] or 0.0
+    
+    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
+    registros = cursor.fetchall()[::-1]
+    
     conn.close()
-    return render_template('dashboard.html', data=data_equipo, alertas=alertas_activas, ...)
+    
+    return render_template('dashboard.html', 
+                           data=data_equipo, 
+                           alertas=alertas_activas,
+                           total_acumulado_mm=round(total_acumulado, 1),
+                           fechas_riego=[r['fecha'] for r in registros],
+                           laminas_riego=[r['lamina_mm'] for r in registros],
+                           horas_riego=[r['horas_operadas'] for r in registros])
 
     cursor.execute("SELECT * FROM telemetria_actual WHERE equipo_id = ?", (equipo_seleccionado,))
     fila_telemetria = cursor.fetchone()
