@@ -201,6 +201,36 @@ def index():
             pass
 
         data_equipo = {
+            if fila_telemetria:
+        # --- LÓGICA DE DETECCIÓN DE EQUIPO APAGADO ---
+        # Definimos que si la presión es menor a 0.2 bar, el equipo está físicamente apagado
+        esta_energizado = fila_telemetria['presion_terminal'] > 0.2
+        
+        # Parseo de tiempo para detectar desconexión
+        lectura_humana = fila_telemetria['ultima_actualizacion']
+        inactivo = False
+        try:
+            ultima_vez = datetime.strptime(fila_telemetria['ultima_actualizacion'], '%Y-%m-%d %H:%M:%S')
+            if datetime.now() - ultima_vez > timedelta(minutes=5):
+                inactivo = True
+        except:
+            pass
+
+        # Aplicamos la lógica de estado:
+        if not esta_energizado:
+            estado_final = "⚪ APAGADO (Sin Presión)"
+            presion_final = 0.0
+            caudal_final = "0"
+        elif inactivo:
+            estado_final = "❌ DETENIDO (Sin Señal)"
+            presion_final = 0.0
+            caudal_final = "0"
+        else:
+            estado_final = fila_telemetria['estado_sistema']
+            presion_final = fila_telemetria['presion_terminal']
+            caudal_final = "185.000" if "MARCHA" in estado_final else "0"
+
+        data_equipo = {
             "id": fila_telemetria['equipo_id'],
             "nombre_corto": "Pivot Lote A2" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Frontal F22",
             "lote": "Lote A2 - Maíz (156 Ha)" if fila_telemetria['equipo_id'] == "PIVOT-LOTE-A2" else "Cuadro Norte - Soja (210 Ha)",
@@ -209,49 +239,10 @@ def index():
             "caudal": caudal_final,
             "posicion_tramo": f"{fila_telemetria['posicion_actual']}°",
             "ultima_lectura": lectura_humana,
-            "senal": fila_telemetria['rssi'] if "Inactivo" not in lectura_humana else "-- dBm",
+            "senal": fila_telemetria['rssi'] if not inactivo else "-- dBm",
             "lat": fila_telemetria['latitud'],
             "lng": fila_telemetria['longitud']
         }
-    else:
-        data_equipo = {"id": equipo_seleccionado, "nombre_corto": equipo_seleccionado, "lote": "Lote Desconocido", "estado": "DESCONECTADO", "presion": 0.0, "caudal": "0", "posicion_tramo": "0°", "ultima_lectura": "Nunca", "senal": "--", "lat": -25.1794, "lng": -63.8632}
-
-    todos_equipos = {
-        "PIVOT-LOTE-A2": {"nombre_corto": "Pivot Lote A2"},
-        "FRONTAL-F22": {"nombre_corto": "Frontal F22"}
-    }
-    
-    cursor.execute("SELECT * FROM ordenes_trabajo WHERE equipo_id = ? AND estado = 'PENDIENTE'", (equipo_seleccionado,))
-    ots = cursor.fetchall()
-    
-    cursor.execute("SELECT parte, item, motor FROM inventario WHERE cantidad > 0")
-    repuestos = cursor.fetchall()
-    
-    cursor.execute("SELECT * FROM alertas_criticas WHERE activa = 1")
-    alertas_activas = cursor.fetchall()
-    
-    cursor.execute("SELECT SUM(lamina_mm) as mm_tot FROM registro_riego WHERE equipo_id = ?", (equipo_seleccionado,))
-    total_acumulado_mm = cursor.fetchone()['mm_tot'] or 0.0
-    
-    cursor.execute("SELECT fecha, lamina_mm, horas_operadas FROM registro_riego WHERE equipo_id = ? ORDER BY id DESC LIMIT 7", (equipo_seleccionado,))
-    registros_grafico = cursor.fetchall()[::-1]
-    
-    fechas_riego = [r['fecha'] for r in registros_grafico]
-    laminas_riego = [r['lamina_mm'] for r in registros_grafico]
-    horas_riego = [r['horas_operadas'] for r in registros_grafico]
-    
-    conn.close()
-    
-    return render_template('dashboard.html', 
-                           data=data_equipo, 
-                           todos_equipos=todos_equipos, 
-                           ot=ots, 
-                           repuestos=repuestos, 
-                           alertas=alertas_activas,
-                           total_acumulado_mm=round(total_acumulado_mm, 1),
-                           fechas_riego=fechas_riego,
-                           laminas_riego=laminas_riego,
-                           horas_riego=horas_riego)
 
 # --- SECCIÓN: REGISTRO DE RIEGO (CARGA 100% MANUAL) ---
 @app.route('/registrar-riego', methods=['GET', 'POST'])
