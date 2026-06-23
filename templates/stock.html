@@ -3,173 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Taller e Inventario</title>
-    <style>
-        :root {
-            --bg-principal: #0b0f19;
-            --bg-tarjeta: #131c2e;
-            --borde: #233554;
-            --texto-ok: #38bdf8;
-            --verde: #10b981;
-            --amarillo: #f59e0b;
-            --alerta: #ef4444;
-        }
-        body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; }
-        
-        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
-        .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
-        .nav-link.active { color: #fff; background: var(--verde); }
-
-        .grid-stock { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        @media(max-width: 900px) { .grid-stock { grid-template-columns: 1fr; } }
-        
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; }
-        
-        .formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .grupo-campo { display: flex; flex-direction: column; }
-        label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); padding: 8px; color: white; border-radius: 6px; font-size: 14px; }
-        .btn-enviar { background: var(--verde); border: none; color: white; padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
-        .btn-enviar:hover { background: #059669; }
-
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
-        
-        .badge-critico { background: rgba(239, 68, 68, 0.15); color: var(--alerta); padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
-        .badge-ok { background: rgba(16, 185, 129, 0.15); color: var(--verde); padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; }
-        
-        .historial-lista { font-size: 12px; margin: 0; padding: 0; list-style: none; }
-        .historial-item { padding: 8px 0; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
-    </style>
+    <title>Stock - Agro Riego</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
-    <header>
-        <h1>AgroRiego Pro - Gestión de Taller y Pañol</h1>
-        <div style="font-size: 14px; color: #94a3b8;">Encargado: <strong>Marcelo Daniel</strong></div>
-    </header>
-
-    <div class="nav-principal">
-        <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
-        <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Registro de Riego</a>
-        <a href="{{ url_for('stock') }}" class="nav-link active">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
-        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
-    </div>
-
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        {% for message in messages %}
-          <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; margin-bottom: 15px; border-radius: 4px; color: #fff; font-size: 14px;">
-              {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="grid-stock">
-        <div class="tarjeta">
-            <div class="tarjeta-titulo">📦 Inventario de Repuestos y Componentes en Pañol</div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nro Parte / Código</th>
-                            <th>Descripción Item</th>
-                            <th>Compatibilidad Motor</th>
-                            <th>Ubicación Física</th>
-                            <th>Stock Actual</th>
-                            <th>Estado Alerta</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in inventario %}
-                        <tr>
-                            <td><code>{{ item.parte }}</code></td>
-                            <td><strong>{{ item.item }}</strong></td>
-                            <td style="color: var(--texto-ok);">{{ item.motor if item.motor else '-' }}</td>
-                            <td><span style="color: var(--amarillo);">Pasillo: {{ item.pasillo if item.pasillo else '-' }} / Estante: {{ item.estante if item.estante else '-' }}</span></td>
-                            <td style="text-align: center; font-size: 14px; font-weight: bold;">{{ item.cantidad }} u.</td>
-                            <td>
-                                {% if item.cantidad|int <= 1 %}
-                                    <span class="badge-critico">⚠️ STOCK BAJO</span>
-                                {% else %}
-                                    <span class="badge-ok">✓ DISPONIBLE</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agro Riego</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/registrar-riego">Registrar Riego</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/stock">Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/mantenimiento">Mantenimiento</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reportes">Reportes</a></li>
+                </ul>
+                <a href="/logout" class="btn btn-light btn-sm">Cerrar Sesión</a>
             </div>
         </div>
+    </nav>
 
-        <div>
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">➕ Dar de Alta / Modificar Repuesto</div>
-                <form action="{{ url_for('stock') }}" method="POST" class="formulario">
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Número de Parte / Código Único</label>
-                        <input type="text" name="parte" placeholder="Ej: RE-4589" required style="text-transform: uppercase;">
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Nombre del Item</label>
-                        <input type="text" name="item" placeholder="Ej: Retén Caja Reductora" required>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-light">Agregar / Actualizar Insumo</div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label>Código de Parte</label>
+                                <input type="text" name="parte" class="form-control text-uppercase" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Descripción / Ítem</label>
+                                <input type="text" name="item" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Motor / Aplicación</label>
+                                <input type="text" name="motor" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Cantidad</label>
+                                <input type="number" name="cantidad" class="form-control" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Ubicación: Pasillo</label>
+                                <input type="text" name="pasillo" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Ubicación: Estante</label>
+                                <input type="text" name="estante" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Guardar Insumo</button>
+                        </form>
                     </div>
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Asociación de Motor / Equipo</label>
-                        <input type="text" name="motor" placeholder="Ej: Pivot Lindsay / Tr. Central" required>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Ubicación Pasillo</label>
-                        <input type="text" name="pasillo" placeholder="Ej: A" required>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Ubicación Estante</label>
-                        <input type="text" name="estante" placeholder="Ej: 3" required>
-                    </div>
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Cantidad Inicial / Unidades a Sumar</label>
-                        <input type="number" name="cantidad" value="1" min="0" required>
-                    </div>
-                    <button type="submit" class="btn-enviar">Registrar en Catálogo</button>
-                </form>
+                </div>
             </div>
 
-            <div class="tarjeta">
-                <div class="tarjeta-titulo" style="font-size:14px; color:var(--verde);">📥 Últimos Ingresos de Material</div>
-                <ul class="historial-lista">
-                    {% for e in entradas %}
-                        <li class=\"historial-item\">
-                            <span style="color: var(--verde); font-weight: bold;">+{{ e.cantidad }} u.</span> de <strong>{{ e.item }}</strong> - <small>{{ e.destino_origen }} ({{ e.fecha }})</small>
-                        </li>
-                    {% endfor %}
-                    {% if not entradas %}
-                        <li style="color: #64748b; font-size: 12px;">No hay ingresos recientes.</li>
-                    {% endif %}
-                </ul>
-            </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo" style="font-size:14px; color:var(--alerta);">📤 Últimos Egresos de Material</div>
-                <ul class="historial-lista">
-                    {% for s in salidas %}
-                        <li class="historial-item">
-                            <span style="color: var(--alerta); font-weight: bold;">-{{ s.cantidad }} u.</span> de <strong>{{ s.item }}</strong> - <small>{{ s.destino_origen }} ({{ s.fecha }})</small>
-                        </li>
-                    {% endfor %}
-                    {% if not salidas %}
-                        <li style="color: #64748b; font-size: 12px;">No hay egresos recientes.</li>
-                    {% endif %}
-                </ul>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-light">Listado de Stock</div>
+                    <div class="card-body p-0">
+                        {% if inventario %}
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th>Aplicación</th>
+                                    <th>Cantidad</th>
+                                    <th>Ubicación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for art in inventario %}
+                                <tr>
+                                    <td><strong>{{ art.parte }}</strong></td>
+                                    <td>{{ art.item }}</td>
+                                    <td>{{ art.motor or '-' }}</td>
+                                    <td>
+                                        <span class="badge {% if art.cantidad > 5 %}bg-success{% elif art.cantidad > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            {{ art.cantidad }}
+                                        </span>
+                                    </td>
+                                    <td>{{ art.pasillo or '-' }} / {{ art.estante or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="p-3 text-center text-muted">No hay insumos cargados en el stock</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
