@@ -3,140 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Historiales y Auditoría</title>
-    <style>
-        :root { 
-            --bg-principal: #0b0f19; 
-            --bg-tarjeta: #131c2e; 
-            --borde: #233554; 
-            --texto-ok: #38bdf8; 
-            --verde: #10b981; 
-            --amarillo: #f59e0b;
-            --alerta: #ef4444; 
-        }
-        body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; }
-        
-        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
-        .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
-        .nav-link.active { color: #fff; background: var(--verde); }
-
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
-        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-        th { background-color: #0f172a; color: #94a3b8; padding: 12px; border-bottom: 2px solid var(--borde); }
-        td { padding: 12px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
-        
-        .btn-descargar { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--texto-ok); color: var(--texto-ok); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; text-decoration: none; cursor: pointer; }
-        .btn-descargar:hover { background: var(--texto-ok); color: #0b0f19; }
-
-        .badge-vuelta { background: rgba(255, 255, 255, 0.05); color: #fff; padding: 3px 6px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); }
-    </style>
+    <title>Reportes - Agro Riego</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
-    <header>
-        <h1>AgroRiego Pro - Historiales y Auditoría</h1>
-        <div style="font-size: 14px; color: #94a3b8;">Usuario: <strong>Marcelo Daniel</strong></div>
-    </header>
-
-    <div class="nav-principal">
-        <a href="{{ url_for('index', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Panel de Monitoreo</a>
-        <a href="{{ url_for('registrar_riego', equipo='PIVOT-LOTE-A2') }}" class="nav-link">Registro de Riego</a>
-        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
-        <a href="{{ url_for('reportes') }}" class="nav-link active">Reportes e Históricos</a>
-    </div>
-
-    <div class="tarjeta">
-        <div class="tarjeta-titulo">
-            <span>📊 Libro General de Riego (Ciclos y Vueltas Completas)</span>
-            <div style="display: flex; gap: 10px;">
-                <a href="{{ url_for('descargar_datos_ciclo', equipo_id='PIVOT-LOTE-A2') }}" class="btn-descargar">📥 Descargar CSV Pivot A2</a>
-                <a href="{{ url_for('descargar_datos_ciclo', equipo_id='FRONTAL-F22') }}" class="btn-descargar">📥 Descargar CSV Frontal F22</a>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agro Riego</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/registrar-riego">Registrar Riego</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/stock">Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/mantenimiento">Mantenimiento</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/reportes">Reportes</a></li>
+                </ul>
+                <a href="/logout" class="btn btn-light btn-sm">Cerrar Sesión</a>
             </div>
         </div>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID Registro</th>
-                        <th>Equipo / Pivot</th>
-                        <th>Fecha Operación</th>
-                        <th>Nro Vuelta</th>
-                        <th>Lámina Prog.</th>
-                        <th>Lámina Aplicada</th>
-                        <th>Horas Marcha</th>
-                        <th>Duración Giro</th>
-                        <th>Horas Detenido</th>
-                        <th>Presión Bomba</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in riegos %}
-                    <tr>
-                        <td>#{{ r.id }}</td>
-                        <td><strong style="color: var(--texto-ok);">${r.equipo_id if r.equipo_id else r.pivot_id}</strong></td>
-                        <td>{{ r.fecha }}</td>
-                        <td><span class="badge-vuelta">V-{{ r.nro_vuelta if r.nro_vuelta else '-' }}</span></td>
-                        <td>{{ r.lamina_programada }} mm</td>
-                        <td style="color: var(--texto-ok); font-weight: bold;">{{ r.lamina_mm }} mm</td>
-                        <td>{{ r.horas_operadas }} hs</td>
-                        <td style="color: var(--verde); font-weight: bold;">{{ r.duracion_vuelta if r.duracion_vuelta else '-' }} hs</td>
-                        <td style="color: var(--amarillo);">{{ r.horas_parada if r.horas_parada else '0.0' }} hs</td>
-                        <td>{{ r.presion_bar }} Bar</td>
-                    </tr>
-                    {% endfor %}
-                    {% if not riegos %}
-                        <tr><td colspan="10" style="text-align: center; color: #64748b;">No hay registros cargados en el libro histórico.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <span>Historial Completo de Riego</span>
+                <div>
+                    <a href="/descargar-datos-ciclo/PIVOT-LOTE-A2" class="btn btn-sm btn-outline-success">Descargar Pivot A2</a>
+                    <a href="/descargar-datos-ciclo/FRONTAL-F22" class="btn btn-sm btn-outline-success">Descargar Frontal F22</a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if riegos %}
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Equipo</th>
+                            <th>Lámina Programada</th>
+                            <th>Lámina Real</th>
+                            <th>Horas</th>
+                            <th>Presión</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in riegos %}
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.fecha }}</td>
+                            <td>{{ r.equipo_id }}</td>
+                            <td>{{ r.lamina_programada }}</td>
+                            <td>{{ r.lamina_mm }}</td>
+                            <td>{{ r.horas_operadas }}</td>
+                            <td>{{ r.presion_bar or '-' }}</td>
+                            <td>{{ r.estado_operacion or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="p-3 text-center text-muted">No hay registros disponibles para generar reportes</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <div class="tarjeta">
-        <div class="tarjeta-titulo">🔧 Libro de Órdenes Técnicas y Mantenimientos Despachados</div>
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha Cierre</th>
-                        <th>Equipo Asignado</th>
-                        <th>Horas Registro</th>
-                        <th>Tarea Realizada</th>
-                        <th>Responsable</th>
-                        <th>Repuestos Utilizados</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for o in ots %}
-                    <tr>
-                        <td>{{ o.fecha }}</td>
-                        <td><strong>{{ o.equipo_id }}</strong></td>
-                        <td><span style="color: var(--texto-ok);">${o.horas_registro if o.horas_registro else o.horas_actuales} hs</span></td>
-                        <td>{{ o.tarea if o.tarea else o.descripcion_tarea }}</td>
-                        <td style="color: var(--amarillo);">{{ o.responsable if o.responsable else 'Equipo Técnico' }}</td>
-                        <td>
-                            {% if o.repuesto_asociado and 'None' not in o.repuesto_asociado %}
-                                <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 4px 6px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
-                            {% else %}
-                                <span style="color: #64748b; font-size: 12px;">Sin repuestos de stock</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% if not ots %}
-                        <tr><td colspan="6" style="text-align: center; color: #64748b;">No hay órdenes de trabajo registradas o cerradas en el libro.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
