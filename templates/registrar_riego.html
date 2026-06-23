@@ -3,224 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Registro de Riego</title>
-    <style>
-        :root {
-            --bg-principal: #0b0f19;
-            --bg-tarjeta: #131c2e;
-            --borde: #233554;
-            --texto-ok: #38bdf8;
-            --verde: #10b981;
-            --amarillo: #f59e0b;
-            --alerta: #ef4444;
-        }
-        body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; }
-        
-        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
-        .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
-        .nav-link.active { color: #fff; background: var(--verde); }
-
-        .layout-riego { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
-        @media(max-width: 1150px) { .layout-riego { grid-template-columns: 1fr; } }
-
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--borde); padding-bottom: 5px; }
-        
-        .formulario { display: flex; flex-direction: column; gap: 12px; }
-        .grupo-campo { display: flex; flex-direction: column; }
-        label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); padding: 8px; color: white; border-radius: 6px; font-size: 14px; font-family: sans-serif; }
-        input:focus, select:focus, textarea:focus { border-color: var(--texto-ok); outline: none; }
-        
-        .btn-enviar { background: var(--verde); border: none; color: white; padding: 11px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
-        .btn-enviar.finalizar { background: var(--texto-ok); }
-        .btn-enviar:hover { opacity: 0.9; }
-        
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-        th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); font-weight: 600; }
-        td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
-        
-        .alerta-notif { background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); padding: 12px; border-radius: 4px; margin-bottom: 20px; color: #fff; font-size: 14px; }
-        .badge-marcha { background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; border: 1px solid rgba(16, 185, 129, 0.3); }
-        footer { margin-top: 30px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid var(--borde); padding-top: 15px; }
-    </style>
+    <title>Registrar Riego - Agro Riego</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
-    <header>
-        <h1>AgroRiego Pro - Cuaderno de Riego Técnico</h1>
-        <div style="font-size: 14px; color: #94a3b8;">Encargado Operaciones: <strong>Marcelo Daniel</strong></div>
-    </header>
-
-    <div class="nav-principal">
-        <a href="{{ url_for('index') }}" class="nav-link">Panel de Monitoreo</a>
-        <a href="{{ url_for('registrar_riego') }}" class="nav-link active">Registro de Riego</a>
-        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
-        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
-    </div>
-
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        {% for message in messages %}
-          <div class="alerta-notif">✓ {{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="layout-riego">
-        
-        <div>
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">▶ Iniciar Giro / Reportar Arranque</div>
-                <form method="POST" action="{{ url_for('registrar_riego') }}" class="formulario">
-                    <input type="hidden" name="form_accion" value="iniciar">
-                    
-                    <div class="grupo-campo">
-                        <label>Equipo / Cajón (Escritura Libre)</label>
-                        <input type="text" name="equipo_id" placeholder="Ej: A0, A1, B2, Frontal" required>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div class="grupo-campo">
-                            <label>Fecha Inicio</label>
-                            <input type="date" name="fecha_inicio" value="{{ fecha_hoy }}" required>
-                        </div>
-                        <div class="grupo-campo">
-                            <label>Nro Vuelta</label>
-                            <input type="number" name="nro_vuelta" placeholder="Ej: 1" min="1" required>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div class="grupo-campo">
-                            <label>Hs Inicio (Panel)</label>
-                            <input type="number" step="0.1" name="hs_inicio" placeholder="Ej: 47125" required>
-                        </div>
-                        <div class="grupo-campo">
-                            <label>Avance / Vel (%)</label>
-                            <input type="number" name="avance" value="20" required>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-enviar">Asentar Apertura de Riego</button>
-                </form>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agro Riego</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/registrar-riego">Registrar Riego</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/stock">Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/mantenimiento">Mantenimiento</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reportes">Reportes</a></li>
+                </ul>
+                <a href="/logout" class="btn btn-light btn-sm">Cerrar Sesión</a>
             </div>
-
-            {% if activos %}
-            <div class="tarjeta" style="border-color: var(--texto-ok);">
-                <div class="tarjeta-titulo" style="color: var(--texto-ok);">■ Registrar Parada o Fin de Ciclo</div>
-                <form method="POST" action="{{ url_for('registrar_riego') }}" class="formulario">
-                    <input type="hidden" name="form_accion" value="finalizar">
-                    
-                    <div class="grupo-campo">
-                        <label>Seleccionar Equipo en Operación</label>
-                        <select name="registro_id" required>
-                            {% for a in activos %}
-                                <option value="{{ a.id }}">{{ a.equipo_id }} (Inició el {{ a.fecha }} — {{ a.horas_operadas }} hs)</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="grupo-campo">
-                        <label>Fecha Fin (Cierre)</label>
-                        <input type="date" name="fecha_fin" value="{{ fecha_hoy }}" required>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div class="grupo-campo">
-                            <label>Hs Fin (Panel)</label>
-                            <input type="number" step="0.1" name="hs_fin" placeholder="Ej: 47234" required>
-                        </div>
-                        <div class="grupo-campo">
-                            <label>Lámina Real (mm)</label>
-                            <input type="number" step="0.1" name="lamina_mm" placeholder="20.0" required>
-                        </div>
-                    </div>
-
-                    <div class="grupo-campo">
-                        <label>Presión de Trabajo (Bar en Bomba)</label>
-                        <input type="number" step="0.1" name="presion_bar" placeholder="Ej: 4.2" required>
-                    </div>
-
-                    <div class="grupo-campo">
-                        <label>Motivo de Parada / Observación Técnica</label>
-                        <textarea name="observacion" rows="2" placeholder="Ej: Completó vuelta normal / Falla de presión / Corte de luz" required></textarea>
-                    </div>
-
-                    <button type="submit" class="btn-enviar finalizar">Asentar Cierre y Calcular Horas</button>
-                </form>
-            </div>
-            {% endif %}
         </div>
+    </nav>
 
-        <div class="tarjeta">
-            <div class="tarjeta-titulo">📋 Historial de Operaciones Realizadas (Estructura de Auditoría Excel)</div>
-            
-            {% if activos %}
-            <div style="margin-bottom: 20px;">
-                <span style="font-size: 13px; color: var(--amarillo); font-weight: bold;">⚠️ Equipos activos operando actualmente en lotes:</span>
-                <div style="display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap;">
-                    {% for a in activos %}
-                        <span class="badge-marcha">⚙️ {{ a.equipo_id }} (V-{{ a.nro_vuelta if a.nro_vuelta else '-' }}) — Inicial: {{ a.horas_operadas }} hs</span>
-                    {% endfor %}
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row g-4">
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header bg-light">Nuevo Registro de Riego</div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="form_accion" value="guardar">
+                            <div class="mb-3">
+                                <label>Equipo</label>
+                                <select name="equipo_id" class="form-select" required>
+                                    {% for key, eq in equipos.items() %}
+                                    <option value="{{ key }}">{{ eq.nombre_corto }} - {{ eq.lote }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label>Fecha</label>
+                                <input type="date" name="fecha" class="form-control" value="{{ fecha_hoy }}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label>Lámina programada (mm)</label>
+                                <input type="number" step="0.1" name="lamina_programada" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Lámina real aplicada (mm)</label>
+                                <input type="number" step="0.1" name="lamina_mm" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Horas operadas</label>
+                                <input type="number" step="0.1" name="horas_operadas" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Presión de trabajo (Bar)</label>
+                                <input type="number" step="0.1" name="presion_bar" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Estado</label>
+                                <select name="estado_operacion" class="form-select">
+                                    <option value="EN PROCESO" selected>En proceso</option>
+                                    <option value="COMPLETADO">Completado</option>
+                                    <option value="INTERRUMPIDO">Interrumpido</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Guardar Registro</button>
+                        </form>
+                    </div>
                 </div>
             </div>
-            {% endif %}
 
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha Inicio</th>
-                            <th>Equipo/Cajón</th>
-                            <th>Nro Vuelta</th>
-                            <th>Hs Inicio</th>
-                            <th>Fecha Fin</th>
-                            <th>Hs Fin</th>
-                            <th style="color: var(--texto-ok); text-align: center;">Tiempo Recorrido</th>
-                            <th>Lámina (mm)</th>
-                            <th>Presión</th>
-                            <th>Motivo de Parada / Observaciones Técnicas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for h in historial %}
-                        <tr>
-                            <td>{{ h.fecha_inicio }}</td>
-                            <td><strong style="color: #fff;">{{ h.equipo_id }}</strong></td>
-                            <td><span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-weight: bold;">V-{{ h.nro_vuelta if h.nro_vuelta else '-' }}</span></td>
-                            <td>{{ h.hs_inicio }} hs</td>
-                            <td>{{ h.fecha_fin if h.fecha_fin else '-' }}</td>
-                            <td>{{ h.hs_fin if h.hs_fin else '-' }} hs</td>
-                            <td style="color: var(--verde); font-weight: bold; text-align: center; background: rgba(16, 185, 129, 0.05);">
-                                {{ h.tiempo_recorrido if h.tiempo_recorrido else '0' }} hs
-                            </td>
-                            <td><strong>{{ h.lamina }} mm</strong></td>
-                            <td>{{ h.presion_bar if h.presion_bar else '0.0' }} bar</td>
-                            <td style="color: #94a3b8; font-style: italic;">{{ h.observacion }}</td>
-                        </tr>
-                        {% endfor %}
-                        {% if not historial %}
-                            <tr><td colspan="10" style="text-align: center; color: #64748b; padding: 20px;">No hay registros históricos completados todavía en esta campaña.</td></tr>
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <span>Últimos Registros</span>
+                        <span class="badge bg-success">Total acumulado: {{ total_acumulado_mm }} mm</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if riegos %}
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Lámina (mm)</th>
+                                    <th>Horas</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in riegos %}
+                                <tr>
+                                    <td>{{ r.fecha }}</td>
+                                    <td>{{ r.equipo_id }}</td>
+                                    <td>{{ r.lamina_mm }}</td>
+                                    <td>{{ r.horas_operadas }}</td>
+                                    <td>
+                                        {% if r.estado_operacion == 'COMPLETADO' %}
+                                        <span class="badge bg-success">Completado</span>
+                                        {% elif r.estado_operacion == 'EN PROCESO' %}
+                                        <span class="badge bg-warning text-dark">En proceso</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ r.estado_operacion }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="p-3 text-center text-muted">No hay registros cargados todavía</p>
                         {% endif %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div style="margin-top: 15px; font-size: 13px; color: #94a3b8; text-align: right;">
-                Lámina Acumulada Total de la Campaña: <strong style="color: var(--texto-ok); font-size: 15px;">{{ total_acumulado_mm }} mm</strong>
+                    </div>
+                </div>
             </div>
         </div>
-
     </div>
 
-    <footer>
-        AgroRiego Pro v2.5 — Sistema Integrado de Auditoría de Riego y Suelos
-    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
