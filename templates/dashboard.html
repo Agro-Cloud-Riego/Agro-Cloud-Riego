@@ -136,28 +136,36 @@
 
             <div class="tarjeta">
                 <div class="tarjeta-titulo">📡 Datos Dinámicos: {{ data.nombre_corto }} ({{ data.lote }})</div>
-                <div class="grid-telemetria">
-                    <div class="dato-caja">
-                        <label>Estado Motor</label>
-                        {% if 'archa' in data.estado|string or 'MARCHA' in data.estado|string %}
-                            <div id="val-estado" class="dato-valor marcha">🟢 EN MARCHA CON AGUA</div>
-                        {% else %}
-                            <div id="val-estado" class="dato-valor parado">⚪ DETENIDO</div>
-                        {% endif %}
-                    </div>
+                <div class="tarjeta-telemetria">
+    <h3>Estado del Equipo</h3>
+    
+    <div class="dato-principal" style="color: {% if 'APAGADO' in data.estado or 'DETENIDO' in data.estado %}#64748b{% else %}#38bdf8{% endif %};">
+        Estado: <strong>{{ data.estado }}</strong>
+    </div>
 
-                    <div class="dato-caja">
-                        <label>Presión Extremo</label>
-                        {% if data.presion and data.presion|float > 0.5 %}
-                            <div id="val-presion" class="dato-valor" style="color: var(--verde);">
-                                {{ data.presion }} <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>
-                            </div>
-                        {% else %}
-                            <div id="val-presion" class="dato-valor" style="color: #64748b; font-size: 14px; margin-top: 8px;">
-                                0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>
-                            </div>
-                        {% endif %}
-                    </div>
+    <div class="dato-detalle">
+        Presión: 
+        {% if data.presion > 0 %}
+            <span style="color: var(--verde);">{{ data.presion }} bar</span>
+        {% else %}
+            <span style="color: #64748b;">0.0 bar (Equipo en reposo)</span>
+        {% endif %}
+    </div>
+
+    <div class="dato-detalle">
+        Caudal: {{ data.caudal }} L/h
+    </div>
+</div>
+
+{% if data.presion > 0 %}
+    <div class="contenedor-grafico">
+        <canvas id="graficoRiego"></canvas>
+    </div>
+{% else %}
+    <div class="aviso-reposo">
+        <p>Equipo sin presión. Esperando activación para mostrar gráficos de riego.</p>
+    </div>
+{% endif %}
 
                     <div class="dato-caja">
                         <label>Caudalímetro</label>
