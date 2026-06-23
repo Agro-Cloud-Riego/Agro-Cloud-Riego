@@ -12,20 +12,31 @@
             font-family: Arial, sans-serif;
         }
         body {
-            /* Usamos tu imagen desde la carpeta static */
-            background: url("{{ url_for('static', filename='Center-pivot-irrigation.jpg') }}") center/cover no-repeat;
+            /* RUTA EXACTA que tenés en Render */
+            background: url("{{ url_for('static', filename='Center-pivot-irrigation.jpg') }}") center / cover no-repeat fixed;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+        }
+        /* Capa oscura para que se lea bien el texto */
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1;
         }
         .login-card {
+            position: relative;
+            z-index: 2;
             background: #ffffff;
             padding: 35px 30px;
             border-radius: 12px;
             width: 100%;
             max-width: 360px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             text-align: center;
         }
         .logo {
@@ -109,7 +120,7 @@
         <div class="error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST">
+        <form method="POST" action="/login">
             <div class="form-group">
                 <label>USUARIO</label>
                 <input type="text" name="username" required>
