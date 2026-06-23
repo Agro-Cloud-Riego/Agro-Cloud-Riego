@@ -12,7 +12,8 @@
             font-family: Arial, sans-serif;
         }
         body {
-            background: url('https://images.unsplash.com/photo-1586771157563-98880090584f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+            /* Usamos tu imagen desde la carpeta static */
+            background: url("{{ url_for('static', filename='Center-pivot-irrigation.jpg') }}") center/cover no-repeat;
             height: 100vh;
             display: flex;
             align-items: center;
