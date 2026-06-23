@@ -14,7 +14,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "agroriego_secreto_marcelocarabajal")
 DATABASE = 'agroriego_stock.db'
 
-# Usar variables de entorno para usuario y contraseña en producción
+# ✅ TUS DATOS DE ACCESO EXACTOS
 USUARIO_SISTEMA = os.environ.get("APP_USER", "marcelo")
 CLAVE_SISTEMA = os.environ.get("APP_PASS", "agro2026")
 usuarios_sistema = {USUARIO_SISTEMA: CLAVE_SISTEMA}
@@ -341,6 +341,7 @@ def registrar_riego():
 # API PARA MAPA
 # --------------------------
 @app.route('/api/status')
+@login_required
 def api_status():
     equipo_id = request.args.get('equipo', 'PIVOT-LOTE-A2')
     conn = conectar_db()
