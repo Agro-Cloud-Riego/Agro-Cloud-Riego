@@ -3,422 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroRiego Pro - Monitoreo Avanzado</title>
+    <title>Dashboard - Agro Riego</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root {
-            --bg-principal: #0b0f19;
-            --bg-tarjeta: #131c2e;
-            --borde: #233554;
-            --texto-ok: #38bdf8;
-            --verde: #10b981;
-            --amarillo: #f59e0b;
-            --alerta: #ef4444;
-        }
-        body { font-family: sans-serif; background-color: var(--bg-principal); color: #f8fafc; margin: 0; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--borde); padding-bottom: 15px; margin-bottom: 15px; }
-        h1 { margin: 0; font-size: 24px; color: #fff; }
-        
-        .nav-principal { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--borde); padding-bottom: 10px; }
-        .nav-link { color: #94a3b8; text-decoration: none; font-size: 15px; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
-        .nav-link:hover { color: #fff; background: var(--bg-tarjeta); }
-        .nav-link.active { color: #fff; background: var(--verde); }
-
-        .selector-equipos { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-        .btn-equipo { background: var(--bg-tarjeta); border: 1px solid var(--borde); color: #94a3b8; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; }
-        .btn-equipo.activo { border-color: var(--texto-ok); color: #fff; background: rgba(56, 189, 248, 0.1); }
-        
-        .grid-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        @media(max-width: 900px) { .grid-dashboard { grid-template-columns: 1fr; } }
-        
-        .tarjeta { background-color: var(--bg-tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .tarjeta-titulo { font-size: 16px; font-weight: bold; color: #fff; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        
-        .alertas-contenedor { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        .alerta-item { background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--alerta); padding: 12px; border-radius: 0 8px 8px 0; display: flex; justify-content: space-between; align-items: center; }
-        .btn-resolver { background: var(--alerta); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; text-decoration: none; }
-
-        .grid-telemetria { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
-        .dato-caja { background: #0f172a; border: 1px solid var(--borde); padding: 12px; border-radius: 8px; text-align: center; }
-        .dato-valor { font-size: 18px; font-weight: bold; margin-top: 5px; color: var(--texto-ok); overflow: hidden; text-overflow: ellipsis; }
-        .dato-valor.marcha { color: var(--verde); }
-        .dato-valor.desconectado, .dato-valor.parado { color: #64748b; }
-        
-        .formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        @media(max-width: 600px) { .formulario { grid-template-columns: 1fr; } }
-        .grupo-campo { display: flex; flex-direction: column; }
-        label { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
-        input, select, textarea { background: #0f172a; border: 1px solid var(--borde); padding: 10px; color: white; border-radius: 6px; font-size: 14px; }
-        .btn-enviar { background: var(--verde); border: none; color: white; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; grid-column: 1 / -1; margin-top: 5px; }
-        .btn-enviar:hover { background: #059669; }
-        
-        .table-responsive { overflow-x: auto; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background-color: #0f172a; color: #94a3b8; padding: 10px; border-bottom: 2px solid var(--borde); text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid var(--borde); color: #e2e8f0; }
-        .btn-accon { background: var(--texto-ok); color: #0b0f19; border: none; padding: 5px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 12px; }
-        
-        footer { border-top: 1px solid var(--borde); padding-top: 15px; margin-top: 30px; text-align: center; font-size: 12px; color: #64748b; }
+        .estado-card { border-left: 5px solid; }
+        .activo { border-color: #198754; background-color: #f0f9f4; }
+        .apagado { border-color: #6c757d; background-color: #f8f9fa; }
+        .alerta { border-color: #dc3545; background-color: #fdf2f3; }
+        .inactivo { border-color: #ffc107; background-color: #fffbeb; }
+        .mapa-container { height: 250px; background: #e9ecef; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
-
-    <header>
-        <h1>AgroRiego Pro - Telemetría y Operaciones</h1>
-        <div style="font-size: 14px; color: #94a3b8;">
-            Usuario: <strong>Marcelo Daniel</strong> |
-            <a href="{{ url_for('logout') }}" style="color: var(--alerta); text-decoration: none; font-weight: bold;">Cerrar Sesión</a>
-        </div>
-    </header>
-
-    <div class="nav-principal">
-        <a href="{{ url_for('index', equipo=data.id) }}" class="nav-link active">Panel de Monitoreo</a>
-        <a href="{{ url_for('registrar_riego', equipo=data.id) }}" class="nav-link">Registro de Riego</a>
-        <a href="{{ url_for('stock') }}" class="nav-link">Stock e Insumos Operativos</a>
-        <a href="{{ url_for('mantenimiento') }}" class="nav-link">Mantenimiento</a>
-        <a href="{{ url_for('reportes') }}" class="nav-link">Reportes e Históricos</a>
-    </div>
-
-    <div class="selector-equipos">
-        {% for eq_id, eq_info in todos_equipos.items() %}
-            <a href="?equipo={{ eq_id }}" class="btn-equipo {% if eq_id|string == data.id|string %}activo{% endif %}">
-                🛰️ {{ eq_info.nombre_corto }}
-            </a>
-        {% endfor %}
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alerta-item" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--verde); margin-bottom: 15px;">
-              <span style="color: #fff;">{{ message }}</span>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    {% if alertas %}
-    <div class="alertas-contenedor">
-        {% for al in alertas %}
-        <div class="alerta-item">
-            <div>
-                <strong style="color: var(--alerta);">⚠️ REPORTADO ({{ al.equipo_id }}):</strong> 
-                <span style="color: #fff;">{{ al.tipo_falla }}</span> - 
-                <small style="color: #94a3b8;">{{ al.descripcion }} [{{ al.fecha_hora }}]</small>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agro Riego Telemetría</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/registrar-riego">Registrar Riego</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/stock">Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/mantenimiento">Mantenimiento</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reportes">Reportes</a></li>
+                </ul>
+                <a href="/logout" class="btn btn-light btn-sm">Cerrar Sesión</a>
             </div>
-            <a href="{{ url_for('desactivar_alerta', alerta_id=al.id) }}" class="btn-solucionar">
-    Solucionar Alerta
-</a>
-        {% endfor %}
-    </div>
-    {% endif %}
+        </div>
+    </nav>
 
-    <div class="grid-dashboard">
-        <div>
-            <div class="tarjeta" style="padding: 0; overflow: hidden;">
-                <div class="tarjeta-titulo" style="padding: 20px 20px 10px 20px; margin: 0;">
-                    🗺️ Mapa Satelital: {{ data.nombre_corto }} ({{ data.lote }})
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Selección de equipo -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h4>Equipo: {{ data.nombre_corto }}</h4>
+                <p class="text-muted mb-2">{{ data.lote }}</p>
+                <div class="btn-group">
+                    <a href="/?equipo=PIVOT-LOTE-A2" class="btn btn-outline-success btn-sm {% if data.id == 'PIVOT-LOTE-A2' %}active{% endif %}">Pivot Lote A2</a>
+                    <a href="/?equipo=FRONTAL-F22" class="btn btn-outline-success btn-sm {% if data.id == 'FRONTAL-F22' %}active{% endif %}">Frontal F22</a>
                 </div>
-                {% if data.lat and data.lng and data.lat != 0 and data.lat != '0' %}
-                    <div id="mapa-pivot" style="height: 320px; width: 100%; background: #0f172a;"></div>
-                    <div style="padding: 10px 20px; font-size: 13px; color: var(--texto-ok); background: #0f172a; border-top: 1px solid var(--borde);">
-                        📍 Ubicación GPS Confirmada: Lat: <strong>{{ data.lat }}</strong> | Lon: <strong>{{ data.lng }}</strong>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalAlerta">
+                    <i class="bi bi-exclamation-triangle"></i> Reportar Falla
+                </button>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearOT">
+                    <i class="bi bi-clipboard-plus"></i> Nueva Orden de Trabajo
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjetas de estado -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card estado-card {% if 'MARCHA' in data.estado %}activo{% elif 'APAGADO' in data.estado %}apagado{% elif 'FALLA' in data.estado %}alerta{% else %}inactivo{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title">Estado</h5>
+                        <p class="fs-4 fw-bold mb-0">{{ data.estado }}</p>
                     </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card estado-card activo">
+                    <div class="card-body">
+                        <h5 class="card-title">Presión</h5>
+                        <p class="fs-4 fw-bold mb-0">{{ data.presion }} Bar</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card estado-card activo">
+                    <div class="card-body">
+                        <h5 class="card-title">Caudal</h5>
+                        <p class="fs-4 fw-bold mb-0">{{ data.caudal }} L/h</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card estado-card activo">
+                    <div class="card-body">
+                        <h5 class="card-title">Posición</h5>
+                        <p class="fs-4 fw-bold mb-0">{{ data.posicion_tramo }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header bg-light">Información de Comunicación</div>
+                    <div class="card-body">
+                        <p><strong>Última lectura:</strong> {{ data.ultima_lectura }}</p>
+                        <p><strong>Señal LoRa:</strong> {{ data.senal }}</p>
+                        <p><strong>Lámina acumulada:</strong> {{ total_acumulado_mm }} mm</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header bg-light">Mapa de Ubicación</div>
+                    <div class="card-body mapa-container">
+                        <span class="text-muted">Coordenadas: {{ data.lat }}, {{ data.lng }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de riego -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">Historial de Riego (últimos 7 días)</div>
+            <div class="card-body">
+                <canvas id="graficoRiego" height="120"></canvas>
+            </div>
+        </div>
+
+        <!-- Alertas activas -->
+        <div class="card">
+            <div class="card-header bg-danger text-white">Alertas Activas</div>
+            <div class="card-body p-0">
+                {% if alertas %}
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Equipo</th>
+                            <th>Tipo de Falla</th>
+                            <th>Descripción</th>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alerta in alertas %}
+                        <tr>
+                            <td>{{ alerta.equipo_id }}</td>
+                            <td>{{ alerta.tipo_falla }}</td>
+                            <td>{{ alerta.descripcion or '-' }}</td>
+                            <td>{{ alerta.fecha_hora }}</td>
+                            <td>
+                                <a href="/desactivar-alerta/{{ alerta.id }}" class="btn btn-sm btn-outline-success">Marcar Solucionada</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 {% else %}
-                    <div style="height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #0f172a; color: var(--amarillo); text-align: center; padding: 20px;">
-                        <span style="font-size: 30px; margin-bottom: 10px;">🛰️</span>
-                        <strong>Buscando señal GPS...</strong>
-                        <p style="font-size: 12px; color: #64748b; margin: 5px 0 0 0;">El equipo no se encuentra en la ubicación o el módulo satelital no reportó coordenadas todavía.</p>
-                    </div>
+                <p class="p-3 text-center text-muted">No hay alertas activas en este momento ✅</p>
                 {% endif %}
             </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">📡 Datos Dinámicos: {{ data.nombre_corto }} ({{ data.lote }})</div>
-                <div class="tarjeta-telemetria">
-    <h3>Estado del Equipo</h3>
-    
-    <div class="dato-principal" style="color: {% if 'APAGADO' in data.estado or 'DETENIDO' in data.estado %}#64748b{% else %}#38bdf8{% endif %};">
-        Estado: <strong>{{ data.estado }}</strong>
-    </div>
-
-    <div class="dato-detalle">
-        Presión: 
-        {% if data.presion > 0 %}
-            <span style="color: var(--verde);">{{ data.presion }} bar</span>
-        {% else %}
-            <span style="color: #64748b;">0.0 bar (Equipo en reposo)</span>
-        {% endif %}
-    </div>
-
-    <div class="dato-detalle">
-        Caudal: {{ data.caudal }} L/h
-    </div>
-</div>
-
-{% if data.presion > 0 %}
-    <div class="contenedor-grafico">
-        <canvas id="graficoRiego"></canvas>
-    </div>
-{% else %}
-    <div class="aviso-reposo">
-        <p>Equipo sin presión. Esperando activación para mostrar gráficos de riego.</p>
-    </div>
-{% endif %}
-
-                    <div class="dato-caja">
-                        <label>Caudalímetro</label>
-                        <div id="val-caudal" class="dato-valor">{{ data.caudal }}</div>
-                    </div>
-                    <div class="dato-caja">
-                        <label>Posición Angular</label>
-                        <div id="val-angulo" class="dato-valor" style="color: var(--verde);">{{ data.posicion_tramo }}</div>
-                    </div>
-                </div>
-                
-                <p style="margin: 15px 0 0 0; font-size: 11px; color: #64748b; text-align: right;">
-                    Último reporte LoRa: 
-                    <strong id="val-lectura">
-                        {% if "Inactivo" in data.ultima_lectura or "-" not in data.ultima_lectura %}
-                            {{ data.ultima_lectura }}
-                        {% else %}
-                            {% set partes_fecha = data.ultima_lectura.split(' ') %}
-                            {% set fecha_iso = partes_fecha[0].split('-') %}
-                            Fecha {{ fecha_iso[2] }}/{{ fecha_iso[1] }}/{{ fecha_iso[0] }} Hora {{ partes_fecha[1][:5] }}
-                        {% endif %}
-                    </strong> 
-                    | Señal: <span id="val-senal">{{ data.senal }}</span> | 
-                    <a href="{{ url_for('descargar_datos_ciclo', equipo_id=data.id) }}" style="color: var(--texto-ok); margin-left: 10px; font-weight: bold; text-decoration: none;">📥 Descargar Ciclo CSV</a>
-                </p>
-            </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">📊 Evolución de Riego Reciente</div>
-                <div style="background: #0f172a; border-radius: 8px; padding: 10px;">
-                    <canvas id="graficoRiego" style="max-height: 260px;"></canvas>
-                </div>
-            </div>
-
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">🛠️ Órdenes de Trabajo Pendientes</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nro</th>
-                                <th>Fecha</th>
-                                <th>Tarea a Realizar</th>
-                                <th>Responsable Técnico</th>
-                                <th>Prioridad</th>
-                                <th>Insumo Comprometido</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for o in ot %}
-                            <tr>
-                                <td>#{{ o.id }}</td>
-                                <td>{{ o.fecha }}</td>
-                                <td><strong>{{ o.tarea }}</strong></td>
-                                <td>{{ o.responsable }}</td>
-                                <td><span style="color: {% if o.prioridad == 'CRITICA' or o.prioridad == 'ALTA' %}var(--alerta){% else %}var(--amarillo){% endif %}; font-weight: bold;">{{ o.prioridad }}</span></td>
-                                <td>
-                                    {% if o.repuesto_asociado %}
-                                        <code style="background: rgba(56, 189, 248, 0.1); color: var(--texto-ok); padding: 2px 4px; border-radius: 4px;">{{ o.repuesto_asociado }}</code>
-                                    {% else %}
-                                        <span style="color: #64748b;">Ninguno</span>
-                                    {% endif %}
-                                </td>
-                                <td><a href="{{ url_for('finalizar_ot', ot_id=o.id) }}" class="btn-accon">✓ Despachar</a></td>
-                            </tr>
-                            {% endfor %}
-                            {% if not ot %}
-                                <tr><td colspan="7" style="text-align: center; color: #64748b;">No hay OTs pendientes asignadas a este equipo.</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div>
-            <div class="tarjeta">
-                <div class="tarjeta-titulo">&nbsp;👨‍🔧 Levantar Orden de Trabajo (OT)</div>
-                <form method="POST" action="{{ url_for('crear_ot') }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
-                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                    
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Descripción del Problema Técnico</label>
-                        <textarea name="tarea" rows="2" placeholder="Ej: Ajuste de micro en torre de alineación o cambio de tramo eléctrico" required></textarea>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Asignar Técnico</label>
-                        <select name="responsable">
-                            <option value="Electricista">Electricista</option>
-                            <option value="Técnico Preventista 1">Técnico Preventista 1</option>
-                            <option value="Técnico Preventista 2">Técnico Preventista 2</option>
-                            <option value="Especialista Mecánico (Cajas)">Especialista Mecánico (Cajas)</option>
-                            <option value="Especialista Mecánico (Bombas)">Especialista Mecánico (Bombas)</option>
-                        </select>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Prioridad</label>
-                        <select name="prioridad">
-                            <option value="NORMAL">Normal / Programado</option>
-                            <option value="ALTA">Alta / Urgente</option>
-                            <option value="CRITICA">Crítica / Equipo Parado</option>
-                        </select>
-                    </div>
-                    <div class="grupo-campo" style="grid-column: 1 / -1;">
-                        <label>Vincular Repuesto de Stock (Opcional)</label>
-                        <select name="repuesto_asociado">
-                            <option value="">-- No requiere o no está en stock --</option>
-                            {% for rep in repuestos %}
-                                <option value="{{ rep.parte }}">{{ rep.item }} [Cod: {{ rep.parte }}] - {{ rep.motor }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn-enviar" style="background: var(--texto-ok); color: #0b0f19;">Lanzar Orden Técnica</button>
-                </form>
-            </div>
-
-            <div class="tarjeta" style="border-color: rgba(239, 68, 68, 0.4);">
-                <div class="tarjeta-titulo" style="color: var(--alerta);">⚠️ Reportar Rotura o Detención</div>
-                <form method="POST" action="{{ url_for('index', equipo=data.id) }}" class="formulario" style="grid-template-columns: 1fr 1fr;">
-                    <input type="hidden" name="form_tipo" value="nueva_alerta">
-                    <input type="hidden" name="equipo_id" value="{{ data.id }}">
-                    
-                    <div class="grupo-campo">
-                        <label>Tipo de Falla</label>
-                        <select name="tipo_falla">
-                            <option value="Falta de Presión (Cañería)">Falta de Presión (Cañería)</option>
-                            <option value="Desalineación Mecánica">Desalineación Mecánica</option>
-                            <option value="Corte Eléctrico (Tramo)">Corte Eléctrico (Tramo)</option>
-                            <option value="Problema en Grupo Electrógeno/Motor">Problema en Grupo Electrógeno/Motor</option>
-                            <option value="Alerta de Presión Inalámbrica LoRa">Alerta de Presión Inalámbrica LoRa</option>
-                        </select>
-                    </div>
-                    <div class="grupo-campo">
-                        <label>Detalle Adicional / Síntomas</label>
-                        <input type="text" name="descripcion" placeholder="Ej: Pérdida física en codo de entrada o motor recalentado" required>
-                    </div>
-                    <button type="submit" class="btn-enviar" style="background: var(--alerta);">Emitir Alerta Crítica</button>
-                </form>
-            </div>
         </div>
     </div>
 
-    <footer>
-        AgroRiego Pro v2.4 — Sistema de Telemetría LoRa e Infraestructura de Riego Industrial
-    </footer>
+    <!-- Modal Nueva Alerta -->
+    <div class="modal fade" id="modalAlerta" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" action="/">
+                <input type="hidden" name="form_tipo" value="nueva_alerta">
+                <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Reportar Falla</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Tipo de falla</label>
+                            <select name="tipo_falla" class="form-select" required>
+                                <option value="Sin presión">Sin presión</option>
+                                <option value="Motor no arranca">Motor no arranca</option>
+                                <option value="Fuga de agua">Fuga de agua</option>
+                                <option value="Problema eléctrico">Problema eléctrico</option>
+                                <option value="Otros">Otros</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Descripción detallada</label>
+                            <textarea name="descripcion" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Enviar Alerta</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var equipoId = "{{ data.id }}";
-            var latInicial = parseFloat("{{ data.lat }}");
-            var lngInicial = parseFloat("{{ data.lng }}");
-            
-            if (!isNaN(latInicial) && !isNaN(lngInicial) && latInicial !== 0) {
-                var map = L.map('mapa-pivot').setView([latInicial, lngInicial], 14);
-                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-                    maxZoom: 20,
-                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                    attribution: 'Mapas &copy; Google Satelital'
-                }).addTo(map);
-                var marcador = L.marker([latInicial, lngInicial]).addTo(map);
-                marcador.bindPopup("<b>{{ data.nombre_corto }}</b><br>Rastreando señal LoRa...").openPopup();
-                var circuloPivot = L.circle([latInicial, lngInicial], {
-                    color: '#38bdf8',
-                    fillColor: '#38bdf8',
-                    fillOpacity: 0.12,
-                    radius: equipoId === "PIVOT-LOTE-A2" ? 700 : 500
-                }).addTo(map);
-                setTimeout(function() {
-                    map.invalidateSize();
-                }, 400);
-            }
+    <!-- Modal Nueva Orden de Trabajo -->
+    <div class="modal fade" id="modalCrearOT" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" action="/crear-ot">
+                <input type="hidden" name="equipo_id" value="{{ data.id }}">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Nueva Orden de Trabajo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Tarea a realizar</label>
+                            <input type="text" name="tarea" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Responsable</label>
+                            <input type="text" name="responsable" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Prioridad</label>
+                            <select name="prioridad" class="form-select">
+                                <option value="BAJA">Baja</option>
+                                <option value="MEDIA" selected>Media</option>
+                                <option value="ALTA">Alta</option>
+                                <option value="URGENTE">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Repuesto asociado (código)</label>
+                            <input type="text" name="repuesto_asociado" class="form-control" placeholder="Ej: BOM-001">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Crear Orden</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-            function actualizarTelemetria() {
-                fetch('/api/status?equipo=' + equipoId)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data) {
-                            var divEstado = document.getElementById('val-estado');
-                            if(data.estado && data.estado.toLowerCase().includes('archa')) {
-                                divEstado.innerText = "🟢 EN MARCHA CON AGUA";
-                                divEstado.className = "dato-valor marcha";
-                            } else {
-                                divEstado.innerText = "⚪ DETENIDO";
-                                divEstado.className = "dato-valor parado";
-                            }
-                            
-                            var divPresion = document.getElementById('val-presion');
-                            var pVal = parseFloat(data.presion);
-                            if (!isNaN(pVal) && pVal > 0.5) {
-                                divPresion.innerHTML = pVal + ' <span style="font-size: 11px; display: block; font-weight: normal; color: #e2e8f0;">EQUIPO BAJO PRESIÓN</span>';
-                                divPresion.style.color = "var(--verde)";
-                            } else {
-                                divPresion.innerHTML = '0.0 Bar <span style="font-size: 10px; display: block; font-weight: normal; color: #64748b;">SIN PRESIÓN</span>';
-                                divPresion.style.color = "#64748b";
-                            }
-
-                            if (data.latitud && data.longitud && parseFloat(data.latitud) !== 0 && map && marcador) {
-                                var nuevaLat = parseFloat(data.latitud);
-                                var nuevaLng = parseFloat(data.longitud);
-                                marcador.setLatLng([nuevaLat, nuevaLng]);
-                                circuloPivot.setLatLng([nuevaLat, nuevaLng]);
-                                marcador.getPopup().setContent("<b>" + data.equipo_id + "</b><br>Presión Extremo: " + data.presion).update();
-                            }
-                            
-                            document.getElementById('val-caudal').innerText = data.caudal;
-                            document.getElementById('val-angulo').innerText = data.posicion_angular;
-                            
-                            // Formateo dinámico tamén por JS para as actualizacións en vivo en segundo plano
-                            var containerLectura = document.getElementById('val-lectura');
-                            if (data.actualizacion.includes("Inactivo") || !data.actualizacion.includes("-")) {
-                                containerLectura.innerText = data.actualizacion;
-                            } else {
-                                var partes = data.actualizacion.split(' ');
-                                var f = partes[0].split('-');
-                                containerLectura.innerText = "Fecha " + f[2] + "/" + f[1] + "/" + f[0] + " Hora " + partes[1].substring(0, 5);
-                            }
-                            
-                            document.getElementById('val-senal').innerText = data.rssi;
-                        }
-                    })
-                    .catch(err => console.log("Buscando actualización de señal LoRa..."));
-            }
-
-            // Correxido o nome da función do intervalo (tiña unha errata na "t")
-            setInterval(actualizarTelemetria, 5000);
-        });
-    </script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const ctx = document.getElementById('graficoRiego').getContext('2d');
-        const fechas = {{ fechas_riego | tojson | safe }};
-        const laminas = {{ laminas_riego | tojson | safe }};
-        const horas = {{ horas_riego | tojson | safe }};
         new Chart(ctx, {
-            type: 'bar',
+            type: 'line',
             data: {
-                labels: fechas,
+                labels: {{ fechas_riego | tojson }},
                 datasets: [
-                    { label: 'Lámina Aplicada (mm)', data: laminas, backgroundColor: '#38bdf8', yAxisID: 'y', borderRadius: 4 },
-                    { label: 'Horas Operadas', data: horas, type: 'line', borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', fill: false, yAxisID: 'y1' }
+                    {
+                        label: 'Lámina aplicada (mm)',
+                        data: {{ laminas_riego | tojson }},
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'Horas operadas',
+                        data: {{ horas_riego | tojson }},
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }
                 ]
             },
-            options: {
-                responsive: true,
-                scales: {
-                    x: { grid: { color: '#233554' }, ticks: { color: '#94a3b8' } },
-                    y: { type: 'linear', position: 'left', grid: { color: '#233554' }, ticks: { color: '#38bdf8' }, title: { display: true, text: 'Milímetros (mm)', color: '#38bdf8' } },
-                    y1: { type: 'linear', position: 'right', grid: { display: false }, ticks: { color: '#10b981' }, title: { display: true, text: 'Horas de Marcha (hs)', color: '#10b981' } }
-                },
-                plugins: { legend: { labels: { color: '#fff' } } }
-            }
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
         });
     </script>
 </body>
