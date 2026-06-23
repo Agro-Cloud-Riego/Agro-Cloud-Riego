@@ -1,9 +1,8 @@
-Flask==3.0.0
+Flask==3.0.3
 Flask-Login==0.6.3
-Werkzeug==3.0.1
-gunicorn==21.2.0
-# Versión que funciona bien en Render + dependencias necesarias
-pandas==2.1.4
+Werkzeug==3.0.4
+gunicorn==22.0.0
 numpy==1.26.4
+pandas==2.2.2
 python-dateutil==2.9.0.post0
-pytz==2024.1
+pytz==2024.2
